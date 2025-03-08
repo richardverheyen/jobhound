@@ -1,9 +1,23 @@
 import { google } from "@ai-sdk/google";
-import { streamText } from "ai";
+import { streamObject } from "ai";
 import { createClient } from "../../../../supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
 export const runtime = "edge";
+
+// Define a schema for the ATS analysis response
+const atsSchema = z.object({
+  overallMatch: z.string(),
+  hardSkills: z.string(),
+  softSkills: z.string(),
+  experienceMatch: z.string(),
+  qualifications: z.string(),
+  missingKeywords: z.string(),
+  matchScore: z.number().min(0).max(100),
+});
+
+type ATSResponse = z.infer<typeof atsSchema>;
 
 export async function POST(req: NextRequest) {
   try {
@@ -65,26 +79,64 @@ export async function POST(req: NextRequest) {
     const scanId = crypto.randomUUID();
     const timestamp = new Date().toISOString();
 
-    // Create the stream
-    const result = streamText({
+    // Decrement the user's API call count
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({
+        credits: (credits - 1).toString(),
+        updated_at: timestamp,
+      })
+      .eq("id", userData.id);
+
+    if (updateError) {
+      console.error("Error updating user credits:", updateError);
+      // Continue with the analysis even if updating credits fails
+    }
+
+    // Store the job posting and create a scan record
+    const { error: scanError } = await supabase.from("job_scans").insert({
+      id: scanId,
+      user_id: userData.user_id,
+      job_posting: formattedJobPosting,
+      resume_filename: resumeFile.name,
+      created_at: timestamp,
+      status: "processing",
+    });
+
+    if (scanError) {
+      console.error("Error creating scan record:", scanError);
+    }
+
+    // Log the API usage
+    if (!scanError) {
+      const { error: logError } = await supabase.from("api_usage").insert({
+        user_id: userData.user_id,
+        timestamp: timestamp,
+        endpoint: "/api/analyze",
+        status: "success",
+        scan_id: scanId,
+      });
+
+      if (logError) {
+        console.error("Error logging API usage:", logError);
+      }
+    }
+
+    // Create the stream with schema validation
+    const result = streamObject({
       model: google("gemini-1.5-pro-latest"),
       messages: [
         {
           role: "system",
           content: `You are an ATS analyzer focused on providing concise, actionable feedback. Compare the resume to the job posting and provide scores and brief insights for key areas. Keep all analysis short and mobile-friendly - each section should be 1-2 sentences maximum. Focus on the most important matches and gaps.
 
-Your response should be in JSON format with the following structure:
-{
-  "overallMatch": "Brief assessment of overall match with a percentage score",
-  "hardSkills": "Assessment of technical skills match",
-  "softSkills": "Assessment of soft skills match",
-  "experienceMatch": "Assessment of experience level match",
-  "qualifications": "Assessment of must-have qualifications",
-  "missingKeywords": "List of key missing keywords or skills",
-  "matchScore": 75 // A number from 0-100 representing the overall match percentage
-}
-
-Make sure to provide specific, actionable feedback in each section.`,
+Key points to analyze:
+- Overall match and key takeaways
+- Essential hard skills (technical skills, tools)
+- Critical soft skills
+- Experience level match
+- Must-have qualifications
+- Key missing keywords`,
         },
         {
           role: "user",
@@ -101,150 +153,52 @@ Make sure to provide specific, actionable feedback in each section.`,
           ],
         },
       ],
+      schema: atsSchema,
+      output: "object",
       temperature: 0.3,
-    });
+      onFinish: async ({ object }) => {
+        console.log("Analysis completed for scan:", scanId);
+        console.log("Final object:", object);
 
-    // Decrement the user's API call count
-    const { error: updateError } = await supabase
-      .from("users")
-      .update({
-        credits: (credits - 1).toString(),
-        updated_at: timestamp,
-      })
-      .eq("id", userData.id);
-
-    if (updateError) {
-      console.error("Error updating user credits:", updateError);
-      // Continue with the analysis even if updating credits fails
-    }
-
-    // Store the job posting and create a scan record using service role to bypass RLS
-    const { error: scanError } = await supabase.from("job_scans").insert({
-      id: scanId,
-      user_id: userData.user_id,
-      job_posting: formattedJobPosting,
-      resume_filename: resumeFile.name,
-      created_at: timestamp,
-      status: "processing",
-    });
-
-    if (scanError) {
-      console.error("Error creating scan record:", scanError);
-    }
-
-    // Log the API usage after ensuring the scan record exists
-    if (!scanError) {
-      const { error: logError } = await supabase.from("api_usage").insert({
-        user_id: userData.user_id,
-        timestamp: timestamp,
-        endpoint: "/api/analyze",
-        status: "success",
-        scan_id: scanId,
-      });
-
-      if (logError) {
-        console.error("Error logging API usage:", logError);
-      }
-    }
-
-    // Set up response interception to capture the full response
-    let fullResponse = "";
-    const originalResponse = await result.toTextStreamResponse();
-    const { readable, writable } = new TransformStream();
-    const writer = writable.getWriter();
-    const reader = originalResponse.body?.getReader();
-    const decoder = new TextDecoder();
-
-    if (!reader) {
-      throw new Error("Failed to get stream reader");
-    }
-
-    // Create a promise that will resolve when the stream processing is complete
-    const processStreamPromise = new Promise<void>(async (resolve, reject) => {
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          fullResponse += chunk;
-
-          // Forward the chunk to the client
-          await writer.write(value);
-        }
-
-        // Close the writer when done
-        await writer.close();
-
-        // Try to parse the response as JSON and store it
         try {
-          // Make sure we have valid JSON by checking for curly braces
-          if (
-            fullResponse.trim().startsWith("{") &&
-            fullResponse.trim().endsWith("}")
-          ) {
-            const jsonResponse = JSON.parse(fullResponse);
+          // Validate the response against our schema
+          const validatedResponse = atsSchema.parse(object);
 
-            // Update the scan record with the results
-            await supabase
-              .from("job_scans")
-              .update({
-                results: jsonResponse,
-                status: "completed",
-                match_score: jsonResponse.matchScore || 0,
-              })
-              .eq("id", scanId);
-          } else {
-            throw new Error("Response is not valid JSON");
-          }
-        } catch (error) {
-          console.error("Error parsing AI response as JSON:", error);
-
-          // Store the raw text if JSON parsing fails
+          // Update the scan record with the results
           await supabase
             .from("job_scans")
             .update({
-              results: { raw_text: fullResponse },
+              results: validatedResponse,
               status: "completed",
+              match_score: validatedResponse.matchScore,
+            })
+            .eq("id", scanId);
+        } catch (error) {
+          console.error("Schema validation error:", error);
+          await supabase
+            .from("job_scans")
+            .update({
+              status: "error",
+              error_message: "Failed to validate analysis results",
             })
             .eq("id", scanId);
         }
-        resolve();
-      } catch (error) {
-        console.error("Error processing stream:", error);
-        await supabase
-          .from("job_scans")
-          .update({
-            status: "error",
-            error_message:
-              error instanceof Error
-                ? error.message
-                : "Unknown error processing stream",
-          })
-          .eq("id", scanId);
-
-        // Make sure to close the writer even if there's an error
-        await writer.close();
-        reject(error);
-      }
+      },
     });
 
-    // Create a new Headers object for our response
+    // Create headers for the response
     const headers = new Headers();
     headers.set("Content-Type", "text/plain; charset=utf-8");
     headers.set("Transfer-Encoding", "chunked");
-    headers.set("x-scan-id", scanId); // Add the scan ID to headers so client can track it
+    headers.set("x-scan-id", scanId);
 
-    // Return the readable stream immediately while processing continues
-    const response = new Response(readable, {
+    // Convert the object stream to a text stream response
+    const streamResponse = await result.toTextStreamResponse();
+
+    // Copy the response with our custom headers
+    return new Response(streamResponse.body, {
       headers,
     });
-
-    // Attach the processing promise to the response object
-    // This allows the runtime to wait for processing to complete if needed
-    (response as any).waitUntil?.(processStreamPromise);
-
-    return response;
   } catch (error) {
     console.error("Error processing request:", error);
     return NextResponse.json(
