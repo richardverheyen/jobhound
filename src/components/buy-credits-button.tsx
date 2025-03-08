@@ -31,24 +31,15 @@ export default function BuyCreditsButton({
   const handleBuyCredits = async () => {
     setIsLoading(true);
     try {
-      // First, get or create a credits product and price
-      const { data: productData, error: productError } =
-        await supabase.functions.invoke("create-credits-product");
-
-      if (productError) {
-        throw productError;
-      }
-
-      if (!productData?.priceId) {
-        throw new Error("Failed to get price ID for credits");
-      }
+      // Use the existing credits price
+      const priceId = "price_1R0KqSPPpRvSAmmeOyHZDu3g"; // 10 credits for $10 USD
 
       // Create a one-time payment checkout session
       const { data, error } = await supabase.functions.invoke(
         "create-checkout",
         {
           body: {
-            price_id: productData.priceId,
+            price_id: priceId,
             user_id: userId,
             return_url: `${window.location.origin}/dashboard`,
             mode: "payment", // One-time payment instead of subscription
