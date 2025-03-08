@@ -21,6 +21,18 @@ type ATSResponse = z.infer<typeof atsSchema>;
 
 export async function POST(req: NextRequest) {
   try {
+    // Check for Google API key
+    const googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!googleApiKey) {
+      console.error(
+        "Missing GOOGLE_GENERATIVE_AI_API_KEY environment variable"
+      );
+      return NextResponse.json(
+        { error: "Server configuration error: Missing AI API key" },
+        { status: 500 }
+      );
+    }
+
     // Get the user's API key from the request headers
     const apiKey = req.headers.get("x-api-key");
     if (!apiKey) {
@@ -122,13 +134,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Create the stream with schema validation
-    const result = streamObject({
-      model: google("gemini-1.5-pro-latest"),
-      messages: [
-        {
-          role: "system",
-          content: `You are an ATS analyzer focused on providing concise, actionable feedback. Compare the resume to the job posting and provide scores and brief insights for key areas. Keep all analysis short and mobile-friendly - each section should be 1-2 sentences maximum. Focus on the most important matches and gaps.
+    try {
+      // Create the stream with schema validation
+      const result = streamObject({
+        model: google("gemini-1.5-pro-latest"),
+        messages: [
+          {
+            role: "system",
+            content: `You are an ATS analyzer focused on providing concise, actionable feedback. Compare the resume to the job posting and provide scores and brief insights for key areas. Keep all analysis short and mobile-friendly - each section should be 1-2 sentences maximum. Focus on the most important matches and gaps.
 
 Key points to analyze:
 - Overall match and key takeaways
@@ -137,73 +150,95 @@ Key points to analyze:
 - Experience level match
 - Must-have qualifications
 - Key missing keywords`,
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Analyze this resume against the following job posting:\n${formattedJobPosting}`,
+              },
+              {
+                type: "file",
+                data: resumePDF,
+                mimeType: "application/pdf",
+              },
+            ],
+          },
+        ],
+        schema: atsSchema,
+        output: "object",
+        temperature: 0.3,
+        onFinish: async ({ object }) => {
+          console.log("Analysis completed for scan:", scanId);
+          console.log("Final object:", object);
+
+          try {
+            // Validate the response against our schema
+            const validatedResponse = atsSchema.parse(object);
+
+            // Update the scan record with the results
+            await supabase
+              .from("job_scans")
+              .update({
+                results: validatedResponse,
+                status: "completed",
+                match_score: validatedResponse.matchScore,
+              })
+              .eq("id", scanId);
+          } catch (error) {
+            console.error("Schema validation error:", error);
+            await supabase
+              .from("job_scans")
+              .update({
+                status: "error",
+                error_message: "Failed to validate analysis results",
+              })
+              .eq("id", scanId);
+          }
         },
+      });
+
+      // Create headers for the response
+      const headers = new Headers();
+      headers.set("Content-Type", "text/plain; charset=utf-8");
+      headers.set("Transfer-Encoding", "chunked");
+      headers.set("x-scan-id", scanId);
+
+      // Convert the object stream to a text stream response
+      const streamResponse = await result.toTextStreamResponse();
+
+      // Copy the response with our custom headers
+      return new Response(streamResponse.body, {
+        headers,
+      });
+    } catch (aiError: any) {
+      console.error("AI processing error:", aiError);
+
+      // Update the scan record with the error
+      await supabase
+        .from("job_scans")
+        .update({
+          status: "error",
+          error_message: aiError?.message || "Error processing with AI model",
+        })
+        .eq("id", scanId);
+
+      // Return a more specific error to the client
+      return NextResponse.json(
         {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: `Analyze this resume against the following job posting:\n${formattedJobPosting}`,
-            },
-            {
-              type: "file",
-              data: resumePDF,
-              mimeType: "application/pdf",
-            },
-          ],
+          error: "Failed to process with AI model. Please try again.",
+          details: aiError?.message,
         },
-      ],
-      schema: atsSchema,
-      output: "object",
-      temperature: 0.3,
-      onFinish: async ({ object }) => {
-        console.log("Analysis completed for scan:", scanId);
-        console.log("Final object:", object);
-
-        try {
-          // Validate the response against our schema
-          const validatedResponse = atsSchema.parse(object);
-
-          // Update the scan record with the results
-          await supabase
-            .from("job_scans")
-            .update({
-              results: validatedResponse,
-              status: "completed",
-              match_score: validatedResponse.matchScore,
-            })
-            .eq("id", scanId);
-        } catch (error) {
-          console.error("Schema validation error:", error);
-          await supabase
-            .from("job_scans")
-            .update({
-              status: "error",
-              error_message: "Failed to validate analysis results",
-            })
-            .eq("id", scanId);
-        }
-      },
-    });
-
-    // Create headers for the response
-    const headers = new Headers();
-    headers.set("Content-Type", "text/plain; charset=utf-8");
-    headers.set("Transfer-Encoding", "chunked");
-    headers.set("x-scan-id", scanId);
-
-    // Convert the object stream to a text stream response
-    const streamResponse = await result.toTextStreamResponse();
-
-    // Copy the response with our custom headers
-    return new Response(streamResponse.body, {
-      headers,
-    });
-  } catch (error) {
+        { status: 500 }
+      );
+    }
+  } catch (error: any) {
     console.error("Error processing request:", error);
     return NextResponse.json(
       {
         error: "An error occurred while processing your request",
+        details: error?.message,
       },
       { status: 500 }
     );
