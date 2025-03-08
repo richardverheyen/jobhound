@@ -103,35 +103,16 @@ export default function AnalyzeForm({ credits, apiKey }: AnalyzeFormProps) {
         throw new Error(errorData.error || "Failed to analyze resume");
       }
 
-      // Handle streaming response
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let fullText = "";
+      // Get the response text directly
+      const responseText = await response.text();
 
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          fullText += chunk;
-
-          try {
-            // Try to parse the accumulated text as JSON
-            const parsedResult = JSON.parse(fullText);
-            setResult(parsedResult);
-          } catch (e) {
-            // Continue accumulating text if it's not valid JSON yet
-          }
-        }
-
-        // Final attempt to parse the complete response
-        try {
-          const finalResult = JSON.parse(fullText);
-          setResult(finalResult);
-        } catch (e) {
-          setError("Failed to parse analysis results");
-        }
+      try {
+        // Try to parse the response as JSON
+        const parsedResult = JSON.parse(responseText);
+        setResult(parsedResult);
+      } catch (e) {
+        console.error("Error parsing response:", e);
+        setError("Failed to parse analysis results. Please try again.");
       }
     } catch (err: any) {
       setError(err.message || "An error occurred while analyzing the resume");

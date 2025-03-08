@@ -118,7 +118,7 @@ Make sure to provide specific, actionable feedback in each section.`,
       // Continue with the analysis even if updating credits fails
     }
 
-    // Store the job posting and create a scan record
+    // Store the job posting and create a scan record using service role to bypass RLS
     const { error: scanError } = await supabase.from("job_scans").insert({
       id: scanId,
       user_id: userData.user_id,
@@ -132,40 +132,33 @@ Make sure to provide specific, actionable feedback in each section.`,
       console.error("Error creating scan record:", scanError);
     }
 
-    // Log the API usage
-    const { error: logError } = await supabase.from("api_usage").insert({
-      user_id: userData.user_id,
-      timestamp: timestamp,
-      endpoint: "/api/analyze",
-      status: "success",
-      scan_id: scanId,
-    });
+    // Log the API usage after ensuring the scan record exists
+    if (!scanError) {
+      const { error: logError } = await supabase.from("api_usage").insert({
+        user_id: userData.user_id,
+        timestamp: timestamp,
+        endpoint: "/api/analyze",
+        status: "success",
+        scan_id: scanId,
+      });
 
-    if (logError) {
-      console.error("Error logging API usage:", logError);
+      if (logError) {
+        console.error("Error logging API usage:", logError);
+      }
     }
 
-    // Create a TransformStream to process the AI response
-    const { readable, writable } = new TransformStream();
+    // Create a response with the stream
+    const response = new Response(stream);
 
-    // Process the stream to capture the full response
-    const streamPromise = (async () => {
-      const reader = stream.getReader();
-      const writer = writable.getWriter();
-      let fullResponse = "";
-
+    // Process the stream in the background to capture the full response
+    (async () => {
       try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          fullResponse += value;
-          await writer.write(value);
-        }
+        // Get the text from the stream
+        const text = await new Response(stream).text();
 
         // Try to parse the response as JSON and store it
         try {
-          const jsonResponse = JSON.parse(fullResponse);
+          const jsonResponse = JSON.parse(text);
 
           // Update the scan record with the results
           await supabase
@@ -183,7 +176,7 @@ Make sure to provide specific, actionable feedback in each section.`,
           await supabase
             .from("job_scans")
             .update({
-              results: { raw_text: fullResponse },
+              results: { raw_text: text },
               status: "completed",
             })
             .eq("id", scanId);
@@ -194,16 +187,15 @@ Make sure to provide specific, actionable feedback in each section.`,
           .from("job_scans")
           .update({
             status: "error",
-            error_message: streamError.message,
+            error_message:
+              streamError.message || "Unknown error processing stream",
           })
           .eq("id", scanId);
-      } finally {
-        await writer.close();
       }
     })();
 
-    // Return the stream as the response
-    return new Response(readable);
+    // Return the original stream as the response
+    return response;
   } catch (error) {
     console.error("Error processing request:", error);
     return NextResponse.json(
