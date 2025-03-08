@@ -33,9 +33,7 @@ export default function BuyCreditsButton({
     try {
       // First, get or create a credits product and price
       const { data: productData, error: productError } =
-        await supabase.functions.invoke(
-          "supabase-functions-create-credits-product",
-        );
+        await supabase.functions.invoke("create-credits-product");
 
       if (productError) {
         throw productError;
@@ -47,7 +45,7 @@ export default function BuyCreditsButton({
 
       // Create a one-time payment checkout session
       const { data, error } = await supabase.functions.invoke(
-        "supabase-functions-create-checkout",
+        "create-checkout",
         {
           body: {
             price_id: productData.priceId,
@@ -58,7 +56,7 @@ export default function BuyCreditsButton({
           headers: {
             "X-Customer-Email": userEmail || "",
           },
-        },
+        }
       );
 
       if (error) {
