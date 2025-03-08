@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { InfoIcon, FileText, Clock, BarChart3 } from "lucide-react";
+import BuyCreditsButton from "@/components/buy-credits-button";
 
 export default async function ApiUsagePage() {
   const supabase = await createClient();
@@ -62,9 +63,17 @@ export default async function ApiUsagePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center">
-                  <FileText className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <div className="text-2xl font-bold">{credits}</div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <FileText className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <div className="text-2xl font-bold">{credits}</div>
+                  </div>
+                  <BuyCreditsButton
+                    userId={user.id}
+                    userEmail={user.email || ""}
+                    variant="outline"
+                    size="sm"
+                  />
                 </div>
               </CardContent>
             </Card>
