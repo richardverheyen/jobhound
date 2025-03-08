@@ -1,0 +1,12 @@
+# This configuration file enables the function to be invoked from the browser.
+
+# Follow this guide to configure access control for your functions: https://supabase.com/docs/guides/functions/access-control
+
+# The JWT claim to use when enforcing access control. Defaults to `sub`.
+claim = "sub"
+
+# Enter the role that is allowed to invoke the function. Defaults to `authenticated`.
+# allowed_roles = ["authenticated"]
+
+# Set to `true` to enable the function to be invoked without authentication. Defaults to `false`.
+no_auth = true
