@@ -33,10 +33,10 @@ export default function BuyCreditsButton({
     try {
       // Create a one-time payment checkout session
       const { data, error } = await supabase.functions.invoke(
-        "create-checkout",
+        "supabase-functions-create-checkout",
         {
           body: {
-            price_id: "price_1R0KqSPPpRvSAmmeOyHZDu3g", // One-time payment for 10 credits ($10.00 USD)
+            price_id: "price_1OvXXXXXXXXXXXXX", // Replace with your actual price ID for credits
             user_id: userId,
             return_url: `${window.location.origin}/dashboard`,
             mode: "payment", // One-time payment instead of subscription
@@ -44,11 +44,10 @@ export default function BuyCreditsButton({
           headers: {
             "X-Customer-Email": userEmail || "",
           },
-        }
+        },
       );
 
       if (error) {
-        console.error("Supabase function error:", error);
         throw error;
       }
 
