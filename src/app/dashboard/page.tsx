@@ -1,6 +1,13 @@
 import DashboardNavbar from "@/components/dashboard-navbar";
 import { createClient } from "../../../supabase/server";
-import { InfoIcon, UserCircle, FileText, BarChart3, Key } from "lucide-react";
+import {
+  InfoIcon,
+  UserCircle,
+  FileText,
+  BarChart3,
+  Key,
+  Clock,
+} from "lucide-react";
 import { redirect } from "next/navigation";
 import { SubscriptionCheck } from "@/components/subscription-check";
 import {
