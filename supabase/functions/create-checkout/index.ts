@@ -12,7 +12,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-customer-email",
 };
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -29,6 +29,35 @@ serve(async (req) => {
       throw new Error("Missing required parameters");
     }
 
+    const customerEmail = req.headers.get("X-Customer-Email");
+    if (!customerEmail) {
+      return new Response(
+        JSON.stringify({
+          error: "Customer email is required",
+          code: "email_required",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(customerEmail)) {
+      return new Response(
+        JSON.stringify({
+          error: "Invalid email format",
+          code: "email_invalid",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -38,12 +67,12 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
-      mode: mode, // Can be 'subscription' or 'payment'
+      mode: mode,
       success_url: `${return_url}?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${return_url}?canceled=true`,
-      customer_email: req.headers.get("X-Customer-Email"),
+      customer_email: customerEmail,
       metadata: {
-        userId: user_id, // Use consistent key naming
+        userId: user_id,
       },
     });
 
@@ -52,13 +81,24 @@ serve(async (req) => {
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      }
     );
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "An unknown error occurred";
     console.error("Error creating checkout session:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        error: errorMessage,
+        code:
+          error instanceof Stripe.errors.StripeError
+            ? error.code
+            : "unknown_error",
+      }),
+      {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 });
