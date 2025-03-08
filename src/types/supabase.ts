@@ -9,6 +9,33 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      api_usage: {
+        Row: {
+          created_at: string | null
+          endpoint: string
+          id: string
+          status: string
+          timestamp: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          endpoint: string
+          id?: string
+          status: string
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          endpoint?: string
+          id?: string
+          status?: string
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           amount: number | null
