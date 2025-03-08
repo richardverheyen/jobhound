@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     if (!apiKey) {
       return NextResponse.json(
         { error: "API key is required" },
-        { status: 401 },
+        { status: 401 }
       );
     }
 
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
           error: "No API calls available. Please purchase more credits.",
           remaining: 0,
         },
-        { status: 403 },
+        { status: 403 }
       );
     }
 
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
         {
           error: "Job posting and resume file are required",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -65,8 +65,8 @@ export async function POST(req: NextRequest) {
     const scanId = crypto.randomUUID();
     const timestamp = new Date().toISOString();
 
-    // Create a readable stream from the AI response
-    const stream = streamText({
+    // Create the stream
+    const result = streamText({
       model: google("gemini-1.5-pro-latest"),
       messages: [
         {
@@ -147,29 +147,30 @@ Make sure to provide specific, actionable feedback in each section.`,
       }
     }
 
-    // Create a TransformStream to process the AI response
+    // Set up response interception to capture the full response
+    let fullResponse = "";
+    const originalResponse = await result.toTextStreamResponse();
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
-    const encoder = new TextEncoder();
+    const reader = originalResponse.body?.getReader();
     const decoder = new TextDecoder();
 
-    // Process the stream to capture the full response
-    let fullResponse = "";
+    if (!reader) {
+      throw new Error("Failed to get stream reader");
+    }
 
-    // Start processing the stream
-    (async () => {
+    // Create a promise that will resolve when the stream processing is complete
+    const processStreamPromise = new Promise<void>(async (resolve, reject) => {
       try {
-        const reader = stream.getReader();
-
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          // Add to our accumulated response
-          fullResponse += value;
+          const chunk = decoder.decode(value);
+          fullResponse += chunk;
 
-          // Pass through to client
-          await writer.write(encoder.encode(value));
+          // Forward the chunk to the client
+          await writer.write(value);
         }
 
         // Close the writer when done
@@ -196,8 +197,8 @@ Make sure to provide specific, actionable feedback in each section.`,
           } else {
             throw new Error("Response is not valid JSON");
           }
-        } catch (jsonError) {
-          console.error("Error parsing AI response as JSON:", jsonError);
+        } catch (error) {
+          console.error("Error parsing AI response as JSON:", error);
 
           // Store the raw text if JSON parsing fails
           await supabase
@@ -208,31 +209,49 @@ Make sure to provide specific, actionable feedback in each section.`,
             })
             .eq("id", scanId);
         }
-      } catch (streamError) {
-        console.error("Error processing stream:", streamError);
+        resolve();
+      } catch (error) {
+        console.error("Error processing stream:", error);
         await supabase
           .from("job_scans")
           .update({
             status: "error",
             error_message:
-              streamError.message || "Unknown error processing stream",
+              error instanceof Error
+                ? error.message
+                : "Unknown error processing stream",
           })
           .eq("id", scanId);
 
         // Make sure to close the writer even if there's an error
         await writer.close();
+        reject(error);
       }
-    })();
+    });
 
-    // Return the readable stream as the response
-    return new Response(readable);
+    // Create a new Headers object for our response
+    const headers = new Headers();
+    headers.set("Content-Type", "text/plain; charset=utf-8");
+    headers.set("Transfer-Encoding", "chunked");
+    headers.set("x-scan-id", scanId); // Add the scan ID to headers so client can track it
+
+    // Return the readable stream immediately while processing continues
+    const response = new Response(readable, {
+      headers,
+    });
+
+    // Attach the processing promise to the response object
+    // This allows the runtime to wait for processing to complete if needed
+    (response as any).waitUntil?.(processStreamPromise);
+
+    return response;
   } catch (error) {
     console.error("Error processing request:", error);
     return NextResponse.json(
       {
         error: "An error occurred while processing your request",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

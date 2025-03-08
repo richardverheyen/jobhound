@@ -103,6 +103,13 @@ export default function AnalyzeForm({ credits, apiKey }: AnalyzeFormProps) {
         throw new Error(errorData.error || "Failed to analyze resume");
       }
 
+      // Get the scan ID from headers
+      const scanId = response.headers.get("x-scan-id");
+      if (scanId) {
+        // You could store this ID to allow the user to reference this scan later
+        console.log("Scan ID:", scanId);
+      }
+
       // Handle streaming response
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
