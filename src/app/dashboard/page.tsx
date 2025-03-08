@@ -117,7 +117,7 @@ export default async function Dashboard() {
           </div>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle>Analyze Resume</CardTitle>
@@ -135,6 +135,29 @@ export default async function Dashboard() {
                     <Button className="w-full">
                       <FileText className="mr-2 h-4 w-4" />
                       Start Analysis
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Scan History</CardTitle>
+                <CardDescription>
+                  View your past resume analyses
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-4">
+                  <p className="text-sm text-muted-foreground">
+                    Access your previous resume scans and review the analysis
+                    results.
+                  </p>
+                  <Link href="/dashboard/history">
+                    <Button className="w-full" variant="outline">
+                      <Clock className="mr-2 h-4 w-4" />
+                      View History
                     </Button>
                   </Link>
                 </div>

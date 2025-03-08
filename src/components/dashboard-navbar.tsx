@@ -9,7 +9,14 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { Button } from "./ui/button";
-import { UserCircle, Home, FileText, BarChart3, Key } from "lucide-react";
+import {
+  UserCircle,
+  Home,
+  FileText,
+  BarChart3,
+  Key,
+  Clock,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function DashboardNavbar() {
@@ -39,6 +46,13 @@ export default function DashboardNavbar() {
               Analyze Resume
             </Link>
             <Link
+              href="/dashboard/history"
+              className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
+            >
+              <Clock className="h-4 w-4" />
+              Scan History
+            </Link>
+            <Link
               href="/dashboard/api-usage"
               className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
             >
@@ -60,6 +74,9 @@ export default function DashboardNavbar() {
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/dashboard/analyze">Analyze Resume</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/history">Scan History</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/dashboard/api-usage">API Usage</Link>

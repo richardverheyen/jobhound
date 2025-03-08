@@ -1,5 +1,5 @@
 import { google } from "@ai-sdk/google";
-import { streamObject } from "ai";
+import { streamText } from "ai";
 import { createClient } from "../../../../supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -62,22 +62,29 @@ export async function POST(req: NextRequest) {
 
     // Format the job posting
     const formattedJobPosting = jobPosting.toString();
+    const scanId = crypto.randomUUID();
+    const timestamp = new Date().toISOString();
 
     // Create a readable stream from the AI response
-    const stream = streamObject({
+    const stream = streamText({
       model: google("gemini-1.5-pro-latest"),
       messages: [
         {
           role: "system",
           content: `You are an ATS analyzer focused on providing concise, actionable feedback. Compare the resume to the job posting and provide scores and brief insights for key areas. Keep all analysis short and mobile-friendly - each section should be 1-2 sentences maximum. Focus on the most important matches and gaps.
 
-Key points to analyze:
-- Overall match and key takeaways
-- Essential hard skills (technical skills, tools)
-- Critical soft skills
-- Experience level match
-- Must-have qualifications
-- Key missing keywords`,
+Your response should be in JSON format with the following structure:
+{
+  "overallMatch": "Brief assessment of overall match with a percentage score",
+  "hardSkills": "Assessment of technical skills match",
+  "softSkills": "Assessment of soft skills match",
+  "experienceMatch": "Assessment of experience level match",
+  "qualifications": "Assessment of must-have qualifications",
+  "missingKeywords": "List of key missing keywords or skills",
+  "matchScore": 75 // A number from 0-100 representing the overall match percentage
+}
+
+Make sure to provide specific, actionable feedback in each section.`,
         },
         {
           role: "user",
@@ -94,6 +101,7 @@ Key points to analyze:
           ],
         },
       ],
+      temperature: 0.3,
     });
 
     // Decrement the user's API call count
@@ -101,31 +109,101 @@ Key points to analyze:
       .from("users")
       .update({
         credits: (credits - 1).toString(),
-        updated_at: new Date().toISOString(),
+        updated_at: timestamp,
       })
       .eq("id", userData.id);
 
     if (updateError) {
       console.error("Error updating user credits:", updateError);
       // Continue with the analysis even if updating credits fails
-      // We'll log the error but not fail the request
+    }
+
+    // Store the job posting and create a scan record
+    const { error: scanError } = await supabase.from("job_scans").insert({
+      id: scanId,
+      user_id: userData.user_id,
+      job_posting: formattedJobPosting,
+      resume_filename: resumeFile.name,
+      created_at: timestamp,
+      status: "processing",
+    });
+
+    if (scanError) {
+      console.error("Error creating scan record:", scanError);
     }
 
     // Log the API usage
     const { error: logError } = await supabase.from("api_usage").insert({
       user_id: userData.user_id,
-      timestamp: new Date().toISOString(),
+      timestamp: timestamp,
       endpoint: "/api/analyze",
       status: "success",
+      scan_id: scanId,
     });
 
     if (logError) {
       console.error("Error logging API usage:", logError);
-      // Continue with the analysis even if logging fails
     }
 
+    // Create a TransformStream to process the AI response
+    const { readable, writable } = new TransformStream();
+
+    // Process the stream to capture the full response
+    const streamPromise = (async () => {
+      const reader = stream.getReader();
+      const writer = writable.getWriter();
+      let fullResponse = "";
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          fullResponse += value;
+          await writer.write(value);
+        }
+
+        // Try to parse the response as JSON and store it
+        try {
+          const jsonResponse = JSON.parse(fullResponse);
+
+          // Update the scan record with the results
+          await supabase
+            .from("job_scans")
+            .update({
+              results: jsonResponse,
+              status: "completed",
+              match_score: jsonResponse.matchScore || 0,
+            })
+            .eq("id", scanId);
+        } catch (jsonError) {
+          console.error("Error parsing AI response as JSON:", jsonError);
+
+          // Store the raw text if JSON parsing fails
+          await supabase
+            .from("job_scans")
+            .update({
+              results: { raw_text: fullResponse },
+              status: "completed",
+            })
+            .eq("id", scanId);
+        }
+      } catch (streamError) {
+        console.error("Error processing stream:", streamError);
+        await supabase
+          .from("job_scans")
+          .update({
+            status: "error",
+            error_message: streamError.message,
+          })
+          .eq("id", scanId);
+      } finally {
+        await writer.close();
+      }
+    })();
+
     // Return the stream as the response
-    return new Response(stream);
+    return new Response(readable);
   } catch (error) {
     console.error("Error processing request:", error);
     return NextResponse.json(

@@ -106,7 +106,7 @@ export default function AnalyzeForm({ credits, apiKey }: AnalyzeFormProps) {
       // Handle streaming response
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
-      let analysisResult = {};
+      let fullText = "";
 
       if (reader) {
         while (true) {
@@ -114,17 +114,23 @@ export default function AnalyzeForm({ credits, apiKey }: AnalyzeFormProps) {
           if (done) break;
 
           const chunk = decoder.decode(value, { stream: true });
+          fullText += chunk;
+
           try {
-            // Parse the chunk as JSON
-            const parsedChunk = JSON.parse(chunk);
-            // Merge with existing result
-            analysisResult = { ...analysisResult, ...parsedChunk };
-            // Update the UI with the latest result
-            setResult(analysisResult);
+            // Try to parse the accumulated text as JSON
+            const parsedResult = JSON.parse(fullText);
+            setResult(parsedResult);
           } catch (e) {
-            // Handle partial JSON chunks
-            console.log("Partial chunk received", chunk);
+            // Continue accumulating text if it's not valid JSON yet
           }
+        }
+
+        // Final attempt to parse the complete response
+        try {
+          const finalResult = JSON.parse(fullText);
+          setResult(finalResult);
+        } catch (e) {
+          setError("Failed to parse analysis results");
         }
       }
     } catch (err: any) {

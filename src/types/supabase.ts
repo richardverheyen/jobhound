@@ -14,6 +14,7 @@ export type Database = {
           created_at: string | null
           endpoint: string
           id: string
+          scan_id: string | null
           status: string
           timestamp: string | null
           user_id: string | null
@@ -22,6 +23,7 @@ export type Database = {
           created_at?: string | null
           endpoint: string
           id?: string
+          scan_id?: string | null
           status: string
           timestamp?: string | null
           user_id?: string | null
@@ -30,8 +32,53 @@ export type Database = {
           created_at?: string | null
           endpoint?: string
           id?: string
+          scan_id?: string | null
           status?: string
           timestamp?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_usage_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "job_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_scans: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          id: string
+          job_posting: string
+          match_score: number | null
+          results: Json | null
+          resume_filename: string | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          id: string
+          job_posting: string
+          match_score?: number | null
+          results?: Json | null
+          resume_filename?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          job_posting?: string
+          match_score?: number | null
+          results?: Json | null
+          resume_filename?: string | null
+          status?: string | null
           user_id?: string | null
         }
         Relationships: []
