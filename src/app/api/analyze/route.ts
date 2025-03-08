@@ -147,28 +147,55 @@ Make sure to provide specific, actionable feedback in each section.`,
       }
     }
 
-    // Create a response with the stream
-    const response = new Response(stream);
+    // Create a TransformStream to process the AI response
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
 
-    // Process the stream in the background to capture the full response
+    // Process the stream to capture the full response
+    let fullResponse = "";
+
+    // Start processing the stream
     (async () => {
       try {
-        // Get the text from the stream
-        const text = await new Response(stream).text();
+        const reader = stream.getReader();
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          // Add to our accumulated response
+          fullResponse += value;
+
+          // Pass through to client
+          await writer.write(encoder.encode(value));
+        }
+
+        // Close the writer when done
+        await writer.close();
 
         // Try to parse the response as JSON and store it
         try {
-          const jsonResponse = JSON.parse(text);
+          // Make sure we have valid JSON by checking for curly braces
+          if (
+            fullResponse.trim().startsWith("{") &&
+            fullResponse.trim().endsWith("}")
+          ) {
+            const jsonResponse = JSON.parse(fullResponse);
 
-          // Update the scan record with the results
-          await supabase
-            .from("job_scans")
-            .update({
-              results: jsonResponse,
-              status: "completed",
-              match_score: jsonResponse.matchScore || 0,
-            })
-            .eq("id", scanId);
+            // Update the scan record with the results
+            await supabase
+              .from("job_scans")
+              .update({
+                results: jsonResponse,
+                status: "completed",
+                match_score: jsonResponse.matchScore || 0,
+              })
+              .eq("id", scanId);
+          } else {
+            throw new Error("Response is not valid JSON");
+          }
         } catch (jsonError) {
           console.error("Error parsing AI response as JSON:", jsonError);
 
@@ -176,7 +203,7 @@ Make sure to provide specific, actionable feedback in each section.`,
           await supabase
             .from("job_scans")
             .update({
-              results: { raw_text: text },
+              results: { raw_text: fullResponse },
               status: "completed",
             })
             .eq("id", scanId);
@@ -191,11 +218,14 @@ Make sure to provide specific, actionable feedback in each section.`,
               streamError.message || "Unknown error processing stream",
           })
           .eq("id", scanId);
+
+        // Make sure to close the writer even if there's an error
+        await writer.close();
       }
     })();
 
-    // Return the original stream as the response
-    return response;
+    // Return the readable stream as the response
+    return new Response(readable);
   } catch (error) {
     console.error("Error processing request:", error);
     return NextResponse.json(

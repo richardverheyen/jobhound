@@ -103,16 +103,61 @@ export default function AnalyzeForm({ credits, apiKey }: AnalyzeFormProps) {
         throw new Error(errorData.error || "Failed to analyze resume");
       }
 
-      // Get the response text directly
-      const responseText = await response.text();
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullText = "";
 
-      try {
-        // Try to parse the response as JSON
-        const parsedResult = JSON.parse(responseText);
-        setResult(parsedResult);
-      } catch (e) {
-        console.error("Error parsing response:", e);
-        setError("Failed to parse analysis results. Please try again.");
+      if (reader) {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            fullText += chunk;
+
+            // Try to parse as we go, but don't worry if it fails until the end
+            try {
+              if (
+                fullText.trim().startsWith("{") &&
+                fullText.trim().endsWith("}")
+              ) {
+                const parsedResult = JSON.parse(fullText);
+                setResult(parsedResult);
+              }
+            } catch (e) {
+              // Ignore parsing errors while streaming
+            }
+          }
+
+          // Final attempt to parse the complete response
+          try {
+            if (
+              fullText.trim().startsWith("{") &&
+              fullText.trim().endsWith("}")
+            ) {
+              const finalResult = JSON.parse(fullText);
+              setResult(finalResult);
+            } else {
+              // If not valid JSON, try to extract JSON from the text
+              const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const jsonStr = jsonMatch[0];
+                const finalResult = JSON.parse(jsonStr);
+                setResult(finalResult);
+              } else {
+                throw new Error("No valid JSON found in response");
+              }
+            }
+          } catch (e) {
+            console.error("Error parsing final response:", e);
+            setError("Failed to parse analysis results. Please try again.");
+          }
+        } catch (streamError) {
+          console.error("Error reading stream:", streamError);
+          setError("Error reading analysis results. Please try again.");
+        }
       }
     } catch (err: any) {
       setError(err.message || "An error occurred while analyzing the resume");
