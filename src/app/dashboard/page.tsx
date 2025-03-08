@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import BuyCreditsButton from "@/components/buy-credits-button";
 
 export default async function Dashboard() {
   const supabase = await createClient();
@@ -66,11 +67,12 @@ export default async function Dashboard() {
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div className="text-2xl font-bold">{credits}</div>
-                  <Link href="/pricing">
-                    <Button variant="outline" size="sm">
-                      Buy More
-                    </Button>
-                  </Link>
+                  <BuyCreditsButton
+                    userId={user.id}
+                    userEmail={user.email || ""}
+                    variant="outline"
+                    size="sm"
+                  />
                 </div>
               </CardContent>
             </Card>

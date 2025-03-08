@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoIcon } from "lucide-react";
 import AnalyzeForm from "@/components/analyze-form";
+import BuyCreditsButton from "@/components/buy-credits-button";
 
 interface ClientPageProps {
   credits: number;
@@ -34,7 +35,17 @@ export default function ClientPage({ credits, apiKey }: ClientPageProps) {
                   You have {credits} analysis credits remaining
                 </p>
               </div>
-              <div className="text-3xl font-bold">{credits}</div>
+              <div className="flex items-center gap-4">
+                <div className="text-3xl font-bold">{credits}</div>
+                {credits < 3 && (
+                  <BuyCreditsButton
+                    userId={apiKey}
+                    userEmail=""
+                    variant="outline"
+                    size="sm"
+                  />
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
