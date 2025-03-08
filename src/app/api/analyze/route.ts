@@ -25,11 +25,11 @@ export async function POST(req: NextRequest) {
     const googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     if (!googleApiKey) {
       console.error(
-        "Missing GOOGLE_GENERATIVE_AI_API_KEY environment variable"
+        "Missing GOOGLE_GENERATIVE_AI_API_KEY environment variable",
       );
       return NextResponse.json(
         { error: "Server configuration error: Missing AI API key" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     if (!apiKey) {
       return NextResponse.json(
         { error: "API key is required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
           error: "No API calls available. Please purchase more credits.",
           remaining: 0,
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
         {
           error: "Job posting and resume file are required",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -91,17 +91,33 @@ export async function POST(req: NextRequest) {
     const scanId = crypto.randomUUID();
     const timestamp = new Date().toISOString();
 
-    // Decrement the user's API call count
-    const { error: updateError } = await supabase
-      .from("users")
-      .update({
-        credits: (credits - 1).toString(),
-        updated_at: timestamp,
-      })
-      .eq("id", userData.id);
+    // Decrement the user's API call count using the Edge Function
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/update-credits-metadata`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+          },
+          body: JSON.stringify({
+            userId: userData.user_id,
+            creditsToDecrement: 1,
+          }),
+        },
+      );
 
-    if (updateError) {
-      console.error("Error updating user credits:", updateError);
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error updating user credits:", errorData);
+        // Continue with the analysis even if updating credits fails
+      }
+    } catch (updateError) {
+      console.error(
+        "Error calling update-credits-metadata function:",
+        updateError,
+      );
       // Continue with the analysis even if updating credits fails
     }
 
@@ -230,7 +246,7 @@ Key points to analyze:
           error: "Failed to process with AI model. Please try again.",
           details: aiError?.message,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
   } catch (error: any) {
@@ -240,7 +256,7 @@ Key points to analyze:
         error: "An error occurred while processing your request",
         details: error?.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
