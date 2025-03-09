@@ -35,15 +35,15 @@ export default async function ResumesPage() {
   // Get scan counts for each resume
   const { data: scanCounts, error: scanCountsError } = await supabase
     .from("job_scans")
-    .select("resume_id, count")
+    .select("resume_id")
     .eq("user_id", user.id)
-    .is("resume_id", "not.null")
-    .count("resume_id");
+    .is("resume_id", "not.null");
 
   // Create a map of resume IDs to scan counts
   const scanCountMap = new Map();
   scanCounts?.forEach((item) => {
-    scanCountMap.set(item.resume_id, parseInt(item.count));
+    const count = scanCountMap.get(item.resume_id) || 0;
+    scanCountMap.set(item.resume_id, count + 1);
   });
 
   // Add scan counts to resumes
