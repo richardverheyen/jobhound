@@ -33,7 +33,9 @@ export default function BuyCreditsButton({
     setErrorMessage(null);
 
     try {
-      // Create a checkout session with the user ID in metadata
+      console.log("Starting checkout with user ID:", userId);
+      console.log("User email:", userEmail);
+
       const response = await fetch("/api/create-checkout", {
         method: "POST",
         headers: {
@@ -41,7 +43,7 @@ export default function BuyCreditsButton({
         },
         body: JSON.stringify({
           userId: userId,
-          userEmail: userEmail,
+          userEmail: userEmail || "",
           returnUrl: window.location.origin + "/success",
         }),
       });

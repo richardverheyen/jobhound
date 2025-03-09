@@ -16,10 +16,14 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
 
     // Call the Supabase Edge Function to create a checkout session
+    console.log("Creating checkout with user ID:", userId);
+    console.log("User email:", userEmail);
+
     const { data, error } = await supabase.functions.invoke("create-checkout", {
       body: {
         user_id: userId,
         return_url: returnUrl || `${req.headers.get("origin")}/dashboard`,
+        email: userEmail || "", // Include email in the body as well
       },
       headers: {
         "X-Customer-Email": userEmail || "",

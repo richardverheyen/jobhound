@@ -52,7 +52,7 @@ serve(async (req: Request) => {
       );
     }
 
-    const { user_id, return_url } = requestBody;
+    const { user_id, return_url, email } = requestBody;
 
     console.log("Request parameters:", { user_id, return_url });
 
@@ -77,20 +77,13 @@ serve(async (req: Request) => {
       );
     }
 
-    const customerEmail = req.headers.get("X-Customer-Email");
-    if (!customerEmail) {
-      console.error("Customer email is required");
-      return new Response(
-        JSON.stringify({
-          error: "Customer email is required",
-          code: "email_required",
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
+    // Get customer email from headers, but make it optional
+    const customerEmail = req.headers.get("X-Customer-Email") || "";
+    console.log("Customer email from headers:", customerEmail);
+
+    // Use email from body if header is empty
+    const effectiveEmail = customerEmail || email || "";
+    console.log("Effective email to use:", effectiveEmail);
 
     // Get or create the API Credits product
     console.log("Finding or creating API Credits product");
@@ -153,7 +146,7 @@ serve(async (req: Request) => {
       mode: "payment",
       success_url: `${return_url}?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${return_url}?canceled=true`,
-      customer_email: customerEmail,
+      ...(effectiveEmail ? { customer_email: effectiveEmail } : {}), // Only include if we have an email
       metadata: {
         userId: user_id,
         user_id: user_id, // Include both formats to be safe

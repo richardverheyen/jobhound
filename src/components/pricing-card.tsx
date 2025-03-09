@@ -27,6 +27,9 @@ export default function PricingCard({
     }
 
     try {
+      console.log("Starting checkout with user ID:", user.id);
+      console.log("User email:", user.email || "");
+
       const response = await fetch("/api/create-checkout", {
         method: "POST",
         headers: {
@@ -46,9 +49,7 @@ export default function PricingCard({
 
       const data = await response.json();
 
-      if (error) {
-        throw error;
-      }
+      // Remove error check that doesn't exist
 
       // Redirect to Stripe checkout
       if (data?.url) {
