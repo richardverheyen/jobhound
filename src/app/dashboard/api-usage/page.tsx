@@ -25,6 +25,10 @@ export default async function ApiUsagePage() {
 
   // Sync credits with Stripe via edge function
   try {
+    // First try to apply migrations to ensure tables exist
+    await supabase.functions.invoke("apply-migrations");
+
+    // Then sync credits
     const syncResponse = await supabase.functions.invoke("sync-credits", {
       body: { userId: user.id },
     });

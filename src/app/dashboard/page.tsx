@@ -35,6 +35,10 @@ export default async function Dashboard() {
 
   // Sync credits with Stripe via edge function
   try {
+    // First try to apply migrations to ensure tables exist
+    await supabase.functions.invoke("apply-migrations");
+
+    // Then sync credits
     const syncResponse = await supabase.functions.invoke("sync-credits", {
       body: { userId: user.id },
     });
@@ -229,9 +233,12 @@ export default async function Dashboard() {
           </Card>
 
           {/* Credit History Section */}
-          <div className="mt-8">
-            <CreditHistory userId={user.id} />
-          </div>
+          {/* Only show if credits > 0 to avoid errors if table doesn't exist yet */}
+          {credits > 0 && (
+            <div className="mt-8">
+              <CreditHistory userId={user.id} />
+            </div>
+          )}
         </div>
       </main>
     </SubscriptionCheck>

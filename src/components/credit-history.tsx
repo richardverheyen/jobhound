@@ -26,6 +26,20 @@ export default function CreditHistory({ userId }: { userId: string }) {
     const fetchCreditHistory = async () => {
       setLoading(true);
       try {
+        // First check if credit_history table exists
+        const { error: tableCheckError } = await supabase
+          .from("credit_history")
+          .select("id")
+          .limit(1)
+          .single();
+
+        // If table doesn't exist, don't try to fetch data
+        if (tableCheckError && tableCheckError.code === "42P01") {
+          console.log("Credit history table does not exist yet");
+          setHistory([]);
+          return;
+        }
+
         const { data, error } = await supabase
           .from("credit_history")
           .select("*")
@@ -37,6 +51,8 @@ export default function CreditHistory({ userId }: { userId: string }) {
         setHistory(data || []);
       } catch (error) {
         console.error("Error fetching credit history:", error);
+        // Don't crash if table doesn't exist
+        setHistory([]);
       } finally {
         setLoading(false);
       }
@@ -44,28 +60,35 @@ export default function CreditHistory({ userId }: { userId: string }) {
 
     fetchCreditHistory();
 
-    // Set up realtime subscription
-    const channel = supabase
-      .channel("credit_history_changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "credit_history",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          setHistory((prev) => [
-            payload.new as CreditChange,
-            ...prev.slice(0, 9),
-          ]);
-        },
-      )
-      .subscribe();
+    // Set up realtime subscription only if we successfully fetched history
+    let channel;
+    try {
+      channel = supabase
+        .channel("credit_history_changes")
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "credit_history",
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            setHistory((prev) => [
+              payload.new as CreditChange,
+              ...prev.slice(0, 9),
+            ]);
+          },
+        )
+        .subscribe();
+    } catch (error) {
+      console.error("Error setting up realtime subscription:", error);
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [userId]);
 
