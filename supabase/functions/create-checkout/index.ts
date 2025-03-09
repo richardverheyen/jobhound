@@ -31,7 +31,7 @@ serve(async (req: Request) => {
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
@@ -48,17 +48,16 @@ serve(async (req: Request) => {
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
-    const { price_id, user_id, return_url, mode = "payment" } = requestBody;
+    const { user_id, return_url } = requestBody;
 
-    console.log("Request parameters:", { price_id, user_id, return_url, mode });
+    console.log("Request parameters:", { user_id, return_url });
 
-    if (!price_id || !user_id || !return_url) {
+    if (!user_id || !return_url) {
       console.error("Missing required parameters:", {
-        price_id,
         user_id,
         return_url,
       });
@@ -67,7 +66,6 @@ serve(async (req: Request) => {
           error: "Missing required parameters",
           code: "missing_parameters",
           details: {
-            has_price_id: !!price_id,
             has_user_id: !!user_id,
             has_return_url: !!return_url,
           },
@@ -75,7 +73,7 @@ serve(async (req: Request) => {
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
@@ -90,104 +88,98 @@ serve(async (req: Request) => {
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(customerEmail)) {
-      console.error("Invalid email format:", customerEmail);
-      return new Response(
-        JSON.stringify({
-          error: "Invalid email format",
-          code: "email_invalid",
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+    // Get or create the API Credits product
+    console.log("Finding or creating API Credits product");
+    let product;
+    const products = await stripe.products.list({
+      active: true,
+      metadata: { type: "credits" },
+    });
+
+    if (products.data.length > 0) {
+      product = products.data[0];
+      console.log("Found existing API Credits product:", product.id);
+    } else {
+      // Create a new product
+      product = await stripe.products.create({
+        name: "API Credits",
+        description: "10 API calls for CV-Job matching service",
+        active: true,
+        metadata: {
+          type: "credits",
+          credits: "10",
+        },
+      });
+      console.log("Created new API Credits product:", product.id);
+    }
+
+    // Get or create a price for the product
+    console.log("Finding or creating price for product:", product.id);
+    let price;
+    const prices = await stripe.prices.list({
+      product: product.id,
+      active: true,
+    });
+
+    if (prices.data.length > 0) {
+      price = prices.data[0];
+      console.log("Found existing price:", price.id);
+    } else {
+      // Create a new price
+      price = await stripe.prices.create({
+        product: product.id,
+        unit_amount: 1000, // $10.00
+        currency: "usd",
+        metadata: {
+          credits: "10",
+        },
+      });
+      console.log("Created new price:", price.id);
     }
 
     console.log("Creating Stripe checkout session");
-
-    // Verify the price exists in Stripe
-    try {
-      const price = await stripe.prices.retrieve(price_id);
-      console.log("Price verified:", price.id);
-    } catch (error) {
-      console.error("Error retrieving price:", error);
-      return new Response(
-        JSON.stringify({
-          error: "Invalid price ID",
-          code: "price_not_found",
-          details: error instanceof Error ? error.message : String(error),
-        }),
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: [
         {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // Create Stripe checkout session
-    try {
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ["card"],
-        line_items: [
-          {
-            price: price_id,
-            quantity: 1,
-          },
-        ],
-        mode: mode,
-        success_url: `${return_url}?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${return_url}?canceled=true`,
-        customer_email: customerEmail,
-        metadata: {
-          userId: user_id,
+          price: price.id,
+          quantity: 1,
         },
-      });
+      ],
+      mode: "payment",
+      success_url: `${return_url}?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${return_url}?canceled=true`,
+      customer_email: customerEmail,
+      metadata: {
+        userId: user_id,
+        user_id: user_id, // Include both formats to be safe
+      },
+    });
 
-      console.log("Checkout session created:", session.id);
+    console.log("Checkout session created:", session.id);
 
-      return new Response(
-        JSON.stringify({ sessionId: session.id, url: session.url }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    } catch (error) {
-      console.error("Error creating checkout session:", error);
-      return new Response(
-        JSON.stringify({
-          error: "Failed to create checkout session",
-          code:
-            error instanceof Stripe.errors.StripeError
-              ? error.code
-              : "unknown_error",
-          details: error instanceof Error ? error.message : String(error),
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
+    return new Response(
+      JSON.stringify({ sessionId: session.id, url: session.url }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (error) {
-    console.error("Unexpected error in create-checkout:", error);
+    console.error("Error creating checkout session:", error);
     return new Response(
       JSON.stringify({
-        error: "An unexpected error occurred",
+        error: "Failed to create checkout session",
         details: error instanceof Error ? error.message : String(error),
-        code: "unexpected_error",
       }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      },
     );
   }
 });

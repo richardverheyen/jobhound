@@ -33,18 +33,37 @@ export default function BuyCreditsButton({
     setErrorMessage(null);
 
     try {
-      // Use a direct Stripe payment link
-      // This payment link was created using the Stripe Dashboard or API
-      const paymentLink = "https://buy.stripe.com/test_cN25lL9bL1r88Qo288";
+      // Create a checkout session with the user ID in metadata
+      const response = await fetch("/api/create-checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: userId,
+          userEmail: userEmail,
+          returnUrl: window.location.origin + "/success",
+        }),
+      });
 
-      // Redirect to the payment link
-      window.location.href = paymentLink;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create checkout session");
+      }
+
+      const { url } = await response.json();
+
+      // Redirect to the Stripe checkout
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
     } catch (error: any) {
       console.error("Error redirecting to checkout:", error);
       setErrorMessage(
-        error.message || "Failed to redirect to checkout. Please try again."
+        error.message || "Failed to redirect to checkout. Please try again.",
       );
-    } finally {
       setIsLoading(false);
     }
   };

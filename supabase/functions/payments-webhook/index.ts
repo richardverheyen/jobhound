@@ -53,7 +53,7 @@ const corsHeaders = {
 async function logAndStoreWebhookEvent(
   supabaseClient: SupabaseClient,
   event: any,
-  data: any
+  data: any,
 ): Promise<void> {
   const { error } = await supabaseClient.from("webhook_events").insert({
     event_type: event.type,
@@ -73,7 +73,7 @@ async function logAndStoreWebhookEvent(
 async function updateSubscriptionStatus(
   supabaseClient: SupabaseClient,
   stripeId: string,
-  status: string
+  status: string,
 ): Promise<void> {
   const { error } = await supabaseClient
     .from("subscriptions")
@@ -89,7 +89,7 @@ async function updateSubscriptionStatus(
 // Event handlers
 async function handleSubscriptionCreated(
   supabaseClient: SupabaseClient,
-  event: any
+  event: any,
 ) {
   const subscription = event.data.object;
   console.log("Handling subscription created:", subscription.id);
@@ -116,7 +116,7 @@ async function handleSubscriptionCreated(
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     }
   }
@@ -157,7 +157,7 @@ async function handleSubscriptionCreated(
     {
       // Use stripe_id as the match key for upsert
       onConflict: "stripe_id",
-    }
+    },
   );
 
   if (error) {
@@ -167,7 +167,7 @@ async function handleSubscriptionCreated(
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      },
     );
   }
 
@@ -176,13 +176,13 @@ async function handleSubscriptionCreated(
     {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-    }
+    },
   );
 }
 
 async function handleSubscriptionUpdated(
   supabaseClient: SupabaseClient,
-  event: any
+  event: any,
 ) {
   const subscription = event.data.object;
   console.log("Handling subscription updated:", subscription.id);
@@ -207,7 +207,7 @@ async function handleSubscriptionUpdated(
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      },
     );
   }
 
@@ -216,13 +216,13 @@ async function handleSubscriptionUpdated(
     {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-    }
+    },
   );
 }
 
 async function handleSubscriptionDeleted(
   supabaseClient: SupabaseClient,
-  event: any
+  event: any,
 ) {
   const subscription = event.data.object;
   console.log("Handling subscription deleted:", subscription.id);
@@ -243,7 +243,7 @@ async function handleSubscriptionDeleted(
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      },
     );
   } catch (error) {
     console.error("Error deleting subscription:", error);
@@ -252,14 +252,112 @@ async function handleSubscriptionDeleted(
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      },
     );
   }
 }
 
+// Helper function to process credits for a user
+async function processCreditsForUser(
+  supabaseClient: SupabaseClient,
+  userId: string,
+  session: any,
+  creditsToAdd: number,
+) {
+  // Store the metadata about this purchase for auditing
+  const purchaseMetadata = {
+    source: "stripe_checkout",
+    session_id: session.id,
+    amount_total: session.amount_total,
+    credits_added: creditsToAdd,
+    timestamp: new Date().toISOString(),
+  };
+
+  // Get current user credits
+  const { data: userData, error: userError } = await supabaseClient
+    .from("users")
+    .select("credits")
+    .eq("user_id", userId)
+    .single();
+
+  if (userError) {
+    console.error("Error fetching user:", userError);
+    return new Response(JSON.stringify({ error: "Failed to fetch user" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Calculate new credits total
+  const currentCredits = parseInt(userData.credits || "0");
+  const newCredits = currentCredits + creditsToAdd;
+  console.log(
+    `Updating credits: ${currentCredits} + ${creditsToAdd} = ${newCredits}`,
+  );
+
+  // Update user credits
+  const { error: updateError } = await supabaseClient
+    .from("users")
+    .update({
+      credits: newCredits.toString(),
+      updated_at: new Date().toISOString(),
+      metadata: {
+        last_credit_update: new Date().toISOString(),
+        last_credit_source: "stripe_checkout",
+        purchase_history: purchaseMetadata,
+      },
+    })
+    .eq("user_id", userId);
+
+  if (updateError) {
+    console.error("Error updating user credits:", updateError);
+    return new Response(
+      JSON.stringify({ error: "Failed to update user credits" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  // Add entry to credit_history table if it exists
+  try {
+    const { error: creditHistoryError } = await supabaseClient
+      .from("credit_history")
+      .insert({
+        user_id: userId,
+        previous_credits: currentCredits,
+        new_credits: newCredits,
+        change_amount: creditsToAdd,
+        source: "stripe_checkout",
+        reference_id: session.id,
+        metadata: purchaseMetadata,
+      });
+
+    if (creditHistoryError) {
+      console.error("Error adding credit history:", creditHistoryError);
+    }
+  } catch (error) {
+    console.error("Error with credit history table:", error);
+    // Continue even if credit history fails
+  }
+
+  return new Response(
+    JSON.stringify({
+      message: "Credits added successfully",
+      creditsAdded: creditsToAdd,
+      newTotal: newCredits,
+    }),
+    {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    },
+  );
+}
+
 async function handleCheckoutSessionCompleted(
   supabaseClient: SupabaseClient,
-  event: any
+  event: any,
 ) {
   const session = event.data.object;
   console.log("Handling checkout session completed:", session.id);
@@ -279,9 +377,40 @@ async function handleCheckoutSessionCompleted(
       session.metadata?.userId ||
       session.metadata?.user_id ||
       session.client_reference_id;
+
+    console.log("Extracted userId from metadata:", userId);
+    console.log("Full metadata:", JSON.stringify(session.metadata));
+
     if (!userId) {
+      // If no user ID in metadata, try to get it from the customer email
+      if (session.customer_email) {
+        console.log(
+          "Attempting to find user by email:",
+          session.customer_email,
+        );
+        try {
+          const { data: userData, error: userError } = await supabaseClient
+            .from("users")
+            .select("user_id")
+            .eq("email", session.customer_email)
+            .single();
+
+          if (!userError && userData?.user_id) {
+            console.log("Found user by email:", userData.user_id);
+            return await processCreditsForUser(
+              supabaseClient,
+              userData.user_id,
+              session,
+              creditsToAdd,
+            );
+          }
+        } catch (emailLookupError) {
+          console.error("Error looking up user by email:", emailLookupError);
+        }
+      }
+
       console.error(
-        "No user ID found in session metadata or client_reference_id"
+        "No user ID found in session metadata or client_reference_id",
       );
       return new Response(
         JSON.stringify({
@@ -290,7 +419,7 @@ async function handleCheckoutSessionCompleted(
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
@@ -304,7 +433,7 @@ async function handleCheckoutSessionCompleted(
       // $10 = 10 credits (1000 cents = 10 credits)
       creditsToAdd = Math.floor(amountTotal / 100);
       console.log(
-        `One-time payment: Adding ${creditsToAdd} credits based on amount ${amountTotal} cents`
+        `One-time payment: Adding ${creditsToAdd} credits based on amount ${amountTotal} cents`,
       );
     } else if (subscriptionId) {
       // For subscriptions, add credits based on the plan
@@ -315,7 +444,7 @@ async function handleCheckoutSessionCompleted(
       // Add 10 credits for every $10 in the subscription
       creditsToAdd = Math.floor(planAmount / 100);
       console.log(
-        `Subscription: Adding ${creditsToAdd} credits based on plan amount ${planAmount} cents`
+        `Subscription: Adding ${creditsToAdd} credits based on plan amount ${planAmount} cents`,
       );
     }
 
@@ -325,67 +454,19 @@ async function handleCheckoutSessionCompleted(
       console.log(`Using default: Adding ${creditsToAdd} credits`);
     }
 
-    // Store the metadata about this purchase for auditing
-    const purchaseMetadata = {
-      source: "stripe_checkout",
-      session_id: session.id,
-      amount_total: session.amount_total,
-      credits_added: creditsToAdd,
-      timestamp: new Date().toISOString(),
-    };
-
-    // Get current user credits
-    const { data: userData, error: userError } = await supabaseClient
-      .from("users")
-      .select("credits")
-      .eq("user_id", userId)
-      .single();
-
-    if (userError) {
-      console.error("Error fetching user:", userError);
-      return new Response(JSON.stringify({ error: "Failed to fetch user" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Calculate new credits total
-    const currentCredits = parseInt(userData.credits || "0");
-    const newCredits = currentCredits + creditsToAdd;
-    console.log(
-      `Updating credits: ${currentCredits} + ${creditsToAdd} = ${newCredits}`
+    // Process the credits for the user
+    return await processCreditsForUser(
+      supabaseClient,
+      userId,
+      session,
+      creditsToAdd,
     );
-
-    // Update user credits
-    const { error: updateError } = await supabaseClient
-      .from("users")
-      .update({
-        credits: newCredits.toString(),
-        updated_at: new Date().toISOString(),
-        metadata: {
-          last_credit_update: new Date().toISOString(),
-          last_credit_source: "stripe_checkout",
-          purchase_history: purchaseMetadata,
-        },
-      })
-      .eq("user_id", userId);
-
-    if (updateError) {
-      console.error("Error updating user credits:", updateError);
-      return new Response(
-        JSON.stringify({ error: "Failed to update user credits" }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
 
     // If there's a subscription, update it in the database
     if (subscriptionId) {
       console.log(
         "Updating subscription in Supabase with stripe_id:",
-        subscriptionId
+        subscriptionId,
       );
 
       const supabaseUpdateResult = await supabaseClient
@@ -403,49 +484,17 @@ async function handleCheckoutSessionCompleted(
       if (supabaseUpdateResult.error) {
         console.error(
           "Error updating Supabase subscription:",
-          supabaseUpdateResult.error
+          supabaseUpdateResult.error,
         );
       }
     }
 
-    // Add entry to credit_history table if it exists
-    try {
-      const { error: creditHistoryError } = await supabaseClient
-        .from("credit_history")
-        .insert({
-          user_id: userId,
-          previous_credits: currentCredits,
-          new_credits: newCredits,
-          change_amount: creditsToAdd,
-          source: "stripe_checkout",
-          reference_id: session.id,
-          metadata: purchaseMetadata,
-        });
-
-      if (creditHistoryError) {
-        console.error("Error adding credit history:", creditHistoryError);
-      }
-    } catch (error) {
-      console.error("Error with credit history table:", error);
-      // Continue even if credit history fails
-    }
-
-    return new Response(
-      JSON.stringify({
-        message: "Credits added successfully",
-        creditsAdded: creditsToAdd,
-        newTotal: newCredits,
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    // This code has been moved to the processCreditsForUser function
   } catch (error: any) {
     console.error("Error processing checkout completion:", error);
     console.error(
       "Error details:",
-      JSON.stringify(error, Object.getOwnPropertyNames(error))
+      JSON.stringify(error, Object.getOwnPropertyNames(error)),
     );
     console.error("Error stack:", error.stack);
     return new Response(
@@ -456,14 +505,14 @@ async function handleCheckoutSessionCompleted(
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      },
     );
   }
 }
 
 async function handleInvoicePaymentSucceeded(
   supabaseClient: SupabaseClient,
-  event: any
+  event: any,
 ) {
   const invoice = event.data.object;
   console.log("Handling invoice payment succeeded:", invoice.id);
@@ -531,7 +580,7 @@ async function handleInvoicePaymentSucceeded(
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      },
     );
   } catch (error) {
     console.error("Error processing successful payment:", error);
@@ -540,14 +589,14 @@ async function handleInvoicePaymentSucceeded(
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      },
     );
   }
 }
 
 async function handleInvoicePaymentFailed(
   supabaseClient: SupabaseClient,
-  event: any
+  event: any,
 ) {
   const invoice = event.data.object;
   console.log("Handling invoice payment failed:", invoice.id);
@@ -584,7 +633,7 @@ async function handleInvoicePaymentFailed(
       await updateSubscriptionStatus(
         supabaseClient,
         subscriptionId,
-        "past_due"
+        "past_due",
       );
     }
 
@@ -599,7 +648,7 @@ async function handleInvoicePaymentFailed(
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      },
     );
   }
 }
@@ -630,6 +679,52 @@ serve(async (req: Request) => {
     console.log("Stripe signature:", signature);
 
     if (!signature) {
+      console.warn(
+        "No Stripe signature found in headers - this might be a test request",
+      );
+
+      // For testing purposes, allow requests without signatures in development
+      if (Deno.env.get("ENVIRONMENT") === "development") {
+        console.log(
+          "Development mode - proceeding without signature verification",
+        );
+        const body = await req.text();
+        try {
+          const event = JSON.parse(body);
+          console.log("Parsed event from body:", event.type);
+
+          // Create Supabase client
+          const supabaseUrl = Deno.env.get("SUPABASE_URL");
+          const supabaseServiceRoleKey = Deno.env.get(
+            "SUPABASE_SERVICE_ROLE_KEY",
+          );
+
+          if (!supabaseUrl || !supabaseServiceRoleKey) {
+            throw new Error("Missing Supabase credentials");
+          }
+
+          const supabaseClient = createClient(
+            supabaseUrl,
+            supabaseServiceRoleKey,
+          );
+
+          // Process the event
+          if (event.type === "checkout.session.completed") {
+            return await handleCheckoutSessionCompleted(supabaseClient, event);
+          }
+
+          return new Response(
+            JSON.stringify({ message: "Test event processed" }),
+            {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        } catch (parseError) {
+          console.error("Error parsing test event:", parseError);
+        }
+      }
+
       console.error("No Stripe signature found in headers");
       return new Response(JSON.stringify({ error: "No signature found" }), {
         status: 400,
@@ -650,7 +745,7 @@ serve(async (req: Request) => {
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
@@ -661,7 +756,7 @@ serve(async (req: Request) => {
       event = await stripe.webhooks.constructEventAsync(
         body,
         signature,
-        webhookSecret
+        webhookSecret,
       );
       console.log("Stripe signature verified successfully");
     } catch (err) {
@@ -692,7 +787,7 @@ serve(async (req: Request) => {
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
@@ -723,7 +818,7 @@ serve(async (req: Request) => {
           {
             status: 200,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+          },
         );
     }
   } catch (err: any) {

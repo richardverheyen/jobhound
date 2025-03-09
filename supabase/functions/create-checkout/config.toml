@@ -1,12 +1,15 @@
-# This configuration file enables the function to be invoked from the browser.
+# Whether to verify JWT
+verify_jwt = false
 
-# Follow this guide to configure access control for your functions: https://supabase.com/docs/guides/functions/access-control
+# Allow all origins
+allow_origins = ["*"]
 
-# The JWT claim to use when enforcing access control. Defaults to `sub`.
-claim = "sub"
+# Allow all HTTP methods
+allow_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 
-# Enter the role that is allowed to invoke the function. Defaults to `authenticated`.
-# allowed_roles = ["authenticated"]
+# Allow all headers
+allow_headers = ["*"]
 
-# Set to `true` to enable the function to be invoked without authentication. Defaults to `false`.
-no_auth = true
+# Import map
+[import_map]
+path = "import_map.json"
