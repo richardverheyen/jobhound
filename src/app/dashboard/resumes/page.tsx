@@ -12,7 +12,7 @@ import {
 import { InfoIcon, Plus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import ResumeUpload from "@/components/resume-upload";
+import ResumeUploadSection from "@/components/resume-upload-section";
 
 export default async function ResumesPage() {
   const supabase = await createClient();
@@ -80,20 +80,7 @@ export default async function ResumesPage() {
           </header>
 
           {/* Upload Resume Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Upload New Resume</CardTitle>
-              <CardDescription>
-                Upload a PDF resume to analyze against job postings
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResumeUpload
-                onUploadComplete={(resumeId, filename) => {}}
-                userId={user.id}
-              />
-            </CardContent>
-          </Card>
+          <ResumeUploadSection userId={user.id} />
 
           {/* Resumes Grid */}
           <Card>

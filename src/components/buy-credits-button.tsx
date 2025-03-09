@@ -36,12 +36,21 @@ export default function BuyCreditsButton({
         await supabase.functions.invoke("update-api-product");
 
       if (productError) {
+        console.error("Product error:", productError);
         throw new Error("Failed to get latest product information");
       }
 
+      if (!productData?.price?.id) {
+        console.error(
+          "No price ID returned from update-api-product:",
+          productData
+        );
+        throw new Error("No price ID returned from the server");
+      }
+
       // Use the price ID from the response
-      const priceId =
-        productData?.price?.id || "price_1R0KqSPPpRvSAmmeOyHZDu3g"; // Fallback
+      const priceId = productData.price.id;
+      console.log("Using price ID:", priceId);
 
       // Create a one-time payment checkout session
       const { data, error } = await supabase.functions.invoke(
@@ -56,10 +65,11 @@ export default function BuyCreditsButton({
           headers: {
             "X-Customer-Email": userEmail || "",
           },
-        },
+        }
       );
 
       if (error) {
+        console.error("Checkout error:", error);
         throw error;
       }
 
@@ -67,6 +77,7 @@ export default function BuyCreditsButton({
       if (data?.url) {
         window.location.href = data.url;
       } else {
+        console.error("No checkout URL returned:", data);
         throw new Error("No checkout URL returned");
       }
     } catch (error) {
