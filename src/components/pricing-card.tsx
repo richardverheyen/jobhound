@@ -30,7 +30,7 @@ export default function PricingCard({
       console.log("Starting checkout with user ID:", user.id);
       console.log("User email:", user.email || "");
 
-      const response = await fetch("/api/create-checkout-direct", {
+      const response = await fetch("/api/create-checkout-simple", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

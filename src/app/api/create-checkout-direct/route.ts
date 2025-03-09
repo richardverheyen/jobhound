@@ -13,7 +13,15 @@ export async function POST(req: NextRequest) {
     }
 
     // Initialize Stripe directly
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.error("STRIPE_SECRET_KEY is not configured");
+      return NextResponse.json(
+        { error: "Stripe API key is not configured" },
+        { status: 500 },
+      );
+    }
+
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
       apiVersion: "2023-10-16",
     });
 
