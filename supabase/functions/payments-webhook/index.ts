@@ -53,7 +53,7 @@ const corsHeaders = {
 async function logAndStoreWebhookEvent(
   supabaseClient: SupabaseClient,
   event: any,
-  data: any,
+  data: any
 ): Promise<void> {
   const { error } = await supabaseClient.from("webhook_events").insert({
     event_type: event.type,
@@ -73,7 +73,7 @@ async function logAndStoreWebhookEvent(
 async function updateSubscriptionStatus(
   supabaseClient: SupabaseClient,
   stripeId: string,
-  status: string,
+  status: string
 ): Promise<void> {
   const { error } = await supabaseClient
     .from("subscriptions")
@@ -89,7 +89,7 @@ async function updateSubscriptionStatus(
 // Event handlers
 async function handleSubscriptionCreated(
   supabaseClient: SupabaseClient,
-  event: any,
+  event: any
 ) {
   const subscription = event.data.object;
   console.log("Handling subscription created:", subscription.id);
@@ -116,7 +116,7 @@ async function handleSubscriptionCreated(
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+        }
       );
     }
   }
@@ -157,7 +157,7 @@ async function handleSubscriptionCreated(
     {
       // Use stripe_id as the match key for upsert
       onConflict: "stripe_id",
-    },
+    }
   );
 
   if (error) {
@@ -167,7 +167,7 @@ async function handleSubscriptionCreated(
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      }
     );
   }
 
@@ -176,13 +176,13 @@ async function handleSubscriptionCreated(
     {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-    },
+    }
   );
 }
 
 async function handleSubscriptionUpdated(
   supabaseClient: SupabaseClient,
-  event: any,
+  event: any
 ) {
   const subscription = event.data.object;
   console.log("Handling subscription updated:", subscription.id);
@@ -207,7 +207,7 @@ async function handleSubscriptionUpdated(
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      }
     );
   }
 
@@ -216,13 +216,13 @@ async function handleSubscriptionUpdated(
     {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-    },
+    }
   );
 }
 
 async function handleSubscriptionDeleted(
   supabaseClient: SupabaseClient,
-  event: any,
+  event: any
 ) {
   const subscription = event.data.object;
   console.log("Handling subscription deleted:", subscription.id);
@@ -243,7 +243,7 @@ async function handleSubscriptionDeleted(
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      }
     );
   } catch (error) {
     console.error("Error deleting subscription:", error);
@@ -252,14 +252,14 @@ async function handleSubscriptionDeleted(
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      }
     );
   }
 }
 
 async function handleCheckoutSessionCompleted(
   supabaseClient: SupabaseClient,
-  event: any,
+  event: any
 ) {
   const session = event.data.object;
   console.log("Handling checkout session completed:", session.id);
@@ -274,22 +274,25 @@ async function handleCheckoutSessionCompleted(
   console.log("Session metadata:", JSON.stringify(session.metadata, null, 2));
 
   try {
-    // Get the user ID from the metadata
-    const userId = session.metadata?.userId || session.metadata?.user_id;
+    // Get the user ID from the metadata or client_reference_id
+    const userId =
+      session.metadata?.userId ||
+      session.metadata?.user_id ||
+      session.client_reference_id;
     if (!userId) {
-      console.error("No user ID found in session metadata");
+      console.error(
+        "No user ID found in session metadata or client_reference_id"
+      );
       return new Response(
-        JSON.stringify({ error: "No user ID in session metadata" }),
+        JSON.stringify({
+          error: "No user ID in session metadata or client_reference_id",
+        }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+        }
       );
     }
-
-    // Get the line items to determine how many credits to add
-    const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
-    console.log("Line items:", JSON.stringify(lineItems, null, 2));
 
     // Calculate credits to add (10 credits per $10)
     let creditsToAdd = 0;
@@ -301,7 +304,7 @@ async function handleCheckoutSessionCompleted(
       // $10 = 10 credits (1000 cents = 10 credits)
       creditsToAdd = Math.floor(amountTotal / 100);
       console.log(
-        `One-time payment: Adding ${creditsToAdd} credits based on amount ${amountTotal} cents`,
+        `One-time payment: Adding ${creditsToAdd} credits based on amount ${amountTotal} cents`
       );
     } else if (subscriptionId) {
       // For subscriptions, add credits based on the plan
@@ -312,7 +315,7 @@ async function handleCheckoutSessionCompleted(
       // Add 10 credits for every $10 in the subscription
       creditsToAdd = Math.floor(planAmount / 100);
       console.log(
-        `Subscription: Adding ${creditsToAdd} credits based on plan amount ${planAmount} cents`,
+        `Subscription: Adding ${creditsToAdd} credits based on plan amount ${planAmount} cents`
       );
     }
 
@@ -350,7 +353,7 @@ async function handleCheckoutSessionCompleted(
     const currentCredits = parseInt(userData.credits || "0");
     const newCredits = currentCredits + creditsToAdd;
     console.log(
-      `Updating credits: ${currentCredits} + ${creditsToAdd} = ${newCredits}`,
+      `Updating credits: ${currentCredits} + ${creditsToAdd} = ${newCredits}`
     );
 
     // Update user credits
@@ -374,7 +377,7 @@ async function handleCheckoutSessionCompleted(
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
@@ -382,7 +385,7 @@ async function handleCheckoutSessionCompleted(
     if (subscriptionId) {
       console.log(
         "Updating subscription in Supabase with stripe_id:",
-        subscriptionId,
+        subscriptionId
       );
 
       const supabaseUpdateResult = await supabaseClient
@@ -400,9 +403,31 @@ async function handleCheckoutSessionCompleted(
       if (supabaseUpdateResult.error) {
         console.error(
           "Error updating Supabase subscription:",
-          supabaseUpdateResult.error,
+          supabaseUpdateResult.error
         );
       }
+    }
+
+    // Add entry to credit_history table if it exists
+    try {
+      const { error: creditHistoryError } = await supabaseClient
+        .from("credit_history")
+        .insert({
+          user_id: userId,
+          previous_credits: currentCredits,
+          new_credits: newCredits,
+          change_amount: creditsToAdd,
+          source: "stripe_checkout",
+          reference_id: session.id,
+          metadata: purchaseMetadata,
+        });
+
+      if (creditHistoryError) {
+        console.error("Error adding credit history:", creditHistoryError);
+      }
+    } catch (error) {
+      console.error("Error with credit history table:", error);
+      // Continue even if credit history fails
     }
 
     return new Response(
@@ -414,13 +439,13 @@ async function handleCheckoutSessionCompleted(
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      }
     );
   } catch (error: any) {
     console.error("Error processing checkout completion:", error);
     console.error(
       "Error details:",
-      JSON.stringify(error, Object.getOwnPropertyNames(error)),
+      JSON.stringify(error, Object.getOwnPropertyNames(error))
     );
     console.error("Error stack:", error.stack);
     return new Response(
@@ -431,14 +456,14 @@ async function handleCheckoutSessionCompleted(
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      }
     );
   }
 }
 
 async function handleInvoicePaymentSucceeded(
   supabaseClient: SupabaseClient,
-  event: any,
+  event: any
 ) {
   const invoice = event.data.object;
   console.log("Handling invoice payment succeeded:", invoice.id);
@@ -506,7 +531,7 @@ async function handleInvoicePaymentSucceeded(
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      }
     );
   } catch (error) {
     console.error("Error processing successful payment:", error);
@@ -515,14 +540,14 @@ async function handleInvoicePaymentSucceeded(
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      }
     );
   }
 }
 
 async function handleInvoicePaymentFailed(
   supabaseClient: SupabaseClient,
-  event: any,
+  event: any
 ) {
   const invoice = event.data.object;
   console.log("Handling invoice payment failed:", invoice.id);
@@ -559,7 +584,7 @@ async function handleInvoicePaymentFailed(
       await updateSubscriptionStatus(
         supabaseClient,
         subscriptionId,
-        "past_due",
+        "past_due"
       );
     }
 
@@ -574,7 +599,7 @@ async function handleInvoicePaymentFailed(
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      }
     );
   }
 }
@@ -625,7 +650,7 @@ serve(async (req: Request) => {
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
@@ -636,7 +661,7 @@ serve(async (req: Request) => {
       event = await stripe.webhooks.constructEventAsync(
         body,
         signature,
-        webhookSecret,
+        webhookSecret
       );
       console.log("Stripe signature verified successfully");
     } catch (err) {
@@ -667,7 +692,7 @@ serve(async (req: Request) => {
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
@@ -698,7 +723,7 @@ serve(async (req: Request) => {
           {
             status: 200,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
+          }
         );
     }
   } catch (err: any) {

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
-import { supabase } from "../../supabase/supabase";
 
 interface BuyCreditsButtonProps {
   userId: string;
@@ -34,40 +33,12 @@ export default function BuyCreditsButton({
     setErrorMessage(null);
 
     try {
-      // Create a form and submit it to Stripe Checkout
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = "https://checkout.stripe.com/create-checkout-session";
+      // Use a direct Stripe payment link
+      // This payment link was created using the Stripe Dashboard or API
+      const paymentLink = "https://buy.stripe.com/test_cN25lL9bL1r88Qo288";
 
-      // Add necessary parameters
-      const params = {
-        success_url: window.location.origin + "/dashboard?payment=success",
-        cancel_url: window.location.origin + "/dashboard?payment=cancelled",
-        customer_email: userEmail,
-        client_reference_id: userId,
-        mode: "payment",
-        "line_items[0][price]": "price_1R0KqSPPpRvSAmmeOyHZDu3g", // Replace with your actual price ID
-        "line_items[0][quantity]": "1",
-      };
-
-      // Add parameters to form
-      Object.entries(params).forEach(([key, value]) => {
-        const hiddenField = document.createElement("input");
-        hiddenField.type = "hidden";
-        hiddenField.name = key;
-        hiddenField.value = value;
-        form.appendChild(hiddenField);
-      });
-
-      // Add form to body and submit
-      document.body.appendChild(form);
-      form.submit();
-
-      // Clean up form
-      document.body.removeChild(form);
-
-      // We don't need to wait for the redirect since we're submitting a form
-      return;
+      // Redirect to the payment link
+      window.location.href = paymentLink;
     } catch (error: any) {
       console.error("Error redirecting to checkout:", error);
       setErrorMessage(
