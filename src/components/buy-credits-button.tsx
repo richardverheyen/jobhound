@@ -36,7 +36,7 @@ export default function BuyCreditsButton({
       console.log("Starting checkout with user ID:", userId);
       console.log("User email:", userEmail);
 
-      const response = await fetch("/api/create-checkout", {
+      const response = await fetch("/api/create-checkout-direct", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
