@@ -1,110 +1,52 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "../../supabase/supabase";
-import { Card, CardContent } from "./ui/card";
-import { FileText, Clock, ExternalLink } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface ResumeCardProps {
-  userId: string;
+  resume: {
+    id: string;
+    filename: string;
+    created_at: string;
+    scan_count: number;
+    file_url?: string;
+  };
 }
 
-export default function ResumeCard({ userId }: ResumeCardProps) {
-  const [latestResume, setLatestResume] = useState<any>(null);
-  const [scanCount, setScanCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchLatestResume = async () => {
-      setLoading(true);
-      try {
-        // Get the latest resume
-        const { data: resumeData, error: resumeError } = await supabase
-          .from("resumes")
-          .select("*")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
-
-        if (resumeError && resumeError.code !== "PGRST116") {
-          throw resumeError;
-        }
-
-        if (resumeData) {
-          setLatestResume(resumeData);
-
-          // Get count of scans for this resume
-          const { count, error: countError } = await supabase
-            .from("job_scans")
-            .select("id", { count: "exact" })
-            .eq("resume_id", resumeData.id)
-            .not("resume_id", "is", null);
-
-          if (countError) throw countError;
-          setScanCount(count || 0);
-        }
-      } catch (error) {
-        console.error("Error fetching latest resume:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchLatestResume();
-  }, [userId]);
-
+export default function ResumeCard({ resume }: ResumeCardProps) {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
   };
 
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-center py-4 text-muted-foreground">
-            Loading resume...
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!latestResume) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-center py-4 text-muted-foreground">
-            No resumes found. Upload your first resume to get started.
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const handleViewPdf = () => {
+    if (resume.file_url) {
+      window.open(resume.file_url, "_blank");
+    }
+  };
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardContent className="p-6">
-        <div className="flex flex-col items-center text-center gap-3">
-          <h3 className="font-semibold text-lg">Latest Resume</h3>
-          <FileText className="h-16 w-16 text-blue-600" />
-          <div className="font-medium text-lg">{latestResume.filename}</div>
-          <div className="text-sm text-muted-foreground flex items-center">
-            <Clock className="h-4 w-4 mr-1" />
-            Uploaded on {formatDate(latestResume.created_at)}
+        <div className="flex flex-col items-center text-center gap-2">
+          <div className="h-32 w-32 bg-blue-50 rounded-full flex items-center justify-center mb-2">
+            <span className="text-4xl text-blue-500 font-bold">PDF</span>
+          </div>
+          <h3 className="font-medium text-lg truncate w-full">
+            {resume.filename}
+          </h3>
+          <div className="text-sm text-muted-foreground">
+            Uploaded on {formatDate(resume.created_at)}
           </div>
           <div className="text-sm">
-            {scanCount} {scanCount === 1 ? "scan" : "scans"} with this resume
+            {resume.scan_count} {resume.scan_count === 1 ? "scan" : "scans"}
           </div>
-          {latestResume.file_url && (
+          {resume.file_url && (
             <Button
               variant="outline"
               size="sm"
-              className="mt-2 flex items-center gap-1"
-              onClick={() => window.open(latestResume.file_url, "_blank")}
+              className="mt-2"
+              onClick={handleViewPdf}
             >
-              <ExternalLink className="h-4 w-4" />
               View PDF
             </Button>
           )}

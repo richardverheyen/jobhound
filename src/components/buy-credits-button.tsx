@@ -34,61 +34,18 @@ export default function BuyCreditsButton({
     setErrorMessage(null);
 
     try {
-      // First, ensure we have the latest credits product
-      const { data: productData, error: productError } =
-        await supabase.functions.invoke("update-api-product");
+      // Create a direct link to Stripe Checkout
+      // This is a temporary solution until the Edge Functions are fixed
 
-      if (productError) {
-        console.error("Product error:", productError);
-        throw new Error(
-          `Failed to get latest product information: ${productError.message}`
-        );
-      }
+      // Redirect to a hosted checkout page
+      window.location.href = "https://buy.stripe.com/test_28o5mz0Wd0Hl0QU000"; // Replace with your actual Stripe hosted checkout page URL
 
-      if (!productData?.price?.id) {
-        console.error(
-          "No price ID returned from update-api-product:",
-          productData
-        );
-        throw new Error("No price ID returned from the server");
-      }
-
-      // Use the price ID from the response
-      const priceId = productData.price.id;
-      console.log("Using price ID:", priceId);
-
-      // Create a one-time payment checkout session
-      const { data, error } = await supabase.functions.invoke(
-        "create-checkout",
-        {
-          body: {
-            price_id: priceId,
-            user_id: userId,
-            return_url: `${window.location.origin}/dashboard`,
-            mode: "payment", // One-time payment instead of subscription
-          },
-          headers: {
-            "X-Customer-Email": userEmail || "",
-          },
-        }
-      );
-
-      if (error) {
-        console.error("Checkout error:", error);
-        throw new Error(`Failed to create checkout session: ${error.message}`);
-      }
-
-      // Redirect to Stripe checkout
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        console.error("No checkout URL returned:", data);
-        throw new Error("No checkout URL returned from Stripe");
-      }
+      // We don't need to wait for the redirect since we're sending the user directly to Stripe
+      return;
     } catch (error: any) {
-      console.error("Error creating checkout session:", error);
+      console.error("Error redirecting to checkout:", error);
       setErrorMessage(
-        error.message || "Failed to create checkout session. Please try again."
+        error.message || "Failed to redirect to checkout. Please try again."
       );
     } finally {
       setIsLoading(false);
