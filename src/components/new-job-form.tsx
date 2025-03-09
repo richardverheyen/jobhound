@@ -8,12 +8,12 @@ import { Label } from "./ui/label";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../supabase/supabase";
+import { useSupabase } from "./supabase-provider";
 
-interface NewJobFormProps {
-  userId?: string; // Optional since we're not using it anymore
-}
+interface NewJobFormProps {}
 
-export default function NewJobForm({ userId }: NewJobFormProps) {
+export default function NewJobForm() {
+  const { session } = useSupabase();
   const [title, setTitle] = useState("");
   const [company, setCompany] = useState("");
   const [location, setLocation] = useState("");
@@ -35,25 +35,21 @@ export default function NewJobForm({ userId }: NewJobFormProps) {
       return;
     }
 
+    if (!session) {
+      setError("You must be logged in to create a job");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
-      // Get the authenticated user's ID
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError) throw authError;
-      if (!user) throw new Error("Not authenticated");
-
-      // Create job record in Supabase
+      // Create job record in Supabase using the session user
       const { data: job, error: jobError } = await supabase
         .from("jobs")
         .insert([
           {
-            user_id: user.id,
+            user_id: session.user.id,
             title,
             company: company || null,
             location: location || null,
