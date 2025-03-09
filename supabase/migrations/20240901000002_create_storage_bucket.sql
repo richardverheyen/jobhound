@@ -1,39 +1,57 @@
--- Create a storage bucket for resumes if it doesn't exist
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('resumes', 'resumes', true)
-ON CONFLICT (id) DO NOTHING;
+-- Create resumes table for storing resume metadata
+CREATE TABLE IF NOT EXISTS resumes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id),
+    filename TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    file_url TEXT NOT NULL,
+    file_size BIGINT NOT NULL,
+    mime_type TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
--- Create a policy to allow authenticated users to upload files to the resumes bucket
-CREATE POLICY "Allow authenticated users to upload files"
-  ON storage.objects
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (bucket_id = 'resumes' AND auth.uid()::text = (storage.foldername(name))[1]);
+-- Add RLS policies for the resumes table
+ALTER TABLE resumes ENABLE ROW LEVEL SECURITY;
 
--- Create a policy to allow users to read their own files
-CREATE POLICY "Allow users to read their own files"
-  ON storage.objects
-  FOR SELECT
-  TO authenticated
-  USING (bucket_id = 'resumes' AND auth.uid()::text = (storage.foldername(name))[1]);
+-- Allow users to view their own resumes
+CREATE POLICY "Users can view their own resumes"
+    ON resumes
+    FOR SELECT
+    TO authenticated
+    USING (user_id = auth.uid());
 
--- Create a policy to allow users to update their own files
-CREATE POLICY "Allow users to update their own files"
-  ON storage.objects
-  FOR UPDATE
-  TO authenticated
-  USING (bucket_id = 'resumes' AND auth.uid()::text = (storage.foldername(name))[1]);
+-- Allow users to insert their own resumes
+CREATE POLICY "Users can insert their own resumes"
+    ON resumes
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (user_id = auth.uid());
 
--- Create a policy to allow users to delete their own files
-CREATE POLICY "Allow users to delete their own files"
-  ON storage.objects
-  FOR DELETE
-  TO authenticated
-  USING (bucket_id = 'resumes' AND auth.uid()::text = (storage.foldername(name))[1]);
+-- Allow users to update their own resumes
+CREATE POLICY "Users can update their own resumes"
+    ON resumes
+    FOR UPDATE
+    TO authenticated
+    USING (user_id = auth.uid());
 
--- Create a policy to allow public access to files in the resumes bucket
-CREATE POLICY "Allow public access to resumes"
-  ON storage.objects
-  FOR SELECT
-  TO public
-  USING (bucket_id = 'resumes');
+-- Allow users to delete their own resumes
+CREATE POLICY "Users can delete their own resumes"
+    ON resumes
+    FOR DELETE
+    TO authenticated
+    USING (user_id = auth.uid());
+
+-- Create a trigger to update the updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_resumes_updated_at
+    BEFORE UPDATE ON resumes
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
