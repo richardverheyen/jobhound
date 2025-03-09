@@ -27,9 +27,12 @@ export default function BuyCreditsButton({
   className = "",
 }: BuyCreditsButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleBuyCredits = async () => {
     setIsLoading(true);
+    setErrorMessage(null);
+
     try {
       // First, ensure we have the latest credits product
       const { data: productData, error: productError } =
@@ -37,7 +40,9 @@ export default function BuyCreditsButton({
 
       if (productError) {
         console.error("Product error:", productError);
-        throw new Error("Failed to get latest product information");
+        throw new Error(
+          `Failed to get latest product information: ${productError.message}`
+        );
       }
 
       if (!productData?.price?.id) {
@@ -70,7 +75,7 @@ export default function BuyCreditsButton({
 
       if (error) {
         console.error("Checkout error:", error);
-        throw error;
+        throw new Error(`Failed to create checkout session: ${error.message}`);
       }
 
       // Redirect to Stripe checkout
@@ -78,32 +83,39 @@ export default function BuyCreditsButton({
         window.location.href = data.url;
       } else {
         console.error("No checkout URL returned:", data);
-        throw new Error("No checkout URL returned");
+        throw new Error("No checkout URL returned from Stripe");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating checkout session:", error);
-      alert("Failed to create checkout session. Please try again.");
+      setErrorMessage(
+        error.message || "Failed to create checkout session. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Button
-      onClick={handleBuyCredits}
-      disabled={isLoading}
-      variant={variant}
-      size={size}
-      className={className}
-    >
-      {isLoading ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Processing...
-        </>
-      ) : (
-        "Buy Credits"
+    <div className="flex flex-col">
+      <Button
+        onClick={handleBuyCredits}
+        disabled={isLoading}
+        variant={variant}
+        size={size}
+        className={className}
+      >
+        {isLoading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Processing...
+          </>
+        ) : (
+          "Buy Credits"
+        )}
+      </Button>
+      {errorMessage && (
+        <div className="text-red-500 text-sm mt-2">{errorMessage}</div>
       )}
-    </Button>
+    </div>
   );
 }
