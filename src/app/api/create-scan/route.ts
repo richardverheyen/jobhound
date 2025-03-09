@@ -68,27 +68,72 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Parse the request body
-    const formData = await req.formData();
-    const jobPosting = formData.get("jobPosting");
-    const resumeFile = formData.get("resume") as File;
-    const scanId = formData.get("scanId") as string;
-    const jobId = formData.get("jobId") as string;
-    const resumeId = formData.get("resumeId") as string;
+    // Parse the request body based on content type
+    const contentType = req.headers.get("content-type") || "";
+    let jobPosting: string | null = null;
+    let resumeFile: File | null = null;
+    let scanId: string | null = null;
+    let jobId: string | null = null;
+    let resumeId: string | null = null;
+    let resumeFilename: string | null = null;
 
-    if (!jobPosting || !resumeFile || !scanId || !jobId || !resumeId) {
-      return NextResponse.json(
-        {
-          error: "Missing required parameters",
-        },
-        { status: 400 }
-      );
-    }
-
-    const timestamp = new Date().toISOString();
-
-    // Decrement the user's API call count using the Edge Function
     try {
+      if (contentType.includes("multipart/form-data")) {
+        const formData = await req.formData();
+        jobPosting = formData.get("jobPosting") as string;
+        resumeFile = formData.get("resume") as File;
+        scanId = formData.get("scanId") as string;
+        jobId = formData.get("jobId") as string;
+        resumeId = formData.get("resumeId") as string;
+        resumeFilename = resumeFile?.name;
+      } else {
+        // Handle JSON request
+        const jsonData = await req.json();
+        jobPosting = jsonData.jobPosting;
+        scanId = jsonData.scanId;
+        jobId = jsonData.jobId;
+        resumeId = jsonData.resumeId;
+        resumeFilename = jsonData.resumeFilename;
+
+        // If resumeUrl is provided, fetch the PDF
+        if (jsonData.resumeUrl) {
+          const pdfResponse = await fetch(jsonData.resumeUrl);
+          if (!pdfResponse.ok) {
+            throw new Error(`Failed to fetch PDF: ${pdfResponse.statusText}`);
+          }
+          const pdfBlob = await pdfResponse.blob();
+          resumeFile = new File([pdfBlob], resumeFilename || "resume.pdf", {
+            type: "application/pdf",
+          });
+        }
+      }
+
+      if (
+        !jobPosting ||
+        !scanId ||
+        !jobId ||
+        !resumeId ||
+        (!resumeFile && !resumeFilename)
+      ) {
+        return NextResponse.json(
+          {
+            error: "Missing required parameters",
+            received: {
+              jobPosting: !!jobPosting,
+              scanId: !!scanId,
+              jobId: !!jobId,
+              resumeId: !!resumeId,
+              resumeFile: !!resumeFile,
+              resumeFilename: !!resumeFilename,
+            },
+          },
+          { status: 400 }
+        );
+      }
+
+      const timestamp = new Date().toISOString();
+
+      // Decrement the user's API call count using the Edge Function
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/update-credits-metadata`,
         {
@@ -102,7 +147,7 @@ export async function POST(req: NextRequest) {
             creditsToDecrement: 1,
             metadata: {
               scan_id: scanId,
-              resume_filename: resumeFile.name,
+              resume_filename: resumeFilename,
               timestamp: timestamp,
             },
           }),
@@ -122,51 +167,40 @@ export async function POST(req: NextRequest) {
           { status: 500 }
         );
       }
-    } catch (updateError) {
-      console.error(
-        "Error calling update-credits-metadata function:",
-        updateError
-      );
-      return NextResponse.json(
-        { error: "Failed to process credits. Please try again." },
-        { status: 500 }
-      );
-    }
 
-    // Store the job scan record
-    const { error: scanError } = await supabase.from("job_scans").insert({
-      id: scanId,
-      user_id: userData.user_id,
-      job_posting: jobPosting,
-      resume_filename: resumeFile.name,
-      created_at: timestamp,
-      status: "processing",
-      job_id: jobId,
-      resume_id: resumeId,
-    });
+      // Store the job scan record
+      const { error: scanError } = await supabase.from("job_scans").insert({
+        id: scanId,
+        user_id: userData.user_id,
+        job_posting: jobPosting,
+        resume_filename: resumeFilename,
+        created_at: timestamp,
+        status: "processing",
+        job_id: jobId,
+        resume_id: resumeId,
+      });
 
-    if (scanError) {
-      console.error("Error creating scan record:", scanError);
-      return NextResponse.json(
-        { error: "Failed to create scan record" },
-        { status: 500 }
-      );
-    }
+      if (scanError) {
+        console.error("Error creating scan record:", scanError);
+        return NextResponse.json(
+          { error: "Failed to create scan record" },
+          { status: 500 }
+        );
+      }
 
-    // Log the API usage
-    const { error: logError } = await supabase.from("api_usage").insert({
-      user_id: userData.user_id,
-      timestamp: timestamp,
-      endpoint: "/api/create-scan",
-      status: "success",
-      scan_id: scanId,
-    });
+      // Log the API usage
+      const { error: logError } = await supabase.from("api_usage").insert({
+        user_id: userData.user_id,
+        timestamp: timestamp,
+        endpoint: "/api/create-scan",
+        status: "success",
+        scan_id: scanId,
+      });
 
-    if (logError) {
-      console.error("Error logging API usage:", logError);
-    }
+      if (logError) {
+        console.error("Error logging API usage:", logError);
+      }
 
-    try {
       // Only proceed with AI analysis if we have a resume file
       if (!resumeFile) {
         return NextResponse.json(
@@ -258,22 +292,24 @@ Key points to analyze:
       return new Response(streamResponse.body, {
         headers,
       });
-    } catch (aiError: any) {
-      console.error("AI processing error:", aiError);
+    } catch (error: any) {
+      console.error("Error processing request:", error);
 
-      // Update the scan record with the error
-      await supabase
-        .from("job_scans")
-        .update({
-          status: "error",
-          error_message: aiError?.message || "Error processing with AI model",
-        })
-        .eq("id", scanId);
+      // Update the scan status to error if we have a scan ID
+      if (scanId) {
+        await supabase
+          .from("job_scans")
+          .update({
+            status: "error",
+            error_message: error?.message || "Unknown error occurred",
+          })
+          .eq("id", scanId);
+      }
 
       return NextResponse.json(
         {
-          error: "Failed to process with AI model. Please try again.",
-          details: aiError?.message,
+          error: "An error occurred while processing your request",
+          details: error?.message,
         },
         { status: 500 }
       );
