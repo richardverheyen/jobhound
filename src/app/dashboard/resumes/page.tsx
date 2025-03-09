@@ -1,0 +1,153 @@
+import DashboardNavbar from "@/components/dashboard-navbar";
+import { createClient } from "../../../../supabase/server";
+import { redirect } from "next/navigation";
+import { SubscriptionCheck } from "@/components/subscription-check";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { InfoIcon, Plus } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import ResumeUpload from "@/components/resume-upload";
+
+export default async function ResumesPage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return redirect("/sign-in");
+  }
+
+  // Get all resumes
+  const { data: resumes, error: resumesError } = await supabase
+    .from("resumes")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  // Get scan counts for each resume
+  const { data: scanCounts, error: scanCountsError } = await supabase
+    .from("job_scans")
+    .select("resume_id, count(*)")
+    .eq("user_id", user.id)
+    .group("resume_id");
+
+  // Create a map of resume IDs to scan counts
+  const scanCountMap = new Map();
+  scanCounts?.forEach((item) => {
+    scanCountMap.set(item.resume_id, parseInt(item.count));
+  });
+
+  // Add scan counts to resumes
+  const resumesWithCounts =
+    resumes?.map((resume) => ({
+      ...resume,
+      scan_count: scanCountMap.get(resume.id) || 0,
+    })) || [];
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  return (
+    <SubscriptionCheck>
+      <DashboardNavbar />
+      <main className="w-full">
+        <div className="container mx-auto px-4 py-8 flex flex-col gap-8">
+          {/* Header Section */}
+          <header className="flex flex-col gap-4">
+            <div className="flex justify-between items-center">
+              <h1 className="text-3xl font-bold">Resumes</h1>
+              <Link href="/dashboard/resumes/upload">
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Upload Resume
+                </Button>
+              </Link>
+            </div>
+            <div className="bg-secondary/50 text-sm p-3 px-4 rounded-lg text-muted-foreground flex gap-2 items-center">
+              <InfoIcon size="14" />
+              <span>Manage your resumes and use them for job analyses</span>
+            </div>
+          </header>
+
+          {/* Upload Resume Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Upload New Resume</CardTitle>
+              <CardDescription>
+                Upload a PDF resume to analyze against job postings
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResumeUpload
+                onUploadComplete={(resumeId, filename) => {}}
+                userId={user.id}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Resumes Grid */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Resumes</CardTitle>
+              <CardDescription>All your uploaded resumes</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {resumesWithCounts.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No resumes found. Upload your first resume to get started.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {resumesWithCounts.map((resume) => (
+                    <Card key={resume.id} className="overflow-hidden">
+                      <CardContent className="p-6">
+                        <div className="flex flex-col items-center text-center gap-2">
+                          <div className="h-32 w-32 bg-blue-50 rounded-full flex items-center justify-center mb-2">
+                            <span className="text-4xl text-blue-500 font-bold">
+                              PDF
+                            </span>
+                          </div>
+                          <h3 className="font-medium text-lg truncate w-full">
+                            {resume.filename}
+                          </h3>
+                          <div className="text-sm text-muted-foreground">
+                            Uploaded on {formatDate(resume.created_at)}
+                          </div>
+                          <div className="text-sm">
+                            {resume.scan_count}{" "}
+                            {resume.scan_count === 1 ? "scan" : "scans"}
+                          </div>
+                          {resume.file_url && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mt-2"
+                              onClick={() =>
+                                window.open(resume.file_url, "_blank")
+                              }
+                            >
+                              View PDF
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    </SubscriptionCheck>
+  );
+}

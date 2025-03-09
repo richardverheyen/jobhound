@@ -7,6 +7,7 @@ import {
   BarChart3,
   Key,
   Clock,
+  Plus,
 } from "lucide-react";
 import { redirect } from "next/navigation";
 import { SubscriptionCheck } from "@/components/subscription-check";
@@ -21,6 +22,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import BuyCreditsButton from "@/components/buy-credits-button";
 import CreditHistory from "@/components/credit-history";
+import JobList from "@/components/job-list";
+import ResumeCard from "@/components/resume-card";
+import CreateScanForm from "@/components/create-scan-form";
 
 export default async function Dashboard() {
   const supabase = await createClient();
@@ -80,6 +84,29 @@ export default async function Dashboard() {
               <span>Welcome to your CV-Job Matching dashboard</span>
             </div>
           </header>
+
+          {/* Create New Scan Section */}
+          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                  <h2 className="text-xl font-semibold mb-2">
+                    Create New Analysis
+                  </h2>
+                  <p className="text-muted-foreground">
+                    Compare a resume against a job posting to get an AI-powered
+                    match analysis
+                  </p>
+                </div>
+                <Link href="/dashboard/create-scan">
+                  <Button className="whitespace-nowrap">
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Analysis
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -141,96 +168,32 @@ export default async function Dashboard() {
             </Card>
           </div>
 
-          {/* Quick Actions */}
+          {/* Jobs and Resume Section */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Analyze Resume</CardTitle>
-                <CardDescription>
-                  Compare a resume against a job posting
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col gap-4">
-                  <p className="text-sm text-muted-foreground">
-                    Upload a resume and job description to get an AI-powered
-                    analysis of the match.
-                  </p>
-                  <Link href="/dashboard/analyze">
-                    <Button className="w-full">
-                      <FileText className="mr-2 h-4 w-4" />
-                      Start Analysis
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Jobs List */}
+            <div className="md:col-span-2 space-y-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex justify-between items-center">
+                    <CardTitle>Recent Jobs</CardTitle>
+                    <Link href="/dashboard/jobs">
+                      <Button variant="ghost" size="sm">
+                        View All
+                      </Button>
+                    </Link>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <JobList userId={user.id} limit={5} />
+                </CardContent>
+              </Card>
+            </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Scan History</CardTitle>
-                <CardDescription>
-                  View your past resume analyses
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col gap-4">
-                  <p className="text-sm text-muted-foreground">
-                    Access your previous resume scans and review the analysis
-                    results.
-                  </p>
-                  <Link href="/dashboard/history">
-                    <Button className="w-full" variant="outline">
-                      <Clock className="mr-2 h-4 w-4" />
-                      View History
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>API Usage</CardTitle>
-                <CardDescription>
-                  Monitor your API usage and get your API key
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col gap-4">
-                  <p className="text-sm text-muted-foreground">
-                    View your API usage history, remaining credits, and get your
-                    API key for integration.
-                  </p>
-                  <Link href="/dashboard/api-usage">
-                    <Button className="w-full" variant="outline">
-                      <Key className="mr-2 h-4 w-4" />
-                      View API Details
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Latest Resume */}
+            <div>
+              <ResumeCard userId={user.id} />
+            </div>
           </div>
-
-          {/* User Profile Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>User Profile</CardTitle>
-              <CardDescription>Your account information</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-4 mb-6">
-                <UserCircle size={48} className="text-primary" />
-                <div>
-                  <h2 className="font-semibold text-xl">
-                    {userData?.name || user.email}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Credit History Section */}
           {/* Only show if credits > 0 to avoid errors if table doesn't exist yet */}

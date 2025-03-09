@@ -16,6 +16,7 @@ import {
   BarChart3,
   Key,
   Clock,
+  Briefcase,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -39,11 +40,18 @@ export default function DashboardNavbar() {
               Dashboard
             </Link>
             <Link
-              href="/dashboard/analyze"
+              href="/dashboard/jobs"
+              className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
+            >
+              <Briefcase className="h-4 w-4" />
+              Jobs
+            </Link>
+            <Link
+              href="/dashboard/resumes"
               className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
             >
               <FileText className="h-4 w-4" />
-              Analyze Resume
+              Resumes
             </Link>
             <Link
               href="/dashboard/history"
@@ -73,7 +81,10 @@ export default function DashboardNavbar() {
                 <Link href="/dashboard">Dashboard</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/dashboard/analyze">Analyze Resume</Link>
+                <Link href="/dashboard/jobs">Jobs</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/resumes">Resumes</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/dashboard/history">Scan History</Link>

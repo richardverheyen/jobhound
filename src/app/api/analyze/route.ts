@@ -25,11 +25,11 @@ export async function POST(req: NextRequest) {
     const googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     if (!googleApiKey) {
       console.error(
-        "Missing GOOGLE_GENERATIVE_AI_API_KEY environment variable"
+        "Missing GOOGLE_GENERATIVE_AI_API_KEY environment variable",
       );
       return NextResponse.json(
         { error: "Server configuration error: Missing AI API key" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     if (!apiKey) {
       return NextResponse.json(
         { error: "API key is required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
           error: "No API calls available. Please purchase more credits.",
           remaining: 0,
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -77,13 +77,16 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const jobPosting = formData.get("jobPosting");
     const resumeFile = formData.get("resume") as File;
+    const scanId = formData.get("scanId") as string;
+    const jobId = formData.get("jobId") as string;
+    const resumeId = formData.get("resumeId") as string;
 
     if (!jobPosting || !resumeFile) {
       return NextResponse.json(
         {
           error: "Job posting and resume file are required",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -93,7 +96,6 @@ export async function POST(req: NextRequest) {
 
     // Format the job posting
     const formattedJobPosting = jobPosting.toString();
-    const scanId = crypto.randomUUID();
     const timestamp = new Date().toISOString();
 
     // Decrement the user's API call count using the Edge Function
@@ -125,7 +127,7 @@ export async function POST(req: NextRequest) {
               timestamp: timestamp,
             },
           }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -134,25 +136,25 @@ export async function POST(req: NextRequest) {
           "Error updating user credits. Status:",
           response.status,
           "Error:",
-          errorData
+          errorData,
         );
         console.error(
           "Response headers:",
-          Object.fromEntries(response.headers.entries())
+          Object.fromEntries(response.headers.entries()),
         );
         return NextResponse.json(
           { error: "Failed to process credits. Please try again." },
-          { status: 500 }
+          { status: 500 },
         );
       }
     } catch (updateError) {
       console.error(
         "Error calling update-credits-metadata function:",
-        updateError
+        updateError,
       );
       return NextResponse.json(
         { error: "Failed to process credits. Please try again." },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -164,6 +166,8 @@ export async function POST(req: NextRequest) {
       resume_filename: resumeFile.name,
       created_at: timestamp,
       status: "processing",
+      job_id: jobId,
+      resume_id: resumeId,
     });
 
     if (scanError) {
@@ -281,7 +285,7 @@ Key points to analyze:
           error: "Failed to process with AI model. Please try again.",
           details: aiError?.message,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
   } catch (error: any) {
@@ -291,7 +295,7 @@ Key points to analyze:
         error: "An error occurred while processing your request",
         details: error?.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
