@@ -42,7 +42,7 @@ serve(async (req) => {
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
@@ -55,15 +55,19 @@ serve(async (req) => {
     // Get user's current credits
     const { data: userData, error: userError } = await supabase
       .from("users")
-      .select("credits")
+      .select("credits, user_id")
       .eq("user_id", userId)
       .single();
 
     if (userError || !userData) {
-      return new Response(JSON.stringify({ error: "User not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.error("User lookup error:", userError);
+      return new Response(
+        JSON.stringify({ error: "User not found", details: userError }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     // Calculate new credits
@@ -91,7 +95,7 @@ serve(async (req) => {
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
@@ -117,7 +121,7 @@ serve(async (req) => {
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      }
     );
   } catch (error) {
     console.error("Error updating credits:", error);
@@ -129,7 +133,7 @@ serve(async (req) => {
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      }
     );
   }
 });

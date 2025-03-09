@@ -23,5 +23,16 @@ CREATE POLICY "Users can view their own scans"
 -- Add scan_id to api_usage table
 ALTER TABLE api_usage ADD COLUMN IF NOT EXISTS scan_id UUID REFERENCES job_scans(id);
 
--- Enable realtime for job_scans
-ALTER PUBLICATION supabase_realtime ADD TABLE job_scans;
+-- Enable realtime for job_scans if not already enabled
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 
+    FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' 
+    AND schemaname = current_schema()
+    AND tablename = 'job_scans'
+  ) THEN
+    EXECUTE 'ALTER PUBLICATION supabase_realtime ADD TABLE job_scans';
+  END IF;
+END $$;

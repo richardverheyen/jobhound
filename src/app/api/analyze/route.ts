@@ -25,11 +25,11 @@ export async function POST(req: NextRequest) {
     const googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     if (!googleApiKey) {
       console.error(
-        "Missing GOOGLE_GENERATIVE_AI_API_KEY environment variable",
+        "Missing GOOGLE_GENERATIVE_AI_API_KEY environment variable"
       );
       return NextResponse.json(
         { error: "Server configuration error: Missing AI API key" },
-        { status: 500 },
+        { status: 500 }
       );
     }
 
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     if (!apiKey) {
       return NextResponse.json(
         { error: "API key is required" },
-        { status: 401 },
+        { status: 401 }
       );
     }
 
@@ -46,25 +46,30 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
 
     // Verify API key and get user
+    console.log("Verifying API key:", apiKey);
     const { data: userData, error: userError } = await supabase
       .from("users")
-      .select("id, user_id, credits")
+      .select("id, user_id, credits, token_identifier")
       .eq("token_identifier", apiKey)
       .single();
 
+    console.log("User data response:", { userData, userError });
+
     if (userError || !userData) {
+      console.error("User verification failed:", userError);
       return NextResponse.json({ error: "Invalid API key" }, { status: 401 });
     }
 
     // Check if user has available API calls
     const credits = parseInt(userData.credits || "0");
+    console.log("User credits:", credits);
     if (credits <= 0) {
       return NextResponse.json(
         {
           error: "No API calls available. Please purchase more credits.",
           remaining: 0,
         },
-        { status: 403 },
+        { status: 403 }
       );
     }
 
@@ -78,7 +83,7 @@ export async function POST(req: NextRequest) {
         {
           error: "Job posting and resume file are required",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -93,13 +98,23 @@ export async function POST(req: NextRequest) {
 
     // Decrement the user's API call count using the Edge Function
     try {
+      console.log("Calling update-credits-metadata with:", {
+        userId: userData.user_id,
+        creditsToDecrement: 1,
+        metadata: {
+          scan_id: scanId,
+          resume_filename: resumeFile.name,
+          timestamp: timestamp,
+        },
+      });
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/update-credits-metadata`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
           },
           body: JSON.stringify({
             userId: userData.user_id,
@@ -110,25 +125,34 @@ export async function POST(req: NextRequest) {
               timestamp: timestamp,
             },
           }),
-        },
+        }
       );
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("Error updating user credits:", errorData);
+        console.error(
+          "Error updating user credits. Status:",
+          response.status,
+          "Error:",
+          errorData
+        );
+        console.error(
+          "Response headers:",
+          Object.fromEntries(response.headers.entries())
+        );
         return NextResponse.json(
           { error: "Failed to process credits. Please try again." },
-          { status: 500 },
+          { status: 500 }
         );
       }
     } catch (updateError) {
       console.error(
         "Error calling update-credits-metadata function:",
-        updateError,
+        updateError
       );
       return NextResponse.json(
         { error: "Failed to process credits. Please try again." },
-        { status: 500 },
+        { status: 500 }
       );
     }
 
@@ -257,7 +281,7 @@ Key points to analyze:
           error: "Failed to process with AI model. Please try again.",
           details: aiError?.message,
         },
-        { status: 500 },
+        { status: 500 }
       );
     }
   } catch (error: any) {
@@ -267,7 +291,7 @@ Key points to analyze:
         error: "An error occurred while processing your request",
         details: error?.message,
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
