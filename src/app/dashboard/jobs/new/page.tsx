@@ -46,7 +46,7 @@ export default async function NewJobPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <NewJobForm userId={user.id} />
+              <NewJobForm />
             </CardContent>
           </Card>
         </div>

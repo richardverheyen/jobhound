@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../../supabase/supabase";
 
 interface NewJobFormProps {
-  userId: string;
+  userId?: string; // Optional since we're not using it anymore
 }
 
 export default function NewJobForm({ userId }: NewJobFormProps) {
@@ -39,12 +39,21 @@ export default function NewJobForm({ userId }: NewJobFormProps) {
     setError(null);
 
     try {
+      // Get the authenticated user's ID
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError) throw authError;
+      if (!user) throw new Error("Not authenticated");
+
       // Create job record in Supabase
       const { data: job, error: jobError } = await supabase
         .from("jobs")
         .insert([
           {
-            user_id: userId,
+            user_id: user.id,
             title,
             company: company || null,
             location: location || null,
