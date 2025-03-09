@@ -167,6 +167,16 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+      // Only proceed with AI analysis if we have a resume file
+      if (!resumeFile) {
+        return NextResponse.json(
+          {
+            error: "Resume file is required for analysis",
+          },
+          { status: 400 }
+        );
+      }
+
       // Convert the resume file to ArrayBuffer for AI processing
       const resumeBuffer = await resumeFile.arrayBuffer();
       const resumePDF = new Uint8Array(resumeBuffer);
