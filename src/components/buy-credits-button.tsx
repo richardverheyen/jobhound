@@ -34,13 +34,39 @@ export default function BuyCreditsButton({
     setErrorMessage(null);
 
     try {
-      // Create a direct link to Stripe Checkout
-      // This is a temporary solution until the Edge Functions are fixed
+      // Create a form and submit it to Stripe Checkout
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = "https://checkout.stripe.com/create-checkout-session";
 
-      // Redirect to a hosted checkout page
-      window.location.href = "https://buy.stripe.com/test_28o5mz0Wd0Hl0QU000"; // Replace with your actual Stripe hosted checkout page URL
+      // Add necessary parameters
+      const params = {
+        success_url: window.location.origin + "/dashboard?payment=success",
+        cancel_url: window.location.origin + "/dashboard?payment=cancelled",
+        customer_email: userEmail,
+        client_reference_id: userId,
+        mode: "payment",
+        "line_items[0][price]": "price_1R0KqSPPpRvSAmmeOyHZDu3g", // Replace with your actual price ID
+        "line_items[0][quantity]": "1",
+      };
 
-      // We don't need to wait for the redirect since we're sending the user directly to Stripe
+      // Add parameters to form
+      Object.entries(params).forEach(([key, value]) => {
+        const hiddenField = document.createElement("input");
+        hiddenField.type = "hidden";
+        hiddenField.name = key;
+        hiddenField.value = value;
+        form.appendChild(hiddenField);
+      });
+
+      // Add form to body and submit
+      document.body.appendChild(form);
+      form.submit();
+
+      // Clean up form
+      document.body.removeChild(form);
+
+      // We don't need to wait for the redirect since we're submitting a form
       return;
     } catch (error: any) {
       console.error("Error redirecting to checkout:", error);

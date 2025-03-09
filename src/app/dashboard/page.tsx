@@ -24,7 +24,6 @@ import BuyCreditsButton from "@/components/buy-credits-button";
 import CreditHistory from "@/components/credit-history";
 import JobList from "@/components/job-list";
 import ResumeCard from "@/components/resume-card";
-import CreateScanForm from "@/components/create-scan-form";
 
 export default async function Dashboard() {
   const supabase = await createClient();
