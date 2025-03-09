@@ -1,10 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@13.6.0?target=deno";
-
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-  apiVersion: "2023-10-16",
-  httpClient: Stripe.createFetchHttpClient(),
-});
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,8 +16,8 @@ serve(async (req) => {
   }
 
   try {
-    // Get the user ID, credits to decrement, and metadata from the request
-    const { userId, creditsToDecrement = 1, metadata = {} } = await req.json();
+    // Get the user ID from the request
+    const { userId } = await req.json();
 
     if (!userId) {
       return new Response(JSON.stringify({ error: "User ID is required" }), {
@@ -52,7 +46,7 @@ serve(async (req) => {
     );
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get user's current credits
+    // Get user's current credits from Supabase
     const { data: userData, error: userError } = await supabase
       .from("users")
       .select("credits")
@@ -66,53 +60,11 @@ serve(async (req) => {
       });
     }
 
-    // Calculate new credits
-    const currentCredits = parseInt(userData.credits || "0");
-    const newCredits = Math.max(0, currentCredits - creditsToDecrement);
-
-    // Update user credits in Supabase
-    const { error: updateError } = await supabase
-      .from("users")
-      .update({
-        credits: newCredits.toString(),
-        updated_at: new Date().toISOString(),
-        metadata: {
-          last_credit_update: new Date().toISOString(),
-          last_credit_source: "api_usage",
-          last_api_call: new Date().toISOString(),
-          ...metadata,
-        },
-      })
-      .eq("user_id", userId);
-
-    if (updateError) {
-      return new Response(
-        JSON.stringify({ error: "Failed to update user credits" }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    // Log the API usage
-    const { error: logError } = await supabase.from("api_usage").insert({
-      user_id: userId,
-      timestamp: new Date().toISOString(),
-      endpoint: "/api/analyze",
-      status: "success",
-    });
-
-    if (logError) {
-      console.error("Error logging API usage:", logError);
-    }
-
+    // Return the current credits
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Credits updated successfully",
-        previousCredits: currentCredits,
-        newCredits: newCredits,
+        credits: parseInt(userData.credits || "0"),
       }),
       {
         status: 200,
@@ -120,10 +72,10 @@ serve(async (req) => {
       },
     );
   } catch (error) {
-    console.error("Error updating credits:", error);
+    console.error("Error syncing credits:", error);
     return new Response(
       JSON.stringify({
-        error: "An error occurred while updating credits",
+        error: "An error occurred while syncing credits",
         details: error.message,
       }),
       {

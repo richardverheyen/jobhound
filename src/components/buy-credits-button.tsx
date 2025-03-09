@@ -31,8 +31,17 @@ export default function BuyCreditsButton({
   const handleBuyCredits = async () => {
     setIsLoading(true);
     try {
-      // Use the existing credits price
-      const priceId = "price_1R0KqSPPpRvSAmmeOyHZDu3g"; // 10 credits for $10 USD
+      // First, ensure we have the latest credits product
+      const { data: productData, error: productError } =
+        await supabase.functions.invoke("update-api-product");
+
+      if (productError) {
+        throw new Error("Failed to get latest product information");
+      }
+
+      // Use the price ID from the response
+      const priceId =
+        productData?.price?.id || "price_1R0KqSPPpRvSAmmeOyHZDu3g"; // Fallback
 
       // Create a one-time payment checkout session
       const { data, error } = await supabase.functions.invoke(
@@ -47,7 +56,7 @@ export default function BuyCreditsButton({
           headers: {
             "X-Customer-Email": userEmail || "",
           },
-        }
+        },
       );
 
       if (error) {

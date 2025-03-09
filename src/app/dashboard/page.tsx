@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import BuyCreditsButton from "@/components/buy-credits-button";
+import CreditHistory from "@/components/credit-history";
 
 export default async function Dashboard() {
   const supabase = await createClient();
@@ -30,6 +31,19 @@ export default async function Dashboard() {
 
   if (!user) {
     return redirect("/sign-in");
+  }
+
+  // Sync credits with Stripe via edge function
+  try {
+    const syncResponse = await supabase.functions.invoke("sync-credits", {
+      body: { userId: user.id },
+    });
+
+    if (syncResponse.error) {
+      console.error("Error syncing credits:", syncResponse.error);
+    }
+  } catch (error) {
+    console.error("Failed to sync credits:", error);
   }
 
   // Get user data including credits
@@ -213,6 +227,11 @@ export default async function Dashboard() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Credit History Section */}
+          <div className="mt-8">
+            <CreditHistory userId={user.id} />
+          </div>
         </div>
       </main>
     </SubscriptionCheck>

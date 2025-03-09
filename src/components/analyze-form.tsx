@@ -90,6 +90,13 @@ export default function AnalyzeForm({ credits, apiKey }: AnalyzeFormProps) {
       formData.append("jobPosting", jobDescription);
       formData.append("resume", file);
 
+      // First check if credits are available
+      if (credits <= 0) {
+        setError("No credits available. Please purchase more credits.");
+        setIsLoading(false);
+        return;
+      }
+
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {

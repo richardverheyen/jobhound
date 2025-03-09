@@ -104,6 +104,11 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             userId: userData.user_id,
             creditsToDecrement: 1,
+            metadata: {
+              scan_id: scanId,
+              resume_filename: resumeFile.name,
+              timestamp: timestamp,
+            },
           }),
         },
       );
@@ -111,14 +116,20 @@ export async function POST(req: NextRequest) {
       if (!response.ok) {
         const errorData = await response.json();
         console.error("Error updating user credits:", errorData);
-        // Continue with the analysis even if updating credits fails
+        return NextResponse.json(
+          { error: "Failed to process credits. Please try again." },
+          { status: 500 },
+        );
       }
     } catch (updateError) {
       console.error(
         "Error calling update-credits-metadata function:",
         updateError,
       );
-      // Continue with the analysis even if updating credits fails
+      return NextResponse.json(
+        { error: "Failed to process credits. Please try again." },
+        { status: 500 },
+      );
     }
 
     // Store the job posting and create a scan record

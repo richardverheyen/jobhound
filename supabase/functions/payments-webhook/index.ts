@@ -291,16 +291,17 @@ async function handleCheckoutSessionCompleted(
     const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
     console.log("Line items:", JSON.stringify(lineItems, null, 2));
 
-    // Calculate credits to add (assuming 1 credit per $1)
+    // Calculate credits to add (10 credits per $10)
     let creditsToAdd = 0;
 
     // Check if this is a one-time payment or subscription
     if (session.mode === "payment") {
       // For one-time payments, add credits based on the amount
       const amountTotal = session.amount_total || 0;
-      creditsToAdd = Math.floor(amountTotal / 100); // Convert cents to dollars
+      // $10 = 10 credits (1000 cents = 10 credits)
+      creditsToAdd = Math.floor(amountTotal / 100);
       console.log(
-        `One-time payment: Adding ${creditsToAdd} credits based on amount ${amountTotal}`,
+        `One-time payment: Adding ${creditsToAdd} credits based on amount ${amountTotal} cents`,
       );
     } else if (subscriptionId) {
       // For subscriptions, add credits based on the plan
@@ -311,7 +312,7 @@ async function handleCheckoutSessionCompleted(
       // Add 10 credits for every $10 in the subscription
       creditsToAdd = Math.floor(planAmount / 100);
       console.log(
-        `Subscription: Adding ${creditsToAdd} credits based on plan amount ${planAmount}`,
+        `Subscription: Adding ${creditsToAdd} credits based on plan amount ${planAmount} cents`,
       );
     }
 
@@ -320,6 +321,15 @@ async function handleCheckoutSessionCompleted(
       creditsToAdd = 10;
       console.log(`Using default: Adding ${creditsToAdd} credits`);
     }
+
+    // Store the metadata about this purchase for auditing
+    const purchaseMetadata = {
+      source: "stripe_checkout",
+      session_id: session.id,
+      amount_total: session.amount_total,
+      credits_added: creditsToAdd,
+      timestamp: new Date().toISOString(),
+    };
 
     // Get current user credits
     const { data: userData, error: userError } = await supabaseClient
@@ -349,6 +359,11 @@ async function handleCheckoutSessionCompleted(
       .update({
         credits: newCredits.toString(),
         updated_at: new Date().toISOString(),
+        metadata: {
+          last_credit_update: new Date().toISOString(),
+          last_credit_source: "stripe_checkout",
+          purchase_history: purchaseMetadata,
+        },
       })
       .eq("user_id", userId);
 

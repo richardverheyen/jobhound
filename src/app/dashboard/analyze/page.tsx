@@ -22,8 +22,30 @@ export default async function AnalyzePage() {
     .eq("user_id", user.id)
     .single();
 
-  const credits = userData?.credits ? parseInt(userData.credits) : 0;
-  const apiKey = userData?.token_identifier || "";
+  // Sync credits with Stripe via edge function
+  try {
+    const syncResponse = await supabase.functions.invoke("sync-credits", {
+      body: { userId: user.id },
+    });
+
+    if (syncResponse.error) {
+      console.error("Error syncing credits:", syncResponse.error);
+    }
+  } catch (error) {
+    console.error("Failed to sync credits:", error);
+  }
+
+  // Re-fetch user data after sync attempt
+  const { data: refreshedUserData } = await supabase
+    .from("users")
+    .select("*")
+    .eq("user_id", user.id)
+    .single();
+
+  const credits = refreshedUserData?.credits
+    ? parseInt(refreshedUserData.credits)
+    : 0;
+  const apiKey = refreshedUserData?.token_identifier || "";
 
   return (
     <SubscriptionCheck>

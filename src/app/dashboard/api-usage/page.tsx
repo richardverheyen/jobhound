@@ -23,6 +23,19 @@ export default async function ApiUsagePage() {
     return redirect("/sign-in");
   }
 
+  // Sync credits with Stripe via edge function
+  try {
+    const syncResponse = await supabase.functions.invoke("sync-credits", {
+      body: { userId: user.id },
+    });
+
+    if (syncResponse.error) {
+      console.error("Error syncing credits:", syncResponse.error);
+    }
+  } catch (error) {
+    console.error("Failed to sync credits:", error);
+  }
+
   // Get user data including credits
   const { data: userData, error: userError } = await supabase
     .from("users")
