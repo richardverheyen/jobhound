@@ -98,7 +98,7 @@ export default async function Dashboard() {
                     match analysis
                   </p>
                 </div>
-                <Link href="/dashboard/create-scan">
+                <Link href="/dashboard/jobs/new">
                   <Button className="whitespace-nowrap">
                     <Plus className="mr-2 h-4 w-4" />
                     New Analysis
