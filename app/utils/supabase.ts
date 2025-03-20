@@ -1,13 +1,20 @@
 'use client';
 
-import { createClient } from 'supabase';
+import { createBrowserClient } from "@supabase/ssr";
 
 // These environment variables are set in .env file
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
 
+export const createClient = () =>
+    createBrowserClient(
+        supabaseUrl,
+        supabaseAnonKey
+    );
+  
+
 // Create a single supabase client for interacting with your database
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient();
 
 // Auth helpers
 export async function signInWithEmail(email: string, password: string) {
