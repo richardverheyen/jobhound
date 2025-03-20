@@ -28,14 +28,28 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# local env files
+.env*.local
+.env
 
 # vercel
 .vercel
 
+# cursor
+.cursor 
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Tempo
+
+node_modules/
+**/tempobook/dynamic/
+**/tempobook/storyboards/
+
+# I want to ignore the git folder
+.git
+
+.github/
