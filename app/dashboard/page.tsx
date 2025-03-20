@@ -1,9 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/server'
-import { redirect } from 'next/navigation'
 
 interface Job {
   id: string
@@ -13,23 +10,17 @@ interface Job {
   applied_date: string
 }
 
-export default async function Dashboard() {
-  const supabase = await createClient()
+interface User {
+  email: string | undefined
+  [key: string]: any
+}
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+interface DashboardClientProps {
+  user: User
+  jobs: Job[]
+}
 
-  if (!user) {
-    redirect('/auth/login')
-  }
-
-  const { data: jobs } = await supabase
-    .from('jobs')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(5)
-
+export default function DashboardClient({ user, jobs }: DashboardClientProps) {
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
@@ -158,4 +149,4 @@ export default async function Dashboard() {
       </div>
     </div>
   )
-} 
+}
