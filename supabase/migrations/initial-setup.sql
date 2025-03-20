@@ -11,6 +11,18 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Onboarding sessions table
+CREATE TABLE IF NOT EXISTS onboarding_sessions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  session_id TEXT UNIQUE NOT NULL,
+  email TEXT,
+  status TEXT NOT NULL DEFAULT 'created',
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  metadata JSONB,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Credit purchases table
 CREATE TABLE IF NOT EXISTS credit_purchases (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -46,7 +58,8 @@ CREATE TABLE IF NOT EXISTS resumes (
   mime_type TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  temporary_session_id TEXT
+  temporary_session_id TEXT,
+  onboarding_session_id UUID REFERENCES onboarding_sessions(id)
 );
 
 -- Jobs table
@@ -59,7 +72,8 @@ CREATE TABLE IF NOT EXISTS jobs (
   description TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  temporary_session_id TEXT
+  temporary_session_id TEXT,
+  onboarding_session_id UUID REFERENCES onboarding_sessions(id)
 );
 
 -- Job scans table
@@ -76,7 +90,8 @@ CREATE TABLE IF NOT EXISTS job_scans (
   results JSONB,
   match_score FLOAT8,
   error_message TEXT,
-  temporary_session_id UUID
+  temporary_session_id UUID,
+  onboarding_session_id UUID REFERENCES onboarding_sessions(id)
 );
 
 -- Create indexes for better performance
@@ -98,6 +113,14 @@ CREATE INDEX idx_job_scans_credit_purchase_id ON job_scans(credit_purchase_id);
 CREATE INDEX idx_job_scans_match_score ON job_scans(match_score);
 CREATE INDEX idx_job_scans_status ON job_scans(status);
 
+-- Indexes for onboarding
+CREATE INDEX idx_onboarding_sessions_session_id ON onboarding_sessions(session_id);
+CREATE INDEX idx_onboarding_sessions_expires_at ON onboarding_sessions(expires_at);
+CREATE INDEX idx_onboarding_sessions_status ON onboarding_sessions(status);
+CREATE INDEX idx_resumes_onboarding_session_id ON resumes(onboarding_session_id);
+CREATE INDEX idx_jobs_onboarding_session_id ON jobs(onboarding_session_id);
+CREATE INDEX idx_job_scans_onboarding_session_id ON job_scans(onboarding_session_id);
+
 -- Row Level Security (RLS) policies
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credit_purchases ENABLE ROW LEVEL SECURITY;
@@ -105,6 +128,7 @@ ALTER TABLE credit_usage ENABLE ROW LEVEL SECURITY;
 ALTER TABLE resumes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE job_scans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE onboarding_sessions ENABLE ROW LEVEL SECURITY;
 
 -- Users can only see and modify their own data
 CREATE POLICY "Users can view their own profile" 
@@ -116,14 +140,77 @@ CREATE POLICY "Users can view their own credit purchases"
 CREATE POLICY "Users can view their own credit usage" 
   ON credit_usage FOR SELECT USING (auth.uid() = user_id);
 
+-- RLS policies for onboarding sessions
+CREATE POLICY "Only system can create onboarding sessions" 
+  ON onboarding_sessions FOR INSERT TO authenticated;
+
+CREATE POLICY "Users can view their own onboarding sessions" 
+  ON onboarding_sessions FOR SELECT USING (
+    email = auth.email() OR 
+    session_id = current_setting('app.temporary_session_id', true)
+  );
+
+-- New RLS policies that consider both regular users and onboarding sessions
 CREATE POLICY "Users can view their own resumes" 
-  ON resumes FOR SELECT USING (auth.uid() = user_id);
+  ON resumes FOR SELECT USING (
+    auth.uid() = user_id OR 
+    onboarding_session_id IN (
+      SELECT id FROM onboarding_sessions 
+      WHERE session_id = current_setting('app.temporary_session_id', true)
+    )
+  );
 
 CREATE POLICY "Users can view their own jobs" 
-  ON jobs FOR SELECT USING (auth.uid() = user_id);
+  ON jobs FOR SELECT USING (
+    auth.uid() = user_id OR 
+    onboarding_session_id IN (
+      SELECT id FROM onboarding_sessions 
+      WHERE session_id = current_setting('app.temporary_session_id', true)
+    )
+  );
 
 CREATE POLICY "Users can view their own job scans" 
-  ON job_scans FOR SELECT USING (auth.uid() = user_id);
+  ON job_scans FOR SELECT USING (
+    auth.uid() = user_id OR 
+    onboarding_session_id IN (
+      SELECT id FROM onboarding_sessions 
+      WHERE session_id = current_setting('app.temporary_session_id', true)
+    )
+  );
+
+-- Add insert policies for onboarding
+CREATE POLICY "Allow inserts to resumes during onboarding" 
+  ON resumes FOR INSERT WITH CHECK (
+    auth.uid() = user_id OR 
+    onboarding_session_id IN (
+      SELECT id FROM onboarding_sessions 
+      WHERE session_id = current_setting('app.temporary_session_id', true)
+        AND status = 'active'
+        AND expires_at > NOW()
+    )
+  );
+
+CREATE POLICY "Allow inserts to jobs during onboarding" 
+  ON jobs FOR INSERT WITH CHECK (
+    auth.uid() = user_id OR 
+    onboarding_session_id IN (
+      SELECT id FROM onboarding_sessions 
+      WHERE session_id = current_setting('app.temporary_session_id', true)
+        AND status = 'active'
+        AND expires_at > NOW()
+    )
+  );
+
+CREATE POLICY "Allow inserts to job_scans during onboarding" 
+  ON job_scans FOR INSERT WITH CHECK (
+    auth.uid() = user_id OR 
+    onboarding_session_id IN (
+      SELECT id FROM onboarding_sessions 
+      WHERE session_id = current_setting('app.temporary_session_id', true)
+        AND status = 'active'
+        AND expires_at > NOW()
+    )
+  );
 
 -- Create helpful functions
 CREATE OR REPLACE FUNCTION get_available_credits(p_user_id UUID)
@@ -143,7 +230,7 @@ CREATE OR REPLACE FUNCTION create_job_scan(
   p_job_posting TEXT DEFAULT NULL,
   p_request_payload JSONB DEFAULT NULL
 )
-RETURNS JSONB AS $
+RETURNS JSONB AS $$
 DECLARE
   v_purchase_id UUID;
   v_scan_id UUID;
@@ -211,14 +298,14 @@ BEGIN
     'scan_id', v_scan_id
   );
 END;
-$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Keep the original use_credit function for non-scan related credit usage
 CREATE OR REPLACE FUNCTION use_credit(
   p_user_id UUID,
   p_request_payload JSONB DEFAULT NULL
 )
-RETURNS JSONB AS $
+RETURNS JSONB AS $$
 DECLARE
   v_purchase_id UUID;
   v_usage_id UUID;
@@ -264,11 +351,11 @@ BEGIN
     'usage_id', v_usage_id
   );
 END;
-$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to set default resume for a user
 CREATE OR REPLACE FUNCTION set_default_resume(p_user_id UUID, p_resume_id UUID)
-RETURNS BOOLEAN AS $
+RETURNS BOOLEAN AS $$
 DECLARE
   v_resume_exists BOOLEAN;
 BEGIN
@@ -290,7 +377,155 @@ BEGIN
   
   RETURN TRUE;
 END;
-$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to create an onboarding session
+CREATE OR REPLACE FUNCTION create_onboarding_session(
+  p_email TEXT DEFAULT NULL,
+  p_expiry_hours INTEGER DEFAULT 24
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_session_id TEXT;
+  v_onboarding_id UUID;
+BEGIN
+  -- Generate a secure random session ID
+  v_session_id := encode(gen_random_bytes(32), 'hex');
+  
+  -- Create the onboarding session
+  INSERT INTO onboarding_sessions (
+    session_id,
+    email,
+    status,
+    expires_at
+  )
+  VALUES (
+    v_session_id,
+    p_email,
+    'active',
+    NOW() + (p_expiry_hours * INTERVAL '1 hour')
+  )
+  RETURNING id INTO v_onboarding_id;
+  
+  RETURN jsonb_build_object(
+    'session_id', v_session_id,
+    'onboarding_id', v_onboarding_id,
+    'expires_at', (NOW() + (p_expiry_hours * INTERVAL '1 hour'))
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to validate an onboarding session
+CREATE OR REPLACE FUNCTION validate_onboarding_session(
+  p_session_id TEXT
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_session_record onboarding_sessions%ROWTYPE;
+BEGIN
+  -- Find the session
+  SELECT * INTO v_session_record
+  FROM onboarding_sessions
+  WHERE session_id = p_session_id
+    AND status = 'active'
+    AND expires_at > NOW();
+  
+  -- If session not found or expired
+  IF v_session_record.id IS NULL THEN
+    RETURN jsonb_build_object(
+      'valid', false,
+      'message', 'Invalid or expired session'
+    );
+  END IF;
+  
+  -- Session is valid
+  RETURN jsonb_build_object(
+    'valid', true,
+    'onboarding_id', v_session_record.id,
+    'email', v_session_record.email,
+    'expires_at', v_session_record.expires_at
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to complete onboarding and associate with a user account
+CREATE OR REPLACE FUNCTION complete_onboarding(
+  p_user_id UUID,
+  p_session_id TEXT
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_onboarding_id UUID;
+  v_email TEXT;
+BEGIN
+  -- Get the onboarding session ID
+  SELECT id, email INTO v_onboarding_id, v_email
+  FROM onboarding_sessions
+  WHERE session_id = p_session_id
+    AND status = 'active'
+    AND expires_at > NOW();
+  
+  -- If session not found or expired
+  IF v_onboarding_id IS NULL THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'message', 'Invalid or expired session'
+    );
+  END IF;
+  
+  -- Update the user email if needed and exists in the onboarding session
+  IF v_email IS NOT NULL THEN
+    UPDATE users
+    SET email = v_email
+    WHERE id = p_user_id
+      AND (email IS NULL OR email = '');
+  END IF;
+  
+  -- Update all resumes created during onboarding to belong to the user
+  UPDATE resumes
+  SET user_id = p_user_id,
+      onboarding_session_id = NULL
+  WHERE onboarding_session_id = v_onboarding_id;
+  
+  -- Update all jobs created during onboarding to belong to the user
+  UPDATE jobs
+  SET user_id = p_user_id,
+      onboarding_session_id = NULL
+  WHERE onboarding_session_id = v_onboarding_id;
+  
+  -- Update all job scans created during onboarding to belong to the user
+  UPDATE job_scans
+  SET user_id = p_user_id,
+      onboarding_session_id = NULL
+  WHERE onboarding_session_id = v_onboarding_id;
+  
+  -- Mark the onboarding session as completed
+  UPDATE onboarding_sessions
+  SET status = 'completed'
+  WHERE id = v_onboarding_id;
+  
+  RETURN jsonb_build_object(
+    'success', true,
+    'message', 'Onboarding completed successfully'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to automatically expire onboarding sessions
+CREATE OR REPLACE FUNCTION expire_onboarding_sessions()
+RETURNS INTEGER AS $$
+DECLARE
+  v_count INTEGER;
+BEGIN
+  UPDATE onboarding_sessions
+  SET status = 'expired'
+  WHERE status = 'active'
+    AND expires_at <= NOW();
+    
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Optional: Create a trigger to update the updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -301,6 +536,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Create triggers for the updated_at columns
 CREATE TRIGGER update_users_updated_at
 BEFORE UPDATE ON users
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -311,4 +547,8 @@ FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_jobs_updated_at
 BEFORE UPDATE ON jobs
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_onboarding_sessions_updated_at
+BEFORE UPDATE ON onboarding_sessions
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

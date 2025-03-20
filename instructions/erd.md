@@ -12,6 +12,11 @@ erDiagram
     resumes ||--o{ job_scans : used_in
     job_scans ||--o{ credit_usage : records_usage_in
     
+    %% New onboarding entity and relationships
+    onboarding_sessions ||--o{ resumes : creates_during_onboarding
+    onboarding_sessions ||--o{ jobs : creates_during_onboarding
+    onboarding_sessions ||--o{ job_scans : creates_during_onboarding
+    
     users {
         uuid id PK
         string email
@@ -54,6 +59,7 @@ erDiagram
         timestamp created_at
         timestamp updated_at
         string temporary_session_id
+        uuid onboarding_session_id FK "NEW"
     }
     
     jobs {
@@ -66,6 +72,7 @@ erDiagram
         timestamp created_at
         timestamp updated_at
         string temporary_session_id
+        uuid onboarding_session_id FK "NEW"
     }
     
     job_scans {
@@ -82,5 +89,18 @@ erDiagram
         float match_score
         string error_message
         uuid temporary_session_id
+        uuid onboarding_session_id FK "NEW"
+    }
+    
+    %% New entity for onboarding
+    onboarding_sessions {
+        uuid id PK
+        string session_id "Unique token"
+        string email "Optional"
+        string status "created/active/completed/expired"
+        timestamp expires_at
+        jsonb metadata "Optional"
+        timestamp created_at
+        timestamp updated_at
     }
 ```
