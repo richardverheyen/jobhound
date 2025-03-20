@@ -2,8 +2,9 @@
 
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { Suspense } from 'react'
 
-export default function ErrorPage() {
+function ErrorContent() {
   const searchParams = useSearchParams()
   const error = searchParams.get('message') || 'Sorry, something went wrong'
 
@@ -33,4 +34,26 @@ export default function ErrorPage() {
       </div>
     </div>
   )
-} 
+}
+
+// Fallback content while the component is loading
+function ErrorFallback() {
+  return (
+    <div className="text-center">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+        Authentication Error
+      </h1>
+      <p className="text-gray-600 dark:text-gray-400 mb-8">
+        Loading error details...
+      </p>
+    </div>
+  )
+}
+
+export default function ErrorPage() {
+  return (
+    <Suspense fallback={<ErrorFallback />}>
+      <ErrorContent />
+    </Suspense>
+  )
+}
