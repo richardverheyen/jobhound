@@ -24,7 +24,7 @@ export default function DashboardClient({ user, jobs }: DashboardClientProps) {
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Welcome back, {user.email?.split('@')[0] || 'User'}</h1>
+        <h1 className="text-2xl font-bold">Welcome back, {user?.email?.split('@')[0] || 'User'}</h1>
         <Link
           href="/dashboard/jobs/new"
           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"

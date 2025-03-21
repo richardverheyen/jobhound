@@ -68,10 +68,10 @@ export default function DashboardLayoutClient({
                 </div>
                 <div className="ml-3">
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {user.email?.split('@')[0] || 'User'}
+                    {user?.email?.split('@')[0] || 'User'}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                    {user.email}
+                    {user?.email}
                   </p>
                 </div>
               </div>
