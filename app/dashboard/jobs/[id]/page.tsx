@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Job, Resume, JobScan } from '@/app/types';
+import { Job, Resume, JobScan } from '@/types';
 import { createClient } from '@/utils/supabase/client';
 import { Navbar } from '@/app/components/Navbar';
 

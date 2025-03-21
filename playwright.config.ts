@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'path';
 
 export default defineConfig({
+  // E2E tests
   testDir: './tests/e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -13,7 +15,9 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
+  // Define separate projects for different types of tests
   projects: [
+    // Regular e2e tests
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
@@ -25,6 +29,17 @@ export default defineConfig({
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
+    },
+    // Integration tests with global setup
+    {
+      name: 'integration',
+      testDir: './tests/integration/playwright',
+      globalSetup: './tests/integration/playwright/global-setup.ts',
+      use: { 
+        ...devices['Desktop Chrome'],
+        // Longer timeout for integration tests
+        actionTimeout: 30000,
+      },
     },
   ],
   webServer: {

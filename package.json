@@ -2,6 +2,9 @@
   "name": "jobhound",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
@@ -14,9 +17,11 @@
     "supabase:status": "supabase status",
     "test": "jest",
     "test:e2e": "playwright test",
+    "test:workflow": "playwright test --project=integration",
     "test:integration": "jest --config tests/integration/jest.config.js",
     "test:all": "./scripts/run-tests.sh",
     "test:user-trigger": "node scripts/test-user-trigger.js",
+    "test:clean-db": "node scripts/clean-test-db.js",
     "sync:users": "node scripts/sync-existing-users.js"
   },
   "dependencies": {

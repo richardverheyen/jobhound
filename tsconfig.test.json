@@ -6,12 +6,15 @@
     "noEmit": false,
     "jsx": "react-jsx",
     "types": ["jest", "node", "@types/jest", "@playwright/test"],
-    "typeRoots": ["./node_modules/@types", "./tests/integration/types"]
+    "typeRoots": ["./node_modules/@types", "./tests/integration/types", "./app/types"],
+    "skipLibCheck": true,
+    "noImplicitAny": false
   },
   "include": [
     "tests/**/*.ts",
     "**/*.test.ts",
-    "**/*.spec.ts"
+    "**/*.spec.ts",
+    "app/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

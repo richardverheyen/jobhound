@@ -1,8 +1,14 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import { setupTestUser, cleanupTestUser } from '../helpers/auth-helper';
 
+/**
+ * Generate a unique test email with timestamp and random suffix
+ */
+function generateUniqueTestEmail(): string {
+  return `test-${Date.now()}-${Math.floor(Math.random() * 10000)}@example.com`;
+}
+
 // Test data
-const TEST_EMAIL = 'test-user@example.com';
 const TEST_PASSWORD = 'test-password123!';
 const JOB_DETAILS = {
   company: 'Test Company Inc.',
@@ -13,21 +19,26 @@ const JOB_DETAILS = {
 
 test.describe('Job Creation Flow', () => {
   let userId: string;
+  let testEmail: string;
 
   // Set up a test user before all tests
   test.beforeAll(async () => {
-    userId = await setupTestUser(TEST_EMAIL, TEST_PASSWORD);
+    testEmail = generateUniqueTestEmail();
+    console.log(`Creating test user with email: ${testEmail}`);
+    userId = await setupTestUser(testEmail, TEST_PASSWORD);
   });
 
   // Clean up the test user after all tests
   test.afterAll(async () => {
-    await cleanupTestUser(userId);
+    if (userId) {
+      await cleanupTestUser(userId);
+    }
   });
 
-  test('should allow a logged-in user to create a job', async ({ page }) => {
+  test('should allow a logged-in user to create a job', async ({ page }: { page: Page }) => {
     // First, log in
     await page.goto('/auth/login');
-    await page.fill('input[name="email"]', TEST_EMAIL);
+    await page.fill('input[name="email"]', testEmail);
     await page.fill('input[name="password"]', TEST_PASSWORD);
     await page.click('button[type="submit"]');
     

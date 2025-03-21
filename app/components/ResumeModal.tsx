@@ -1,6 +1,6 @@
 'use client';
 
-import { Resume } from '@/app/types';
+import { Resume } from '@/types';
 import { useState, useEffect } from 'react';
 
 interface ResumeModalProps {

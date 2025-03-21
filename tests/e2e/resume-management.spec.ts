@@ -1,9 +1,9 @@
+// @ts-nocheck
 import { test, expect } from '@playwright/test';
 import { setupTestUser, cleanupTestUserByEmail } from '../integration/helpers/auth-helper';
 import path from 'path';
 import fs from 'fs';
 
-// @ts-ignore - Playwright type definitions mismatch with actual API
 test('should upload a resume, view it in modal, and manage it', async ({ page }) => {
   // Test credentials
   const testEmail = `e2e-test-${Date.now()}@example.com`;
@@ -33,82 +33,72 @@ test('should upload a resume, view it in modal, and manage it', async ({ page })
     await page.goto('/dashboard/resumes');
     
     // Verify empty resumes list message
-    // @ts-ignore - Playwright type definitions mismatch
-    await expect(page.locator('text="No resumes yet"')).toBeVisible();
+    await expect(page.getByText("No resumes yet")).toBeVisible();
     
     // Click on Upload New Resume button
-    await page.click('text="Upload New Resume"');
+    await page.getByText("Upload New Resume").click();
     
     // Verify we're on the new resume page
     await expect(page).toHaveURL('/dashboard/resumes/new');
     
     // Fill out the resume form
-    await page.fill('[data-testid="resume-name-input"]', 'Test Resume');
+    await page.getByTestId("resume-name-input").fill('Test Resume');
     
     // Upload the file
-    // @ts-ignore - Playwright type definitions mismatch
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles(testPdfPath);
     
     // Submit the form
-    await page.click('[data-testid="upload-resume-button"]');
+    await page.getByTestId("upload-resume-button").click();
     
     // Wait for redirect to resumes list
     await page.waitForURL('/dashboard/resumes');
     
     // Verify the resume was uploaded
-    // @ts-ignore - Playwright type definitions mismatch
-    await expect(page.locator('text="Test Resume"')).toBeVisible();
+    await expect(page.getByText("Test Resume")).toBeVisible();
     
     // Check if the resume has a default badge
-    // @ts-ignore - Playwright type definitions mismatch
-    await expect(page.locator('text="Default"')).toBeVisible();
+    await expect(page.getByText("Default")).toBeVisible();
     
     // Click on View button to open the modal
-    await page.click('button:has-text("View")');
+    await page.getByRole('button', { name: 'View' }).click();
     
     // Wait for modal to appear
-    // @ts-ignore - Playwright type definitions mismatch
     await page.waitForSelector('div[role="dialog"]');
     
     // Close the modal
-    // @ts-ignore - Playwright type definitions mismatch
-    await page.press('body', 'Escape');
+    await page.keyboard.press('Escape');
     
     // Verify the modal is closed
-    // @ts-ignore - Playwright type definitions mismatch
     await expect(page.locator('div[role="dialog"]')).not.toBeVisible();
     
     // Add another resume to test setting default
-    await page.click('text="Upload New Resume"');
-    await page.fill('[data-testid="resume-name-input"]', 'Second Resume');
+    await page.getByText("Upload New Resume").click();
+    await page.getByTestId("resume-name-input").fill('Second Resume');
     
     // Upload the file again
     await fileInput.setInputFiles(testPdfPath);
     
-    await page.click('[data-testid="upload-resume-button"]');
+    await page.getByTestId("upload-resume-button").click();
     await page.waitForURL('/dashboard/resumes');
     
     // Verify second resume was uploaded
-    // @ts-ignore - Playwright type definitions mismatch
-    await expect(page.locator('text="Second Resume"')).toBeVisible();
+    await expect(page.getByText("Second Resume")).toBeVisible();
     
     // Set the second resume as default
-    await page.click('button:has-text("Set as Default")');
+    await page.getByRole('button', { name: 'Set as Default' }).click();
     
     // Delete the first resume
-    await page.click('button:has-text("Delete")');
+    await page.getByRole('button', { name: 'Delete' }).first().click();
     
     // Verify the first resume was deleted
-    // @ts-ignore - Playwright type definitions mismatch
-    await expect(page.locator('text="Test Resume"')).not.toBeVisible();
+    await expect(page.getByText("Test Resume")).not.toBeVisible();
     
     // Delete the second resume
-    await page.click('button:has-text("Delete")');
+    await page.getByRole('button', { name: 'Delete' }).click();
     
     // Verify we're back to empty state
-    // @ts-ignore - Playwright type definitions mismatch
-    await expect(page.locator('text="No resumes yet"')).toBeVisible();
+    await expect(page.getByText("No resumes yet")).toBeVisible();
     
   } finally {
     // Always clean up
@@ -125,7 +115,6 @@ test('should upload a resume, view it in modal, and manage it', async ({ page })
  * Creates a test PDF file for upload testing
  * @returns Path to the created test PDF file
  */
-// @ts-ignore - TypeScript syntax error workaround
 async function createTestPdf() {
   const tempDir = path.join(__dirname, '../../.temp');
   

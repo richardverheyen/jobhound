@@ -53,3 +53,5 @@ node_modules/
 .git
 
 .github/
+
+playwright-report/

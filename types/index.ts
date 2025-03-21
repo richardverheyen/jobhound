@@ -77,4 +77,13 @@ export interface CreditUsage {
   response_payload?: any;
   http_status?: number;
   created_at?: string;
+}
+
+/**
+ * Used for testing purposes
+ */
+export interface TestUser {
+  id: string;
+  email: string;
+  password: string;
 } 

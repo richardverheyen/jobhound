@@ -5,7 +5,7 @@ import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Navbar } from '@/app/components/Navbar'
-import { Job, Resume, CreditUsage, User, JobScan } from '@/app/types'
+import { Job, Resume, CreditUsage, User, JobScan } from '@/types'
 import ResumeModal from '@/app/components/ResumeModal';
 
 export default function Dashboard() {

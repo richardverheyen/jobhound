@@ -1,51 +1,34 @@
 'use client';
 
-import { createBrowserClient } from "@supabase/ssr";
-
-// These environment variables are set in .env file
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-
-export const createClient = () =>
-    createBrowserClient(
-        supabaseUrl,
-        supabaseAnonKey
-    );
-  
+import { 
+  createBrowserClient, 
+  signInWithEmail as _signInWithEmail,
+  signUpWithEmail as _signUpWithEmail,
+  signOut as _signOut,
+  getCurrentSession as _getCurrentSession,
+  getCurrentUser as _getCurrentUser
+} from '@/lib/supabase/client';
 
 // Create a single supabase client for interacting with your database
-export const supabase = createClient();
+export const supabase = createBrowserClient();
 
-// Auth helpers
+// Re-export auth helpers
 export async function signInWithEmail(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-  
-  return { data, error };
+  return _signInWithEmail(supabase, email, password);
 }
 
 export async function signUpWithEmail(email: string, password: string) {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-  });
-  
-  return { data, error };
+  return _signUpWithEmail(supabase, email, password);
 }
 
 export async function signOut() {
-  const { error } = await supabase.auth.signOut();
-  return { error };
+  return _signOut(supabase);
 }
 
 export async function getCurrentSession() {
-  const { data, error } = await supabase.auth.getSession();
-  return { session: data.session, error };
+  return _getCurrentSession(supabase);
 }
 
 export async function getCurrentUser() {
-  const { data, error } = await supabase.auth.getUser();
-  return { user: data.user, error };
+  return _getCurrentUser(supabase);
 } 

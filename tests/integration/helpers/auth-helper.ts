@@ -8,16 +8,39 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1Ni
 const adminClient = createClient(supabaseUrl, supabaseKey);
 
 /**
+ * Wait for some time to allow Supabase operations to complete
+ */
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Generates a unique timestamp-based email
+ */
+function generateUniqueEmail(): string {
+  return `test-${Date.now()}-${Math.floor(Math.random() * 10000)}@example.com`;
+}
+
+/**
  * Creates a test user for integration testing
  * 
  * @param email - Test user email
  * @param password - Test user password
  * @returns The user ID of the created test user
  */
-export async function setupTestUser(email: string, password: string): Promise<string> {
+export async function setupTestUser(email: string, password: string, maxRetries = 3): Promise<string> {
   try {
-    // First try to delete the user if it exists (cleanup any previous test runs)
-    await cleanupTestUserByEmail(email);
+    if (maxRetries <= 0) {
+      throw new Error('Max retries reached when creating test user');
+    }
+
+    // Start fresh with a new unique email each time
+    email = email || generateUniqueEmail();
+    console.log(`Setting up test user with email: ${email}`);
+    
+    // Clean up any existing users with this email
+    await thoroughCleanup(email);
+    
+    // Wait a moment after cleanup before creating
+    await wait(500);
     
     // Create a new test user
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
@@ -27,7 +50,10 @@ export async function setupTestUser(email: string, password: string): Promise<st
     });
     
     if (authError) {
-      throw new Error(`Failed to create test user: ${authError.message}`);
+      console.log(`Auth user creation failed: ${authError.message}`);
+      // Wait and retry with a new email
+      await wait(1000);
+      return setupTestUser(generateUniqueEmail(), password, maxRetries - 1);
     }
     
     if (!authData.user) {
@@ -35,6 +61,10 @@ export async function setupTestUser(email: string, password: string): Promise<st
     }
     
     const userId = authData.user.id;
+    console.log(`Auth user created with ID: ${userId}`);
+    
+    // Clean up any existing records with this ID in any tables
+    await cleanupAllTablesForUserId(userId);
     
     // Create a corresponding record in the users table
     const { error: insertError } = await adminClient
@@ -45,14 +75,114 @@ export async function setupTestUser(email: string, password: string): Promise<st
       }]);
     
     if (insertError) {
-      throw new Error(`Failed to create test user record: ${insertError.message}`);
+      console.log(`User record creation failed: ${insertError.message}`);
+      
+      // Clean up the auth user we just created
+      try {
+        await adminClient.auth.admin.deleteUser(userId);
+      } catch (deleteError) {
+        console.error(`Failed to clean up auth user: ${deleteError}`);
+      }
+      
+      // Wait and retry with a new email
+      await wait(1000);
+      return setupTestUser(generateUniqueEmail(), password, maxRetries - 1);
     }
     
-    console.log(`Test user created: ${email} with ID ${userId}`);
+    console.log(`Test user created successfully: ${email} with ID ${userId}`);
     return userId;
   } catch (error) {
     console.error('Error setting up test user:', error);
+    
+    // Wait and retry with a new email if we haven't exhausted retries
+    if (maxRetries > 1) {
+      await wait(1000);
+      return setupTestUser(generateUniqueEmail(), password, maxRetries - 1);
+    }
+    
     throw error;
+  }
+}
+
+/**
+ * Cleans up all tables for a specific user ID
+ * 
+ * @param userId - The user ID to clean up
+ */
+async function cleanupAllTablesForUserId(userId: string): Promise<void> {
+  try {
+    // Delete from jobs table
+    await adminClient.from('jobs').delete().eq('user_id', userId);
+    
+    // Delete from users table
+    await adminClient.from('users').delete().eq('id', userId);
+    
+    // Add other tables as needed
+    
+    // Wait for operations to complete
+    await wait(300);
+  } catch (error) {
+    console.error(`Error cleaning up tables for user ${userId}:`, error);
+  }
+}
+
+/**
+ * Thorough cleanup for test users
+ * 
+ * @param email - Email of the test user to clean up
+ */
+async function thoroughCleanup(email: string): Promise<void> {
+  try {
+    if (!email) return;
+    
+    console.log(`Performing thorough cleanup for email: ${email}`);
+    
+    // First find any auth users with this email
+    const { data: authUsers } = await adminClient.auth.admin.listUsers();
+    const testUsers = authUsers.users.filter(user => user.email === email);
+    
+    if (testUsers.length > 0) {
+      console.log(`Found ${testUsers.length} auth users with email ${email}, cleaning up...`);
+      for (const user of testUsers) {
+        await cleanupTestUser(user.id);
+        await wait(300);
+      }
+    } else {
+      console.log(`No auth users found with email ${email}`);
+    }
+    
+    // Check for orphaned records in the users table
+    const { data: userRecords } = await adminClient
+      .from('users')
+      .select('id')
+      .eq('email', email);
+      
+    if (userRecords && userRecords.length > 0) {
+      console.log(`Found ${userRecords.length} orphaned user records for ${email}, cleaning up...`);
+      for (const record of userRecords) {
+        await cleanupAllTablesForUserId(record.id);
+      }
+    }
+    
+    // Double-check auth users after cleanup
+    const { data: finalAuthUsers } = await adminClient.auth.admin.listUsers();
+    const remainingUsers = finalAuthUsers.users.filter(user => user.email === email);
+    
+    if (remainingUsers.length > 0) {
+      console.log(`Still found ${remainingUsers.length} remaining auth users, cleaning up...`);
+      for (const user of remainingUsers) {
+        try {
+          await adminClient.auth.admin.deleteUser(user.id);
+          await wait(200);
+        } catch (error) {
+          console.error(`Failed to delete auth user ${user.id}:`, error);
+        }
+      }
+    }
+    
+    console.log(`Thorough cleanup completed for ${email}`);
+  } catch (error) {
+    console.error(`Error in thoroughCleanup for ${email}:`, error);
   }
 }
 
@@ -65,20 +195,19 @@ export async function cleanupTestUser(userId: string): Promise<void> {
   try {
     if (!userId) return;
     
-    // Delete the user's jobs
-    await adminClient.from('jobs').delete().eq('user_id', userId);
+    console.log(`Cleaning up test user with ID: ${userId}`);
     
-    // Delete the user record
-    await adminClient.from('users').delete().eq('id', userId);
+    // First clean up any records in other tables
+    await cleanupAllTablesForUserId(userId);
     
-    // Delete the auth user
+    // Then delete the auth user
     const { error } = await adminClient.auth.admin.deleteUser(userId);
     
     if (error) {
       console.error(`Error deleting auth user: ${error.message}`);
+    } else {
+      console.log(`Test user deleted: ${userId}`);
     }
-    
-    console.log(`Test user deleted: ${userId}`);
   } catch (error) {
     console.error('Error cleaning up test user:', error);
   }
@@ -91,13 +220,7 @@ export async function cleanupTestUser(userId: string): Promise<void> {
  */
 export async function cleanupTestUserByEmail(email: string): Promise<void> {
   try {
-    // Find the user by email
-    const { data: authUsers } = await adminClient.auth.admin.listUsers();
-    const testUser = authUsers.users.find(user => user.email === email);
-    
-    if (testUser) {
-      await cleanupTestUser(testUser.id);
-    }
+    await thoroughCleanup(email);
   } catch (error) {
     console.error(`Error cleaning up test user by email ${email}:`, error);
   }
