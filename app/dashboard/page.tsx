@@ -234,12 +234,23 @@ export default async function Dashboard() {
                         </p>
                       </div>
                       <div>
-                        <Link
-                          href={`/dashboard/resumes/${defaultResume.id}`}
-                          className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
-                        >
-                          View
-                        </Link>
+                        {defaultResume.file_url ? (
+                          <a
+                            href={defaultResume.file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+                          >
+                            View
+                          </a>
+                        ) : (
+                          <Link 
+                            href={`/dashboard/resumes/${defaultResume.id}`}
+                            className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+                          >
+                            View
+                          </Link>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -249,11 +260,15 @@ export default async function Dashboard() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No default resume</h3>
-                    <div className="mt-3">
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Upload a resume to enhance your job matching.</p>
+                    <div className="mt-4">
                       <Link
                         href="/dashboard/resumes/new"
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded text-white bg-blue-600 hover:bg-blue-700"
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
                       >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-1.5 h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                        </svg>
                         Upload Resume
                       </Link>
                     </div>

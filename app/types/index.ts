@@ -47,6 +47,11 @@ export interface JobScan {
   results?: any;
   match_score?: number;
   error_message?: string;
+  jobs?: {
+    id: string;
+    title: string;
+    company: string;
+  };
 }
 
 export interface CreditPurchase {
