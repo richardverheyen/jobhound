@@ -552,3 +552,189 @@ FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_onboarding_sessions_updated_at
 BEFORE UPDATE ON onboarding_sessions
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+
+
+-- Create a storage bucket for resumes
+INSERT INTO storage.buckets (id, name, public, avif_autodetection)
+VALUES ('resumes', 'resumes', false, false)
+ON CONFLICT (id) DO NOTHING;
+
+-- Enable RLS on storage.objects if not already enabled
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+-- Set up RLS for the resumes bucket
+-- Policy to allow users to insert their own resumes
+CREATE POLICY "Users can upload their own resumes"
+ON storage.objects
+FOR INSERT
+WITH CHECK (
+  bucket_id = 'resumes' AND
+  (
+    auth.uid()::text = (storage.foldername(name))[1] OR
+    EXISTS (
+      SELECT 1 FROM onboarding_sessions 
+      WHERE session_id = current_setting('app.temporary_session_id', true)
+        AND status = 'active'
+        AND expires_at > NOW()
+    )
+  )
+);
+
+-- Policy to allow users to select their own resumes
+CREATE POLICY "Users can view their own resumes"
+ON storage.objects
+FOR SELECT
+USING (
+  bucket_id = 'resumes' AND
+  (
+    auth.uid()::text = (storage.foldername(name))[1] OR
+    EXISTS (
+      SELECT 1 FROM onboarding_sessions
+      WHERE session_id = current_setting('app.temporary_session_id', true)
+        AND status = 'active'
+        AND expires_at > NOW()
+    )
+  )
+);
+
+-- Policy to allow users to update their own resumes
+CREATE POLICY "Users can update their own resumes"
+ON storage.objects
+FOR UPDATE
+USING (
+  bucket_id = 'resumes' AND
+  auth.uid()::text = (storage.foldername(name))[1]
+);
+
+-- Policy to allow users to delete their own resumes
+CREATE POLICY "Users can delete their own resumes"
+ON storage.objects
+FOR DELETE
+USING (
+  bucket_id = 'resumes' AND
+  auth.uid()::text = (storage.foldername(name))[1]
+);
+
+-- Create a helper function to generate a storage path for new resume uploads
+CREATE OR REPLACE FUNCTION generate_resume_storage_path(
+  p_user_id UUID,
+  p_filename TEXT,
+  p_temp_session_id TEXT DEFAULT NULL
+)
+RETURNS TEXT AS $$
+DECLARE
+  v_folder TEXT;
+  v_safe_filename TEXT;
+  v_timestamp TEXT;
+BEGIN
+  -- Generate timestamp for unique filenames
+  v_timestamp := to_char(now(), 'YYYYMMDD_HH24MISS');
+  
+  -- Make filename safe by removing problematic characters
+  v_safe_filename := regexp_replace(p_filename, '[^a-zA-Z0-9._-]', '_', 'g');
+  
+  -- If we have a user ID, use that as the folder
+  IF p_user_id IS NOT NULL THEN
+    v_folder := p_user_id::text;
+  -- If we have a temporary session, use that
+  ELSIF p_temp_session_id IS NOT NULL THEN
+    v_folder := 'temp/' || p_temp_session_id;
+  ELSE
+    RAISE EXCEPTION 'Either user_id or temp_session_id must be provided';
+  END IF;
+  
+  -- Return the full path
+  RETURN v_folder || '/' || v_timestamp || '_' || v_safe_filename;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create a function to register a resume upload
+CREATE OR REPLACE FUNCTION register_resume_upload(
+  p_user_id UUID,
+  p_filename TEXT,
+  p_file_path TEXT,
+  p_file_size INT8,
+  p_mime_type TEXT,
+  p_onboarding_session_id UUID DEFAULT NULL
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_resume_id UUID;
+  v_storage_url TEXT;
+BEGIN
+  -- Get the Supabase project URL for constructing the public URL
+  BEGIN
+    v_storage_url := 'https://' || current_setting('supabase_functions.project_ref') || '.supabase.co/storage/v1/object/public/resumes/';
+  EXCEPTION WHEN OTHERS THEN
+    -- Fallback for development environments where the setting might not be available
+    v_storage_url := '/storage/v1/object/public/resumes/';
+  END;
+  
+  -- Insert the resume record
+  INSERT INTO resumes (
+    user_id,
+    filename,
+    file_path,
+    file_url,
+    file_size,
+    mime_type,
+    onboarding_session_id
+  )
+  VALUES (
+    p_user_id,
+    p_filename,
+    p_file_path,
+    v_storage_url || p_file_path,
+    p_file_size,
+    p_mime_type,
+    p_onboarding_session_id
+  )
+  RETURNING id INTO v_resume_id;
+  
+  -- If this is the user's first resume, set it as default
+  IF NOT EXISTS (
+    SELECT 1 FROM users WHERE id = p_user_id AND default_resume_id IS NOT NULL
+  ) THEN
+    UPDATE users SET default_resume_id = v_resume_id WHERE id = p_user_id;
+  END IF;
+  
+  RETURN jsonb_build_object(
+    'success', true,
+    'resume_id', v_resume_id
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Handle migration of temporary uploaded files during onboarding completion
+CREATE OR REPLACE FUNCTION migrate_onboarding_resume_files()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_storage_url TEXT;
+BEGIN
+  -- If the onboarding session ID is being removed and user_id is being set
+  -- (which happens during complete_onboarding function)
+  IF OLD.onboarding_session_id IS NOT NULL AND 
+     NEW.onboarding_session_id IS NULL AND
+     NEW.user_id IS NOT NULL AND 
+     OLD.user_id != NEW.user_id THEN
+    
+    -- Get the storage URL
+    BEGIN
+      v_storage_url := 'https://' || current_setting('supabase_functions.project_ref') || '.supabase.co/storage/v1/object/public/resumes/';
+    EXCEPTION WHEN OTHERS THEN
+      v_storage_url := '/storage/v1/object/public/resumes/';
+    END;
+    
+    -- Update the file URL to reflect the new path
+    -- Note: The actual file moving must be done via a serverless function or client code
+    NEW.file_url := v_storage_url || NEW.file_path;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER handle_resume_file_migration
+BEFORE UPDATE ON resumes
+FOR EACH ROW EXECUTE FUNCTION migrate_onboarding_resume_files();
