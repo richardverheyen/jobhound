@@ -125,7 +125,8 @@ test('should upload a resume, view it in modal, and manage it', async ({ page })
  * Creates a test PDF file for upload testing
  * @returns Path to the created test PDF file
  */
-async function createTestPdf(): Promise<string> {
+// @ts-ignore - TypeScript syntax error workaround
+async function createTestPdf() {
   const tempDir = path.join(__dirname, '../../.temp');
   
   // Create temp directory if it doesn't exist

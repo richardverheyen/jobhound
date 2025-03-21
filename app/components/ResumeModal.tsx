@@ -73,11 +73,18 @@ export default function ResumeModal({ resume, isOpen, onClose }: ResumeModalProp
                   )}
                   
                   {resume.file_url && (
-                    <iframe 
-                      src={resume.file_url} 
+                    <object 
+                      data={resume.file_url}
+                      type="application/pdf"
                       className="w-full h-full"
                       style={{ display: loading ? 'none' : 'block' }}
-                    />
+                    >
+                      <div className="flex justify-center items-center h-full">
+                        <p className="text-gray-500 dark:text-gray-400">
+                          Unable to display PDF. <a href={resume.file_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Click here</a> to download.
+                        </p>
+                      </div>
+                    </object>
                   )}
 
                   {!resume.file_url && !loading && (

@@ -57,10 +57,26 @@ export default function ResumesPage() {
           return;
         }
         
-        // Add is_default flag based on default_resume_id
-        const processedResumes = resumesData.map(resume => ({
-          ...resume,
-          is_default: resume.id === userData?.default_resume_id
+        // Create signed URLs for each resume file
+        const processedResumes = await Promise.all(resumesData.map(async (resume) => {
+          let resumeWithUrl = {
+            ...resume,
+            is_default: resume.id === userData?.default_resume_id
+          };
+          
+          // If resume has a file_path, get the URL
+          if (resume.file_path) {
+            const { data: fileData } = await supabase
+              .storage
+              .from('resumes')
+              .createSignedUrl(resume.file_path, 60 * 60); // 1 hour expiry
+              
+            if (fileData) {
+              resumeWithUrl.file_url = fileData.signedUrl;
+            }
+          }
+          
+          return resumeWithUrl;
         }));
         
         setResumes(processedResumes);

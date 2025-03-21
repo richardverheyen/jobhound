@@ -1,73 +1,156 @@
-import { createClient } from '@/utils/supabase/server'
-import { redirect } from 'next/navigation'
+'use client';
+
+import { useState, useEffect } from 'react';
+import { createClient } from '@/utils/supabase/client'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Navbar } from '@/app/components/Navbar'
 import { Job, Resume, CreditUsage, User, JobScan } from '@/app/types'
+import ResumeModal from '@/app/components/ResumeModal';
 
-export default async function Dashboard() {
-  const supabase = await createClient()
+export default function Dashboard() {
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [profileData, setProfileData] = useState<any>(null);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [defaultResume, setDefaultResume] = useState<Resume | null>(null);
+  const [creditUsage, setCreditUsage] = useState<CreditUsage[]>([]);
+  const [creditPurchases, setCreditPurchases] = useState<any[]>([]);
+  const [totalCredits, setTotalCredits] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
+  const [modalOpen, setModalOpen] = useState<boolean>(false);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const jobGoal = profileData?.job_search_goal || 5;
+  const jobsFound = jobs.length;
+  
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      const supabase = createClient();
+      
+      // Check if user is authenticated
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+      
+      setUser(user);
+      
+      // Get user profile data to retrieve default resume ID
+      const { data: profileData } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      setProfileData(profileData);
+      
+      // Get job listings with their latest scan results
+      const { data: jobsData } = await supabase
+        .from('jobs')
+        .select(`
+          *,
+          job_scans(
+            id, 
+            match_score, 
+            created_at,
+            resume_id
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      // Process and sort job scans by date
+      const processedJobs = jobsData?.map((job: any) => {
+        const sortedScans = job.job_scans.sort((a: JobScan, b: JobScan) => {
+          const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return dateB - dateA;
+        });
+        
+        return {
+          ...job,
+          job_scans: sortedScans,
+          latest_scan: sortedScans[0] || null
+        };
+      }) || [];
+      
+      setJobs(processedJobs);
+      
+      // Get default resume if set
+      if (profileData?.default_resume_id) {
+        const { data: resumeData } = await supabase
+          .from('resumes')
+          .select('*')
+          .eq('id', profileData.default_resume_id)
+          .single();
+        
+        // If resume has a file_path, get the URL
+        if (resumeData && resumeData.file_path) {
+          const { data: fileData } = await supabase
+            .storage
+            .from('resumes')
+            .createSignedUrl(resumeData.file_path, 60 * 60); // 1 hour expiry
+            
+          if (fileData) {
+            resumeData.file_url = fileData.signedUrl;
+          }
+        }
+        
+        setDefaultResume(resumeData);
+      }
+      
+      // Get credit usage history
+      const { data: creditData } = await supabase
+        .from('credit_usage')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      setCreditUsage(creditData || []);
+      
+      // Get remaining credits
+      const { data: purchasesData } = await supabase
+        .from('credit_purchases')
+        .select('remaining_credits')
+        .eq('user_id', user.id)
+        .gt('remaining_credits', 0)
+        .order('expires_at', { ascending: true });
+      
+      setCreditPurchases(purchasesData || []);
+      
+      const credits = purchasesData?.reduce((sum, purchase) => sum + (purchase.remaining_credits || 0), 0) || 0;
+      setTotalCredits(credits);
+      
+      setLoading(false);
+    }
+    
+    fetchData();
+  }, [router]);
 
-  if (!user) {
-    redirect('/auth/login')
+  const openResumeModal = (resume: Resume) => {
+    setSelectedResume(resume);
+    setModalOpen(true);
+  };
+
+  const closeResumeModal = () => {
+    setModalOpen(false);
+    setSelectedResume(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar user={user} />
+        <div className="flex-grow flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+      </div>
+    );
   }
-
-  // Fetch user profile data to get default_resume_id
-  const { data: profileData } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', user.id)
-    .single()
-
-  const profile = profileData as User
-
-  // Fetch jobs with their latest scan
-  const { data: jobs } = await supabase
-    .from('jobs')
-    .select(`
-      *,
-      scans:job_scans(
-        id,
-        match_score,
-        created_at,
-        status
-      )
-    `)
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(5)
-
-  // Get default resume
-  const { data: defaultResume } = await supabase
-    .from('resumes')
-    .select('*')
-    .eq('id', profile?.default_resume_id || '')
-    .single()
-
-  // Get credit usage history
-  const { data: creditUsage } = await supabase
-    .from('credit_usage')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(5)
-
-  // Get remaining credits
-  const { data: creditPurchases } = await supabase
-    .from('credit_purchases')
-    .select('remaining_credits')
-    .eq('user_id', user.id)
-    .gt('remaining_credits', 0)
-    .order('expires_at', { ascending: true })
-
-  const totalCredits = creditPurchases?.reduce((sum, purchase) => sum + (purchase.remaining_credits || 0), 0) || 0
-
-  // Get job goal setting from user profile
-  const jobGoal = profile?.job_search_goal || 10
-  const jobsFound = jobs?.length || 0
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -144,7 +227,7 @@ export default async function Dashboard() {
                       <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         {jobs.map((job: any) => {
                           // Find most recent scan with a match score
-                          const latestScan = job.scans?.sort((a: any, b: any) => 
+                          const latestScan = job.job_scans?.sort((a: any, b: any) => 
                             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
                           )[0];
                           
@@ -234,23 +317,12 @@ export default async function Dashboard() {
                         </p>
                       </div>
                       <div>
-                        {defaultResume.file_url ? (
-                          <a
-                            href={defaultResume.file_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
-                          >
-                            View
-                          </a>
-                        ) : (
-                          <Link 
-                            href={`/dashboard/resumes/${defaultResume.id}`}
-                            className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
-                          >
-                            View
-                          </Link>
-                        )}
+                        <button
+                          onClick={() => openResumeModal(defaultResume)}
+                          className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+                        >
+                          View
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -259,14 +331,15 @@ export default async function Dashboard() {
                     <svg className="mx-auto h-10 w-10 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No default resume</h3>
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Upload a resume to enhance your job matching.</p>
+                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                      Upload a resume to enhance your job matching.
+                    </p>
                     <div className="mt-4">
                       <Link
                         href="/dashboard/resumes/new"
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-blue-600 hover:bg-blue-700"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-1.5 h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="-ml-0.5 mr-1.5 h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                         </svg>
                         Upload Resume
@@ -274,18 +347,6 @@ export default async function Dashboard() {
                     </div>
                   </div>
                 )}
-
-                <div className="mt-4">
-                  <Link
-                    href={defaultResume ? `/dashboard/jobs/new?resumeId=${defaultResume.id}` : '/dashboard/jobs/new'}
-                    className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V8z" clipRule="evenodd" />
-                    </svg>
-                    Generate New Scan
-                  </Link>
-                </div>
               </div>
 
               {/* Job Search Goal */}
@@ -369,6 +430,12 @@ export default async function Dashboard() {
           </div>
         </div>
       </main>
+      
+      <ResumeModal 
+        resume={selectedResume}
+        isOpen={modalOpen}
+        onClose={closeResumeModal}
+      />
     </div>
-  )
+  );
 }
