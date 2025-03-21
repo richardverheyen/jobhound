@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "outDir": "./.test-out",
+    "noEmit": false,
+    "jsx": "react-jsx",
+    "types": ["jest", "node", "@types/jest", "@playwright/test"],
+    "typeRoots": ["./node_modules/@types", "./tests/integration/types"]
+  },
+  "include": [
+    "tests/**/*.ts",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+} 

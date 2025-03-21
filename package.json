@@ -11,7 +11,13 @@
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:migrate": "./scripts/apply-migrations.sh",
-    "supabase:status": "supabase status"
+    "supabase:status": "supabase status",
+    "test": "jest",
+    "test:e2e": "playwright test",
+    "test:integration": "jest --config tests/integration/jest.config.js",
+    "test:all": "./scripts/run-tests.sh",
+    "test:user-trigger": "node scripts/test-user-trigger.js",
+    "sync:users": "node scripts/sync-existing-users.js"
   },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.10.0",
@@ -24,13 +30,18 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@jest/globals": "^29.7.0",
+    "@playwright/test": "^1.51.1",
     "@tailwindcss/postcss": "^4",
+    "@types/jest": "^29.5.12",
     "@types/node": "20.17.24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.2.3",
+    "jest": "^29.7.0",
     "tailwindcss": "^4",
+    "ts-jest": "^29.1.2",
     "typescript": "^5"
   }
 }

@@ -14,11 +14,9 @@ export interface Job {
   id: string;
   user_id?: string;
   company: string;
-  position: string;
+  title: string;
   location?: string;
   description?: string;
-  status: string;
-  applied_date: string;
   created_at?: string;
   updated_at?: string;
 }

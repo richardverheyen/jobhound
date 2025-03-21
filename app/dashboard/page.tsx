@@ -134,7 +134,7 @@ export default async function Dashboard() {
                             Position
                           </th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                            Status
+                            Location
                           </th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                             Match
@@ -159,18 +159,10 @@ export default async function Dashboard() {
                                 </Link>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900 dark:text-white">{job.position}</div>
+                                <div className="text-sm text-gray-900 dark:text-white">{job.title}</div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                  job.status === 'Applied' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                                  job.status === 'Interview' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                                  job.status === 'Offer' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                                  job.status === 'Rejected' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                                }`}>
-                                  {job.status}
-                                </span>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">{job.location || 'Not specified'}</div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm">
                                 {latestScan?.match_score ? (
