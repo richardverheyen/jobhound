@@ -55,3 +55,4 @@ node_modules/
 .github/
 
 playwright-report/
+test-results/
