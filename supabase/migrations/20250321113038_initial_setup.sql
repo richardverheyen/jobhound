@@ -4,21 +4,11 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Create tables
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  email TEXT UNIQUE NOT NULL,
+  email TEXT UNIQUE,
   stripe_customer_id TEXT UNIQUE,
   default_resume_id UUID,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Onboarding sessions table
-CREATE TABLE IF NOT EXISTS onboarding_sessions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  session_id TEXT UNIQUE NOT NULL,
-  email TEXT,
-  status TEXT NOT NULL DEFAULT 'created',
-  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  metadata JSONB,
+  is_anonymous BOOLEAN DEFAULT FALSE,
+  anonymous_expires_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -57,9 +47,7 @@ CREATE TABLE IF NOT EXISTS resumes (
   file_size INT8,
   mime_type TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  temporary_session_id TEXT,
-  onboarding_session_id UUID REFERENCES onboarding_sessions(id)
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Jobs table
@@ -71,9 +59,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   location TEXT,
   description TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  temporary_session_id TEXT,
-  onboarding_session_id UUID REFERENCES onboarding_sessions(id)
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Job scans table
@@ -89,9 +75,7 @@ CREATE TABLE IF NOT EXISTS job_scans (
   status TEXT,
   results JSONB,
   match_score FLOAT8,
-  error_message TEXT,
-  temporary_session_id UUID,
-  onboarding_session_id UUID REFERENCES onboarding_sessions(id)
+  error_message TEXT
 );
 
 -- Create indexes for better performance
@@ -113,13 +97,9 @@ CREATE INDEX idx_job_scans_credit_purchase_id ON job_scans(credit_purchase_id);
 CREATE INDEX idx_job_scans_match_score ON job_scans(match_score);
 CREATE INDEX idx_job_scans_status ON job_scans(status);
 
--- Indexes for onboarding
-CREATE INDEX idx_onboarding_sessions_session_id ON onboarding_sessions(session_id);
-CREATE INDEX idx_onboarding_sessions_expires_at ON onboarding_sessions(expires_at);
-CREATE INDEX idx_onboarding_sessions_status ON onboarding_sessions(status);
-CREATE INDEX idx_resumes_onboarding_session_id ON resumes(onboarding_session_id);
-CREATE INDEX idx_jobs_onboarding_session_id ON jobs(onboarding_session_id);
-CREATE INDEX idx_job_scans_onboarding_session_id ON job_scans(onboarding_session_id);
+-- Indexes for anonymous users
+CREATE INDEX idx_users_is_anonymous ON users(is_anonymous);
+CREATE INDEX idx_users_anonymous_expires_at ON users(anonymous_expires_at);
 
 -- Row Level Security (RLS) policies
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -128,11 +108,13 @@ ALTER TABLE credit_usage ENABLE ROW LEVEL SECURITY;
 ALTER TABLE resumes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE job_scans ENABLE ROW LEVEL SECURITY;
-ALTER TABLE onboarding_sessions ENABLE ROW LEVEL SECURITY;
 
 -- Users can only see and modify their own data
 CREATE POLICY "Users can view their own profile" 
   ON users FOR SELECT USING (auth.uid() = id);
+
+CREATE POLICY "Users can update their own profile" 
+  ON users FOR UPDATE USING (auth.uid() = id);
 
 CREATE POLICY "Users can view their own credit purchases" 
   ON credit_purchases FOR SELECT USING (auth.uid() = user_id);
@@ -140,77 +122,41 @@ CREATE POLICY "Users can view their own credit purchases"
 CREATE POLICY "Users can view their own credit usage" 
   ON credit_usage FOR SELECT USING (auth.uid() = user_id);
 
--- RLS policies for onboarding sessions
-CREATE POLICY "Only system can create onboarding sessions" 
-  ON onboarding_sessions FOR INSERT TO authenticated;
-
-CREATE POLICY "Users can view their own onboarding sessions" 
-  ON onboarding_sessions FOR SELECT USING (
-    email = auth.email() OR 
-    session_id = current_setting('app.temporary_session_id', true)
-  );
-
--- New RLS policies that consider both regular users and onboarding sessions
+-- RLS policies for resumes
 CREATE POLICY "Users can view their own resumes" 
-  ON resumes FOR SELECT USING (
-    auth.uid() = user_id OR 
-    onboarding_session_id IN (
-      SELECT id FROM onboarding_sessions 
-      WHERE session_id = current_setting('app.temporary_session_id', true)
-    )
-  );
+  ON resumes FOR SELECT USING (auth.uid() = user_id);
 
+CREATE POLICY "Users can insert their own resumes" 
+  ON resumes FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own resumes" 
+  ON resumes FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own resumes" 
+  ON resumes FOR DELETE USING (auth.uid() = user_id);
+
+-- RLS policies for jobs
 CREATE POLICY "Users can view their own jobs" 
-  ON jobs FOR SELECT USING (
-    auth.uid() = user_id OR 
-    onboarding_session_id IN (
-      SELECT id FROM onboarding_sessions 
-      WHERE session_id = current_setting('app.temporary_session_id', true)
-    )
-  );
+  ON jobs FOR SELECT USING (auth.uid() = user_id);
 
+CREATE POLICY "Users can insert their own jobs" 
+  ON jobs FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own jobs" 
+  ON jobs FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own jobs" 
+  ON jobs FOR DELETE USING (auth.uid() = user_id);
+
+-- RLS policies for job scans
 CREATE POLICY "Users can view their own job scans" 
-  ON job_scans FOR SELECT USING (
-    auth.uid() = user_id OR 
-    onboarding_session_id IN (
-      SELECT id FROM onboarding_sessions 
-      WHERE session_id = current_setting('app.temporary_session_id', true)
-    )
-  );
+  ON job_scans FOR SELECT USING (auth.uid() = user_id);
 
--- Add insert policies for onboarding
-CREATE POLICY "Allow inserts to resumes during onboarding" 
-  ON resumes FOR INSERT WITH CHECK (
-    auth.uid() = user_id OR 
-    onboarding_session_id IN (
-      SELECT id FROM onboarding_sessions 
-      WHERE session_id = current_setting('app.temporary_session_id', true)
-        AND status = 'active'
-        AND expires_at > NOW()
-    )
-  );
+CREATE POLICY "Users can insert their own job scans" 
+  ON job_scans FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Allow inserts to jobs during onboarding" 
-  ON jobs FOR INSERT WITH CHECK (
-    auth.uid() = user_id OR 
-    onboarding_session_id IN (
-      SELECT id FROM onboarding_sessions 
-      WHERE session_id = current_setting('app.temporary_session_id', true)
-        AND status = 'active'
-        AND expires_at > NOW()
-    )
-  );
-
-CREATE POLICY "Allow inserts to job_scans during onboarding" 
-  ON job_scans FOR INSERT WITH CHECK (
-    auth.uid() = user_id OR 
-    onboarding_session_id IN (
-      SELECT id FROM onboarding_sessions 
-      WHERE session_id = current_setting('app.temporary_session_id', true)
-        AND status = 'active'
-        AND expires_at > NOW()
-    )
-  );
+CREATE POLICY "Users can update their own job scans" 
+  ON job_scans FOR UPDATE USING (auth.uid() = user_id);
 
 -- Create helpful functions
 CREATE OR REPLACE FUNCTION get_available_credits(p_user_id UUID)
@@ -379,150 +325,103 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to create an onboarding session
-CREATE OR REPLACE FUNCTION create_onboarding_session(
-  p_email TEXT DEFAULT NULL,
+-- Function to create an anonymous user account
+CREATE OR REPLACE FUNCTION create_anonymous_user(
   p_expiry_hours INTEGER DEFAULT 24
 )
 RETURNS JSONB AS $$
 DECLARE
-  v_session_id TEXT;
-  v_onboarding_id UUID;
+  v_user_id UUID;
 BEGIN
-  -- Generate a secure random session ID
-  v_session_id := encode(gen_random_bytes(32), 'hex');
-  
-  -- Create the onboarding session
-  INSERT INTO onboarding_sessions (
-    session_id,
-    email,
-    status,
-    expires_at
+  -- Create a record in the users table for the anonymous user
+  INSERT INTO users (
+    id,
+    is_anonymous,
+    anonymous_expires_at
   )
   VALUES (
-    v_session_id,
-    p_email,
-    'active',
+    auth.uid(),
+    TRUE,
     NOW() + (p_expiry_hours * INTERVAL '1 hour')
   )
-  RETURNING id INTO v_onboarding_id;
+  RETURNING id INTO v_user_id;
   
   RETURN jsonb_build_object(
-    'session_id', v_session_id,
-    'onboarding_id', v_onboarding_id,
+    'user_id', v_user_id,
     'expires_at', (NOW() + (p_expiry_hours * INTERVAL '1 hour'))
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to validate an onboarding session
-CREATE OR REPLACE FUNCTION validate_onboarding_session(
-  p_session_id TEXT
-)
-RETURNS JSONB AS $$
-DECLARE
-  v_session_record onboarding_sessions%ROWTYPE;
-BEGIN
-  -- Find the session
-  SELECT * INTO v_session_record
-  FROM onboarding_sessions
-  WHERE session_id = p_session_id
-    AND status = 'active'
-    AND expires_at > NOW();
-  
-  -- If session not found or expired
-  IF v_session_record.id IS NULL THEN
-    RETURN jsonb_build_object(
-      'valid', false,
-      'message', 'Invalid or expired session'
-    );
-  END IF;
-  
-  -- Session is valid
-  RETURN jsonb_build_object(
-    'valid', true,
-    'onboarding_id', v_session_record.id,
-    'email', v_session_record.email,
-    'expires_at', v_session_record.expires_at
-  );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Function to complete onboarding and associate with a user account
-CREATE OR REPLACE FUNCTION complete_onboarding(
+-- Function to convert an anonymous user to a registered user
+CREATE OR REPLACE FUNCTION convert_anonymous_user(
   p_user_id UUID,
-  p_session_id TEXT
+  p_email TEXT
 )
 RETURNS JSONB AS $$
-DECLARE
-  v_onboarding_id UUID;
-  v_email TEXT;
 BEGIN
-  -- Get the onboarding session ID
-  SELECT id, email INTO v_onboarding_id, v_email
-  FROM onboarding_sessions
-  WHERE session_id = p_session_id
-    AND status = 'active'
-    AND expires_at > NOW();
-  
-  -- If session not found or expired
-  IF v_onboarding_id IS NULL THEN
+  -- Check if the user exists and is anonymous
+  IF NOT EXISTS (
+    SELECT 1 FROM users
+    WHERE id = p_user_id
+    AND is_anonymous = TRUE
+  ) THEN
     RETURN jsonb_build_object(
-      'success', false,
-      'message', 'Invalid or expired session'
+      'success', FALSE,
+      'message', 'User not found or not an anonymous user'
     );
   END IF;
   
-  -- Update the user email if needed and exists in the onboarding session
-  IF v_email IS NOT NULL THEN
-    UPDATE users
-    SET email = v_email
-    WHERE id = p_user_id
-      AND (email IS NULL OR email = '');
-  END IF;
-  
-  -- Update all resumes created during onboarding to belong to the user
-  UPDATE resumes
-  SET user_id = p_user_id,
-      onboarding_session_id = NULL
-  WHERE onboarding_session_id = v_onboarding_id;
-  
-  -- Update all jobs created during onboarding to belong to the user
-  UPDATE jobs
-  SET user_id = p_user_id,
-      onboarding_session_id = NULL
-  WHERE onboarding_session_id = v_onboarding_id;
-  
-  -- Update all job scans created during onboarding to belong to the user
-  UPDATE job_scans
-  SET user_id = p_user_id,
-      onboarding_session_id = NULL
-  WHERE onboarding_session_id = v_onboarding_id;
-  
-  -- Mark the onboarding session as completed
-  UPDATE onboarding_sessions
-  SET status = 'completed'
-  WHERE id = v_onboarding_id;
+  -- Update the user to be a registered user
+  UPDATE users
+  SET is_anonymous = FALSE,
+      anonymous_expires_at = NULL,
+      email = p_email,
+      updated_at = NOW()
+  WHERE id = p_user_id;
   
   RETURN jsonb_build_object(
-    'success', true,
-    'message', 'Onboarding completed successfully'
+    'success', TRUE,
+    'message', 'Anonymous user converted successfully'
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to automatically expire onboarding sessions
-CREATE OR REPLACE FUNCTION expire_onboarding_sessions()
+-- Function to clean up expired anonymous users
+CREATE OR REPLACE FUNCTION cleanup_expired_anonymous_users()
 RETURNS INTEGER AS $$
 DECLARE
   v_count INTEGER;
 BEGIN
-  UPDATE onboarding_sessions
-  SET status = 'expired'
-  WHERE status = 'active'
-    AND expires_at <= NOW();
-    
-  GET DIAGNOSTICS v_count = ROW_COUNT;
+  -- Get the count of expired anonymous users
+  SELECT COUNT(*) INTO v_count
+  FROM users
+  WHERE is_anonymous = TRUE
+  AND anonymous_expires_at <= NOW();
+  
+  -- Delete all related data for expired anonymous users
+  -- Use a CTE to properly handle dependencies
+  WITH expired_users AS (
+    SELECT id FROM users
+    WHERE is_anonymous = TRUE
+    AND anonymous_expires_at <= NOW()
+  )
+  -- Delete job scans first (has foreign keys to jobs and resumes)
+  DELETE FROM job_scans
+  WHERE user_id IN (SELECT id FROM expired_users);
+  
+  -- Then delete jobs
+  DELETE FROM jobs
+  WHERE user_id IN (SELECT id FROM expired_users);
+  
+  -- Then delete resumes
+  DELETE FROM resumes
+  WHERE user_id IN (SELECT id FROM expired_users);
+  
+  -- Finally delete the user records
+  DELETE FROM users
+  WHERE id IN (SELECT id FROM expired_users);
+  
   RETURN v_count;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -549,12 +448,6 @@ CREATE TRIGGER update_jobs_updated_at
 BEFORE UPDATE ON jobs
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_onboarding_sessions_updated_at
-BEFORE UPDATE ON onboarding_sessions
-FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-
-
 -- Create a storage bucket for resumes
 INSERT INTO storage.buckets (id, name, public, avif_autodetection)
 VALUES ('resumes', 'resumes', false, false)
@@ -570,15 +463,7 @@ ON storage.objects
 FOR INSERT
 WITH CHECK (
   bucket_id = 'resumes' AND
-  (
-    auth.uid()::text = (storage.foldername(name))[1] OR
-    EXISTS (
-      SELECT 1 FROM onboarding_sessions 
-      WHERE session_id = current_setting('app.temporary_session_id', true)
-        AND status = 'active'
-        AND expires_at > NOW()
-    )
-  )
+  auth.uid()::text = (storage.foldername(name))[1]
 );
 
 -- Policy to allow users to select their own resumes
@@ -587,15 +472,7 @@ ON storage.objects
 FOR SELECT
 USING (
   bucket_id = 'resumes' AND
-  (
-    auth.uid()::text = (storage.foldername(name))[1] OR
-    EXISTS (
-      SELECT 1 FROM onboarding_sessions
-      WHERE session_id = current_setting('app.temporary_session_id', true)
-        AND status = 'active'
-        AND expires_at > NOW()
-    )
-  )
+  auth.uid()::text = (storage.foldername(name))[1]
 );
 
 -- Policy to allow users to update their own resumes
@@ -619,12 +496,10 @@ USING (
 -- Create a helper function to generate a storage path for new resume uploads
 CREATE OR REPLACE FUNCTION generate_resume_storage_path(
   p_user_id UUID,
-  p_filename TEXT,
-  p_temp_session_id TEXT DEFAULT NULL
+  p_filename TEXT
 )
 RETURNS TEXT AS $$
 DECLARE
-  v_folder TEXT;
   v_safe_filename TEXT;
   v_timestamp TEXT;
 BEGIN
@@ -634,18 +509,8 @@ BEGIN
   -- Make filename safe by removing problematic characters
   v_safe_filename := regexp_replace(p_filename, '[^a-zA-Z0-9._-]', '_', 'g');
   
-  -- If we have a user ID, use that as the folder
-  IF p_user_id IS NOT NULL THEN
-    v_folder := p_user_id::text;
-  -- If we have a temporary session, use that
-  ELSIF p_temp_session_id IS NOT NULL THEN
-    v_folder := 'temp/' || p_temp_session_id;
-  ELSE
-    RAISE EXCEPTION 'Either user_id or temp_session_id must be provided';
-  END IF;
-  
-  -- Return the full path
-  RETURN v_folder || '/' || v_timestamp || '_' || v_safe_filename;
+  -- Return the full path using the user ID as the folder
+  RETURN p_user_id::text || '/' || v_timestamp || '_' || v_safe_filename;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -655,8 +520,7 @@ CREATE OR REPLACE FUNCTION register_resume_upload(
   p_filename TEXT,
   p_file_path TEXT,
   p_file_size INT8,
-  p_mime_type TEXT,
-  p_onboarding_session_id UUID DEFAULT NULL
+  p_mime_type TEXT
 )
 RETURNS JSONB AS $$
 DECLARE
@@ -678,8 +542,7 @@ BEGIN
     file_path,
     file_url,
     file_size,
-    mime_type,
-    onboarding_session_id
+    mime_type
   )
   VALUES (
     p_user_id,
@@ -687,8 +550,7 @@ BEGIN
     p_file_path,
     v_storage_url || p_file_path,
     p_file_size,
-    p_mime_type,
-    p_onboarding_session_id
+    p_mime_type
   )
   RETURNING id INTO v_resume_id;
   
@@ -705,36 +567,3 @@ BEGIN
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Handle migration of temporary uploaded files during onboarding completion
-CREATE OR REPLACE FUNCTION migrate_onboarding_resume_files()
-RETURNS TRIGGER AS $$
-DECLARE
-  v_storage_url TEXT;
-BEGIN
-  -- If the onboarding session ID is being removed and user_id is being set
-  -- (which happens during complete_onboarding function)
-  IF OLD.onboarding_session_id IS NOT NULL AND 
-     NEW.onboarding_session_id IS NULL AND
-     NEW.user_id IS NOT NULL AND 
-     OLD.user_id != NEW.user_id THEN
-    
-    -- Get the storage URL
-    BEGIN
-      v_storage_url := 'https://' || current_setting('supabase_functions.project_ref') || '.supabase.co/storage/v1/object/public/resumes/';
-    EXCEPTION WHEN OTHERS THEN
-      v_storage_url := '/storage/v1/object/public/resumes/';
-    END;
-    
-    -- Update the file URL to reflect the new path
-    -- Note: The actual file moving must be done via a serverless function or client code
-    NEW.file_url := v_storage_url || NEW.file_path;
-  END IF;
-  
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER handle_resume_file_migration
-BEFORE UPDATE ON resumes
-FOR EACH ROW EXECUTE FUNCTION migrate_onboarding_resume_files();
