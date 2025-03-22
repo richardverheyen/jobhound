@@ -11,9 +11,45 @@ RETURNS JSONB AS $$
 DECLARE
   v_resume_id UUID;
   v_user_id UUID;
+  v_user_exists BOOLEAN;
 BEGIN
   -- Get the current user ID
   v_user_id := auth.uid();
+  
+  -- Check if user exists in the users table
+  SELECT EXISTS (
+    SELECT 1 FROM public.users WHERE id = v_user_id
+  ) INTO v_user_exists;
+  
+  -- If user doesn't exist yet in the users table, create it
+  IF NOT v_user_exists THEN
+    INSERT INTO public.users (
+      id,
+      email,
+      created_at,
+      updated_at
+    ) VALUES (
+      v_user_id,
+      (SELECT email FROM auth.users WHERE id = v_user_id),
+      NOW(),
+      NOW()
+    );
+    
+    -- Also create initial credits if not present
+    IF NOT EXISTS (SELECT 1 FROM public.credit_purchases WHERE user_id = v_user_id) THEN
+      INSERT INTO public.credit_purchases (
+        user_id,
+        credit_amount,
+        remaining_credits,
+        purchase_date
+      ) VALUES (
+        v_user_id,
+        10, -- 10 free credits
+        10, -- all credits initially available
+        NOW()
+      );
+    END IF;
+  END IF;
   
   -- Insert the resume record
   INSERT INTO resumes (

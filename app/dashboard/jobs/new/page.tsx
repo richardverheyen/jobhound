@@ -48,28 +48,22 @@ export default function NewJobPage() {
         throw new Error('You must be logged in to create a job');
       }
       
-      // Insert the job into Supabase
+      // Use the create_job RPC function instead of direct insert
       const { data, error } = await supabase
-        .from('jobs')
-        .insert([
-          {
-            user_id: user.id,
-            company: formData.company,
-            title: formData.position,
-            location: formData.location,
-            description: formData.description
-          }
-        ])
-        .select()
-        .single();
+        .rpc('create_job', {
+          p_company: formData.company,
+          p_title: formData.position,
+          p_location: formData.location,
+          p_description: formData.description
+        });
       
       if (error) {
         throw error;
       }
       
       // Redirect to job view page if we have the new job data
-      if (data) {
-        router.push(`/dashboard/jobs/${data.id}`);
+      if (data?.success) {
+        router.push(`/dashboard/jobs/${data.job_id}`);
       } else {
         router.push('/dashboard/jobs');
       }

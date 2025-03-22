@@ -71,15 +71,55 @@ CREATE OR REPLACE FUNCTION create_scan(
 DECLARE
   v_scan_id UUID;
   v_purchase_id UUID;
+  v_user_exists BOOLEAN;
 BEGIN
-  -- Find a credit purchase with remaining credits
-  SELECT id INTO v_purchase_id
-  FROM credit_purchases
-  WHERE user_id = p_user_id
-    AND remaining_credits > 0
-    AND (expires_at IS NULL OR expires_at > NOW())
-  ORDER BY expires_at ASC NULLS LAST
-  LIMIT 1;
+  -- Check if user exists in the users table
+  SELECT EXISTS (
+    SELECT 1 FROM public.users WHERE id = p_user_id
+  ) INTO v_user_exists;
+  
+  -- If user doesn't exist yet in the users table, create it
+  IF NOT v_user_exists THEN
+    INSERT INTO public.users (
+      id,
+      email,
+      created_at,
+      updated_at
+    ) VALUES (
+      p_user_id,
+      (SELECT email FROM auth.users WHERE id = p_user_id),
+      NOW(),
+      NOW()
+    );
+    
+    -- Also create initial credits if not present
+    INSERT INTO public.credit_purchases (
+      user_id,
+      credit_amount,
+      remaining_credits,
+      purchase_date
+    ) VALUES (
+      p_user_id,
+      10, -- 10 free credits
+      10, -- all credits initially available
+      NOW()
+    );
+    
+    -- Get the ID of the credit purchase we just created
+    SELECT id INTO v_purchase_id
+    FROM credit_purchases
+    WHERE user_id = p_user_id
+    LIMIT 1;
+  ELSE
+    -- Find a credit purchase with remaining credits
+    SELECT id INTO v_purchase_id
+    FROM credit_purchases
+    WHERE user_id = p_user_id
+      AND remaining_credits > 0
+      AND (expires_at IS NULL OR expires_at > NOW())
+    ORDER BY expires_at ASC NULLS LAST
+    LIMIT 1;
+  END IF;
   
   -- Check if user has credits
   IF v_purchase_id IS NULL THEN
@@ -133,5 +173,84 @@ BEGIN
   );
   
   RETURN v_scan_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create a function to handle job creation and ensure user exists
+CREATE OR REPLACE FUNCTION create_job(
+  p_company TEXT,
+  p_title TEXT,
+  p_location TEXT,
+  p_description TEXT
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_job_id UUID;
+  v_user_id UUID;
+  v_user_exists BOOLEAN;
+BEGIN
+  -- Get the current user ID
+  v_user_id := auth.uid();
+  
+  -- Check if user exists in the users table
+  SELECT EXISTS (
+    SELECT 1 FROM public.users WHERE id = v_user_id
+  ) INTO v_user_exists;
+  
+  -- If user doesn't exist yet in the users table, create it
+  IF NOT v_user_exists THEN
+    INSERT INTO public.users (
+      id,
+      email,
+      created_at,
+      updated_at
+    ) VALUES (
+      v_user_id,
+      (SELECT email FROM auth.users WHERE id = v_user_id),
+      NOW(),
+      NOW()
+    );
+    
+    -- Also create initial credits if not present
+    IF NOT EXISTS (SELECT 1 FROM public.credit_purchases WHERE user_id = v_user_id) THEN
+      INSERT INTO public.credit_purchases (
+        user_id,
+        credit_amount,
+        remaining_credits,
+        purchase_date
+      ) VALUES (
+        v_user_id,
+        10, -- 10 free credits
+        10, -- all credits initially available
+        NOW()
+      );
+    END IF;
+  END IF;
+  
+  -- Insert the job record
+  INSERT INTO jobs (
+    user_id,
+    company,
+    title,
+    location,
+    description,
+    created_at,
+    updated_at
+  )
+  VALUES (
+    v_user_id,
+    p_company,
+    p_title,
+    p_location,
+    p_description,
+    NOW(),
+    NOW()
+  )
+  RETURNING id INTO v_job_id;
+  
+  RETURN jsonb_build_object(
+    'success', true,
+    'job_id', v_job_id
+  );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER; 
