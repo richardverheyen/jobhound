@@ -25,6 +25,10 @@ EOL
 echo "Starting Supabase services..."
 supabase start
 
+# Deploy the create-scan edge function
+echo "Deploying create-scan edge function..."
+supabase functions deploy create-scan --no-verify-jwt
+
 echo "-------------------------------------------"
 echo "🚀 Local Supabase is running!"
 echo "-------------------------------------------"

@@ -32,6 +32,10 @@ export async function createScan({
     // Create request payload
     let requestPayload: any;
     let response;
+    
+    // Build the URL for the edge function
+    const functionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-scan`;
+    console.log("Calling Supabase Edge Function:", functionUrl);
 
     // If we have a resume file, use FormData to send it
     if (resumeFile) {
@@ -40,14 +44,21 @@ export async function createScan({
       formData.append("resumeId", resumeId);
       formData.append("resume", resumeFile);
       
-      // Call the Edge Function with FormData
-      response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-scan`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${authData.session.access_token}`,
-        },
-        body: formData,
-      });
+      try {
+        // Call the Edge Function with FormData
+        response = await fetch(functionUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${authData.session.access_token}`,
+          },
+          body: formData,
+          // Add cache: 'no-store' to prevent caching issues
+          cache: 'no-store',
+        });
+      } catch (error: any) {
+        console.error("Fetch error with FormData:", error);
+        throw new Error(`Failed to connect to the edge function: ${error.message || 'Unknown error'}`);
+      }
     } else {
       // If no file, send JSON payload
       requestPayload = {
@@ -56,28 +67,44 @@ export async function createScan({
         resumeFilename,
       };
       
-      // Call the Edge Function with JSON
-      response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-scan`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${authData.session.access_token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestPayload),
-      });
+      try {
+        // Call the Edge Function with JSON
+        response = await fetch(functionUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${authData.session.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestPayload),
+          // Add cache: 'no-store' to prevent caching issues
+          cache: 'no-store',
+        });
+      } catch (error: any) {
+        console.error("Fetch error with JSON payload:", error);
+        throw new Error(`Failed to connect to the edge function: ${error.message || 'Unknown error'}`);
+      }
     }
 
     // Check for successful response
     if (!response.ok) {
-      const errorData = await response.json();
+      console.error("Edge function response not OK:", response.status, response.statusText);
+      let errorMessage;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || `Request failed with status ${response.status}`;
+      } catch (jsonError) {
+        errorMessage = `Request failed with status ${response.status}: ${response.statusText}`;
+      }
+      
       return {
         success: false,
-        error: errorData.error || `Request failed with status ${response.status}`,
+        error: errorMessage,
       };
     }
 
     // Parse the response
     const data = await response.json();
+    console.log("Edge function response:", data);
 
     // Return with redirect URL for client-side navigation
     return {
