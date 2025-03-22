@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Resume } from '@/types';
-import { supabase } from '@/app/utils/supabase';
+import { supabase } from '@/supabase/client';
 import { Navbar } from '@/app/components/Navbar';
 import ResumeModal from '@/app/components/ResumeModal';
 

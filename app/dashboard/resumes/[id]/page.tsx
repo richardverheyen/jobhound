@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/app/utils/supabase';
+import { supabase } from '@/supabase/client';
 import { Navbar } from '@/app/components/Navbar';
 import { Resume, JobScan } from '@/types';
 

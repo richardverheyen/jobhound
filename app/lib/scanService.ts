@@ -1,4 +1,4 @@
-import { createBrowserClient } from "@/lib/supabase/client";
+import { createClient, supabase } from "@/supabase/client";
 import { JobScan } from "@/types";
 
 interface CreateScanParams {
@@ -21,8 +21,6 @@ export async function createScan({
   error?: string;
 }> {
   try {
-    const supabase = createBrowserClient();
-    
     // Get the authenticated user
     const { data: authData } = await supabase.auth.getSession();
     if (!authData?.session) {
@@ -124,8 +122,6 @@ export async function createScan({
 
 export async function getJobScans(jobId: string): Promise<JobScan[]> {
   try {
-    const supabase = createBrowserClient();
-    
     // Get scans for a specific job
     const { data, error } = await supabase
       .from("job_scans")
@@ -144,8 +140,6 @@ export async function getJobScans(jobId: string): Promise<JobScan[]> {
 
 export async function getScanDetails(scanId: string): Promise<JobScan | null> {
   try {
-    const supabase = createBrowserClient();
-    
     // Get details for a specific scan
     const { data, error } = await supabase
       .from("job_scans")
@@ -159,5 +153,71 @@ export async function getScanDetails(scanId: string): Promise<JobScan | null> {
   } catch (error) {
     console.error("Error fetching scan details:", error);
     return null;
+  }
+}
+
+export async function fetchUserCredits() {
+  try {
+    // Get authenticated user ID
+    const { data: authData } = await supabase.auth.getSession();
+    
+    if (!authData?.session?.user?.id) {
+      throw new Error("User not authenticated");
+    }
+    
+    // Get user credit information
+    const { data, error } = await supabase.rpc("get_user_credit_summary", {
+      p_user_id: authData.session.user.id
+    });
+    
+    if (error) {
+      throw new Error(error.message);
+    }
+    
+    return {
+      availableCredits: data.available_credits || 0,
+      totalPurchased: data.total_purchased || 0,
+      totalUsed: data.total_used || 0
+    };
+  } catch (error) {
+    console.error("Error fetching user credits:", error);
+    return {
+      availableCredits: 0,
+      totalPurchased: 0,
+      totalUsed: 0
+    };
+  }
+}
+
+export async function getScansForResume(resumeId: string) {
+  try {
+    const { data, error } = await supabase
+      .from("job_scans")
+      .select(`
+        id,
+        created_at,
+        match_score,
+        job_id,
+        resume_id,
+        jobs (
+          id,
+          title,
+          company,
+          location,
+          description,
+          status
+        )
+      `)
+      .eq("resume_id", resumeId)
+      .order("created_at", { ascending: false });
+    
+    if (error) {
+      throw new Error(error.message);
+    }
+    
+    return data as unknown as JobScan[];
+  } catch (error) {
+    console.error("Error getting scans for resume:", error);
+    return [];
   }
 } 

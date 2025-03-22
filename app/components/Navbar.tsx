@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabase, signOut } from '@/app/utils/supabase';
+import { supabase, signOut } from '@/supabase/client';
 
 export function Navbar({ user }: { user: any | null }) {
   const router = useRouter();

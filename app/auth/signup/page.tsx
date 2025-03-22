@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { signup } from '../login/actions';
-import { supabase } from '@/app/utils/supabase';
+import { supabase } from '@/supabase/client';
 
 export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);

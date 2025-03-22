@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, FormEvent, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/app/utils/supabase';
+import { supabase } from '@/supabase/client';
 import { Navbar } from '@/app/components/Navbar';
 
 export default function NewResumePage() {

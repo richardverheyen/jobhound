@@ -1,9 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
+// Environment variables for consistent usage
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
 export const updateSession = async (request: NextRequest) => {
-  // This `try/catch` block is only here for the interactive tutorial.
-  // Feel free to remove once you have Supabase connected.
   try {
     let response = NextResponse.next({
       request: {
@@ -12,14 +14,30 @@ export const updateSession = async (request: NextRequest) => {
     });
 
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      supabaseUrl,
+      supabaseAnonKey,
       {
         cookies: {
           get(name: string) {
             return request.cookies.get(name)?.value;
           },
           set(name: string, value: string, options: any) {
+            // This hook enables us to set cookies inside of middleware
+            request.cookies.set({
+              name,
+              value,
+              ...options,
+            });
+            // Update the request headers
+            const requestHeaders = new Headers(request.headers);
+            requestHeaders.set('cookie', request.cookies.toString());
+            // Update the request with the new headers
+            response = NextResponse.next({
+              request: {
+                headers: requestHeaders,
+              },
+            });
+            // Set cookies on the response
             response.cookies.set({
               name,
               value,
@@ -27,9 +45,25 @@ export const updateSession = async (request: NextRequest) => {
             });
           },
           remove(name: string, options: any) {
+            // This hook enables us to delete cookies inside of middleware
+            request.cookies.set({
+              name,
+              value: '',
+              ...options,
+            });
+            // Update the request headers
+            const requestHeaders = new Headers(request.headers);
+            requestHeaders.set('cookie', request.cookies.toString());
+            // Update the request with the new headers
+            response = NextResponse.next({
+              request: {
+                headers: requestHeaders,
+              },
+            });
+            // Delete the cookie from the response
             response.cookies.set({
               name,
-              value: "",
+              value: '',
               ...options,
             });
           },
@@ -37,137 +71,29 @@ export const updateSession = async (request: NextRequest) => {
       }
     );
 
-    // This will refresh session if expired - required for Server Components
-    // https://supabase.com/docs/guides/auth/server-side/nextjs
-    await supabase.auth.getUser();
+    // Refresh the session
+    const { data: { user } } = await supabase.auth.getUser();
 
-    // protected routes
-    if (request.nextUrl.pathname.startsWith("/dashboard")) {
-      return NextResponse.redirect(new URL("/auth/login", request.url));
-    }
-
-    if (request.nextUrl.pathname === "/") {
-      return NextResponse.redirect(new URL("/", request.url));
-    }
-
-    // Check if we have a temporary session ID in the cookies
-    const tempSessionId = request.cookies.get("jobhound_temp_session")?.value;
-
-    if (tempSessionId) {
-      console.log(
-        "Middleware: Found temporary session ID in cookies:",
-        tempSessionId
-      );
-
-      // Set the temporary session ID as a custom header
-      response.headers.set("x-temporary-session-id", tempSessionId);
-
-      try {
-        // Set the temporary session ID for RLS policies
-        const { error } = await supabase.rpc("set_temporary_session", {
-          p_session_id: tempSessionId,
-        });
-
-        if (error) {
-          console.error(
-            "Middleware: Error setting temporary session ID:",
-            error
-          );
-        } else {
-          console.log("Middleware: Successfully set temporary session ID");
-        }
-      } catch (err) {
-        console.error("Middleware: Failed to set temporary session ID:", err);
-      }
+    // If the user is trying to access protected routes but isn't logged in, redirect to login
+    if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
+      return NextResponse.redirect(new URL('/auth/login', request.url));
     }
 
     return response;
-  } catch (e) {
-    console.error("Middleware error:", e);
-    // If you are here, a Supabase client could not be created!
-    // This is likely because you have not set up environment variables.
-    // Check out http://localhost:3000 for Next Steps.
+  } catch (error) {
+    console.error('Error in updateSession middleware:', error);
+    // Return the original response in case of an error
     return NextResponse.next({
       request: {
         headers: request.headers,
       },
     });
   }
-};
+}
 
 /**
  * Middleware to handle Supabase authentication and temporary sessions
  */
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
-
-  try {
-    // Create a Supabase client configured to use cookies
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return req.cookies.get(name)?.value;
-          },
-          set(name: string, value: string, options: any) {
-            res.cookies.set({
-              name,
-              value,
-              ...options,
-            });
-          },
-          remove(name: string, options: any) {
-            res.cookies.set({
-              name,
-              value: "",
-              ...options,
-            });
-          },
-        },
-      }
-    );
-
-    // Check if we have a temporary session ID in the cookies
-    const tempSessionId = req.cookies.get("jobhound_temp_session")?.value;
-
-    if (tempSessionId) {
-      console.log(
-        "Middleware function: Found temporary session ID in cookies:",
-        tempSessionId
-      );
-
-      // Set the temporary session ID as a custom header
-      res.headers.set("x-temporary-session-id", tempSessionId);
-
-      try {
-        // Set the temporary session ID for RLS policies
-        const { error } = await supabase.rpc("set_temporary_session", {
-          p_session_id: tempSessionId,
-        });
-
-        if (error) {
-          console.error(
-            "Middleware function: Error setting temporary session ID:",
-            error
-          );
-        } else {
-          console.log(
-            "Middleware function: Successfully set temporary session ID"
-          );
-        }
-      } catch (err) {
-        console.error(
-          "Middleware function: Failed to set temporary session ID:",
-          err
-        );
-      }
-    }
-
-    return res;
-  } catch (e) {
-    console.error("Middleware function error:", e);
-    return res;
-  }
+  return updateSession(req);
 }
