@@ -381,7 +381,7 @@ export default function Dashboard() {
               </div>
 
               {/* Credit Usage */}
-              <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+              <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6" data-testid="credit-section">
                 <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Credit Usage</h2>
                 
                 <div className="space-y-3">
@@ -396,7 +396,7 @@ export default function Dashboard() {
                       </div>
                     ))
                   ) : (
-                    <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 py-2" data-testid="no-credit-usage">
                       No credit usage yet. Credits are used when scanning your resume against job listings.
                     </p>
                   )}
@@ -405,24 +405,23 @@ export default function Dashboard() {
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Available Credits</span>
-                    <span className="text-lg font-bold text-blue-600 dark:text-blue-400">{creditSummary?.available_credits || 0}</span>
+                    <span className="text-lg font-bold text-blue-600 dark:text-blue-400" data-testid="available-credits">{creditSummary?.available_credits || 0}</span>
                   </div>
                   
                   <div className="mt-2 flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
-                    <span>Total purchased: {creditSummary?.total_purchased || 0}</span>
-                    <span>Total used: {creditSummary?.total_used || 0}</span>
+                    <span data-testid="total-purchased">Total purchased: {creditSummary?.total_purchased || 0}</span>
+                    <span data-testid="total-used">Total used: {creditSummary?.total_used || 0}</span>
                   </div>
                   
-                  {(creditSummary?.available_credits || 0) < 5 && (
-                    <div className="mt-3">
-                      <Link 
-                        href="/dashboard/credits/buy"
-                        className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
-                      >
-                        Buy Credits
-                      </Link>
-                    </div>
-                  )}
+                  <div className="mt-3">
+                    <Link 
+                      href="/dashboard/credits/buy"
+                      className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+                      data-testid="buy-credits-button"
+                    >
+                      Buy Credits
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>

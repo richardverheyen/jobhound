@@ -144,8 +144,22 @@ test('should grant 10 free credits to new users upon registration', async ({ pag
     
     console.log('Verifying credits are displayed in UI...');
     
-    // These selectors may need to be adjusted based on your actual UI
-    // Simplified check - just verify we can find some credit information
+    // Wait for dashboard to fully load
+    await page.waitForSelector('h1', { hasText: /Welcome back/i });
+    
+    // Check for the credit section
+    await expect(page.locator('h2', { hasText: /Credit Usage/i })).toBeVisible();
+    
+    // Check for available credits text
+    await expect(page.locator('text=Available Credits')).toBeVisible();
+    
+    // Verify credit value is visible (should be 10)
+    // Using data-testid selectors which we added to the component
+    const creditsAmount = await page.locator('[data-testid="available-credits"]').textContent();
+    expect(creditsAmount?.trim()).toBe('10');
+    
+    // Alternatively, verify any element contains the word "credit"
+    // This is a fallback check
     const pageContent = await page.content();
     expect(pageContent).toContain('credit');
     
