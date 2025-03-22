@@ -21,11 +21,6 @@ We have several types of Supabase clients for different use cases:
    - Used in server components or API routes where user authentication is needed
    - Properly handles cookies for maintaining user sessions
 
-4. **Service Client** - For administrative operations (with elevated permissions)
-   - Import from: `@/lib/supabase/client` → `createServiceClient()`
-   - Uses the service role key for administrative operations
-   - **IMPORTANT:** Never use in client-side code
-
 ## Guidelines
 
 1. Always use the appropriate client for your context (client component, server component, etc.)

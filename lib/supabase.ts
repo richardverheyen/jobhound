@@ -2,7 +2,6 @@ import {
   createServerClient, 
   isLocalDev as _isLocalDev,
   logSupabaseEnvironment as _logSupabaseEnvironment,
-  createServiceClient as _createServiceClient
 } from './supabase/client';
 
 // Create a single supabase client for the entire app
@@ -13,7 +12,6 @@ export const supabase = createServerClient();
 // Re-export helper functions
 export const isLocalDev = _isLocalDev;
 export const logSupabaseEnvironment = _logSupabaseEnvironment;
-export const createServiceClient = _createServiceClient;
 
 // Helper function to get user session
 export async function getSession() {

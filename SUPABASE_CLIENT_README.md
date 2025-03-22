@@ -24,12 +24,6 @@ We provide four distinct Supabase client types, each designed for specific use c
    - Features: Basic server-side client with anonymous role
    - Example: `import { createServerClient } from '@/lib/supabase/client'`
 
-4. **Service Role Client** (admin privileges)
-   - Import from: `@/lib/supabase/client`
-   - Used in: Trusted server contexts only
-   - Features: Bypasses RLS for administrative operations
-   - Example: `import { createServiceClient } from '@/lib/supabase/client'`
-
 ## File Structure
 
 Our Supabase client utilities are organized as follows:
@@ -87,14 +81,3 @@ export default async function ServerComponent() {
   // Handle data
 }
 ```
-
-### Admin Operation Example
-```tsx
-import { createServiceClient } from '@/lib/supabase/client';
-
-export async function adminFunction() {
-  const supabase = createServiceClient();
-  // This bypasses RLS policies
-  const { data } = await supabase.from('table').select('*');
-}
-``` 

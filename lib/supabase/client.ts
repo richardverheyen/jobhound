@@ -34,28 +34,14 @@ export const logSupabaseEnvironment = () => {
  * For server components with user sessions, use the createServerComponentClient instead.
  */
 export const createServerClient = () => {
-  return createClientJs(supabaseUrl, supabaseAnonKey);
-};
-
-/**
- * Create a Supabase client with service role permissions.
- * IMPORTANT: Should ONLY be used in secure server environments (like edge functions, API routes)
- * NEVER expose this client to the browser.
- */
-export const createServiceClient = () => {
-  if (!supabaseServiceKey) {
-    console.error('SUPABASE_SERVICE_ROLE_KEY is not defined!');
-    // Fall back to anon key with a warning
-    return createClientJs(supabaseUrl, supabaseAnonKey);
-  }
-  return createClientJs(supabaseUrl, supabaseServiceKey);
+  return createClientSsr(supabaseUrl, supabaseAnonKey);
 };
 
 /**
  * Create a Supabase client for browser use (in client components)
  */
 export const createBrowserClient = () => {
-  return createClientSsr(supabaseUrl, supabaseAnonKey);
+  return createClientJs(supabaseUrl, supabaseAnonKey);
 };
 
 // Auth helpers (for client components)
