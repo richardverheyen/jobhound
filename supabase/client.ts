@@ -1,15 +1,14 @@
 'use client';
 
-import { createBrowserClient as createClientSsr } from '@supabase/ssr';
-import { createClient as createClientJs, SupabaseClient } from '@supabase/supabase-js';
-import { User } from '@/types';
+import { createBrowserClient } from '@supabase/ssr';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 // Environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 // Create a single supabase client for the entire app (client-side)
-export const supabase = createClientSsr(supabaseUrl, supabaseAnonKey);
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
 // Helper to check if we're using the local development environment
 export const isLocalDev = () => {

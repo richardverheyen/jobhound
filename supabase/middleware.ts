@@ -1,94 +1,60 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
-// Environment variables for consistent usage
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-export const updateSession = async (request: NextRequest) => {
-  try {
-    let response = NextResponse.next({
-      request: {
-        headers: request.headers,
-      },
-    });
-
-    const supabase = createServerClient(
-      supabaseUrl,
-      supabaseAnonKey,
-      {
-        cookies: {
-          get(name: string) {
-            return request.cookies.get(name)?.value;
-          },
-          set(name: string, value: string, options: any) {
-            // This hook enables us to set cookies inside of middleware
-            request.cookies.set({
-              name,
-              value,
-              ...options,
-            });
-            // Update the request headers
-            const requestHeaders = new Headers(request.headers);
-            requestHeaders.set('cookie', request.cookies.toString());
-            // Update the request with the new headers
-            response = NextResponse.next({
-              request: {
-                headers: requestHeaders,
-              },
-            });
-            // Set cookies on the response
-            response.cookies.set({
-              name,
-              value,
-              ...options,
-            });
-          },
-          remove(name: string, options: any) {
-            // This hook enables us to delete cookies inside of middleware
-            request.cookies.set({
-              name,
-              value: '',
-              ...options,
-            });
-            // Update the request headers
-            const requestHeaders = new Headers(request.headers);
-            requestHeaders.set('cookie', request.cookies.toString());
-            // Update the request with the new headers
-            response = NextResponse.next({
-              request: {
-                headers: requestHeaders,
-              },
-            });
-            // Delete the cookie from the response
-            response.cookies.set({
-              name,
-              value: '',
-              ...options,
-            });
-          },
+export async function updateSession(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({
+    request,
+  })
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
         },
-      }
-    );
-
-    // Refresh the session
-    const { data: { user } } = await supabase.auth.getUser();
-
-    // If the user is trying to access protected routes but isn't logged in, redirect to login
-    if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
-      return NextResponse.redirect(new URL('/auth/login', request.url));
-    }
-
-    return response;
-  } catch (error) {
-    console.error('Error in updateSession middleware:', error);
-    // Return the original response in case of an error
-    return NextResponse.next({
-      request: {
-        headers: request.headers,
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          supabaseResponse = NextResponse.next({
+            request,
+          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
+        },
       },
-    });
+    }
+  )
+  // Do not run code between createServerClient and
+  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
+  // issues with users being randomly logged out.
+  // IMPORTANT: DO NOT REMOVE auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (
+    !user &&
+    !request.nextUrl.pathname.startsWith('/login') &&
+    !request.nextUrl.pathname.startsWith('/auth')
+  ) {
+    // no user, potentially respond by redirecting the user to the login page
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
   }
+  // IMPORTANT: You *must* return the supabaseResponse object as it is.
+  // If you're creating a new response object with NextResponse.next() make sure to:
+  // 1. Pass the request in it, like so:
+  //    const myNewResponse = NextResponse.next({ request })
+  // 2. Copy over the cookies, like so:
+  //    myNewResponse.cookies.setAll(supabaseResponse.cookies.getAll())
+  // 3. Change the myNewResponse object to fit your needs, but avoid changing
+  //    the cookies!
+  // 4. Finally:
+  //    return myNewResponse
+  // If this is not done, you may be causing the browser and server to go out
+  // of sync and terminate the user's session prematurely!
+  return supabaseResponse
 }
 
 /**
