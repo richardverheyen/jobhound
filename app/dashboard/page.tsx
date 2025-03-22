@@ -15,7 +15,7 @@ export default function Dashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [defaultResume, setDefaultResume] = useState<Resume | null>(null);
   const [creditUsage, setCreditUsage] = useState<CreditUsage[]>([]);
-  const [creditPurchases, setCreditPurchases] = useState<any[]>([]);
+  const [creditSummary, setCreditSummary] = useState<any>(null);
   const [totalCredits, setTotalCredits] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
@@ -102,28 +102,20 @@ export default function Dashboard() {
         setDefaultResume(resumeData);
       }
       
-      // Get credit usage history
-      const { data: creditData } = await supabase
-        .from('credit_usage')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
+      // Get credit summary using our new function
+      const { data: creditSummaryData } = await supabase
+        .rpc('get_user_credit_summary', {
+          p_user_id: user.id
+        });
       
-      setCreditUsage(creditData || []);
-      
-      // Get remaining credits
-      const { data: purchasesData } = await supabase
-        .from('credit_purchases')
-        .select('remaining_credits')
-        .eq('user_id', user.id)
-        .gt('remaining_credits', 0)
-        .order('expires_at', { ascending: true });
-      
-      setCreditPurchases(purchasesData || []);
-      
-      const credits = purchasesData?.reduce((sum, purchase) => sum + (purchase.remaining_credits || 0), 0) || 0;
-      setTotalCredits(credits);
+      setCreditSummary(creditSummaryData || { 
+        available_credits: 0, 
+        total_purchased: 0,
+        total_used: 0,
+        recent_usage: []
+      });
+      setCreditUsage(creditSummaryData?.recent_usage || []);
+      setTotalCredits(creditSummaryData?.available_credits || 0);
       
       setLoading(false);
     }
@@ -393,11 +385,12 @@ export default function Dashboard() {
                 <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Credit Usage</h2>
                 
                 <div className="space-y-3">
-                  {creditUsage && creditUsage.length > 0 ? (
-                    creditUsage.map((usage: CreditUsage) => (
+                  {creditSummary && creditSummary.recent_usage && creditSummary.recent_usage.length > 0 ? (
+                    creditSummary.recent_usage.map((usage: any) => (
                       <div key={usage.id} className="flex justify-between items-center text-sm">
                         <span className="text-gray-600 dark:text-gray-400">
-                          Scan on {usage.created_at ? new Date(usage.created_at).toLocaleDateString() : 'Unknown date'}
+                          {usage.job_title ? `Scan for ${usage.job_title}` : 'Scan'} on {usage.created_at ? new Date(usage.created_at).toLocaleDateString() : 'Unknown date'}
+                          {usage.match_score ? <span className="ml-2 text-blue-600">({usage.match_score}%)</span> : ''}
                         </span>
                         <span className="font-medium text-gray-900 dark:text-white">-1 credit</span>
                       </div>
@@ -412,9 +405,15 @@ export default function Dashboard() {
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Available Credits</span>
-                    <span className="text-lg font-bold text-blue-600 dark:text-blue-400">{totalCredits}</span>
+                    <span className="text-lg font-bold text-blue-600 dark:text-blue-400">{creditSummary?.available_credits || 0}</span>
                   </div>
-                  {totalCredits === 0 && (
+                  
+                  <div className="mt-2 flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+                    <span>Total purchased: {creditSummary?.total_purchased || 0}</span>
+                    <span>Total used: {creditSummary?.total_used || 0}</span>
+                  </div>
+                  
+                  {(creditSummary?.available_credits || 0) < 5 && (
                     <div className="mt-3">
                       <Link 
                         href="/dashboard/credits/buy"
