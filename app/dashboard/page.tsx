@@ -49,15 +49,16 @@ export default function Dashboard() {
       // Get job listings with their latest scan results
       const { data: jobsData } = await supabase
         .from('jobs')
-        .select(`
-          *,
-          job_scans(
-            id, 
-            match_score, 
-            created_at,
-            resume_id
-          )
-        `)
+        // .select(`
+        //   *,
+        //   job_scans(
+        //     id, 
+        //     match_score, 
+        //     created_at,
+        //     resume_id
+        //   )
+        // `)
+        .select(`*`)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       

@@ -13,27 +13,15 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll()
         },
-        // Docs implementation from supabase
-        // setAll(cookiesToSet) {
-        //   cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-        //   supabaseResponse = NextResponse.next({
-        //     request,
-        //   })
-        //   cookiesToSet.forEach(({ name, value, options }) =>
-        //     supabaseResponse.cookies.set(name, value, options)
-        //   )
-        // },
-
         setAll(cookiesToSet) {
-          // Don't modify request.cookies, that's for incoming cookies
+          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({
             request,
           })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
-        }
-
+        },
       },
     }
   )
