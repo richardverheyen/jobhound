@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import { Navbar } from '@/app/components/Navbar';
 import { Job, Resume } from '@/types';
+import { useCreateScan } from "./createScan";
 
 export default function NewScanPage() {
   const router = useRouter();
@@ -34,6 +35,9 @@ export default function NewScanPage() {
   const [resumeName, setResumeName] = useState<string>('');
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
+
+  // Use our new scan creation hook
+  const { handleCreateScan, isCreatingScan: scanIsCreatingScan, error: scanError, setError: setScanError } = useCreateScan();
 
   useEffect(() => {
     const getUser = async () => {
@@ -310,43 +314,20 @@ export default function NewScanPage() {
       return;
     }
     
-    setIsCreatingScan(true);
-    setError(null);
+    // Use our shared error state
+    if (scanError) setError(scanError);
     
-    try {
-      const supabase = createClient();
-      
-      // First, insert a record in the scans table
-      const { data: scanData, error: scanError } = await supabase
-        .from('job_scans')
-        .insert([
-          {
-            user_id: user.id,
-            job_id: selectedJob.id,
-            resume_id: selectedResume.id,
-            status: 'pending',
-            resume_filename: selectedResume.filename
-          }
-        ])
-        .select()
-        .single();
-      
-      if (scanError) throw scanError;
-      
-      if (!scanData) {
-        throw new Error('Failed to create scan record');
-      }
-      
-      // Now call the Edge Function to process the scan
-      // We'll implement this later, for now just redirect to the job page
-      
-      // Redirect to the job page
-      router.push(`/dashboard/jobs/${selectedJob.id}`);
-    } catch (error: any) {
-      console.error('Error creating scan:', error);
-      setError(error.message || 'Failed to create scan. Please try again.');
-    } finally {
-      setIsCreatingScan(false);
+    // Call the Edge Function through our hook
+    const result = await handleCreateScan(
+      user?.id,
+      selectedJob.id,
+      selectedResume.id,
+      resumeFile || undefined, // Convert null to undefined to match the expected type
+      selectedResume.filename
+    );
+    
+    if (!result?.success) {
+      setError(result?.error || 'Failed to create scan. Please try again.');
     }
   };
   
@@ -951,10 +932,10 @@ export default function NewScanPage() {
                   
                   <button
                     onClick={createScan}
-                    disabled={isCreatingScan}
+                    disabled={scanIsCreatingScan}
                     className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                   >
-                    {isCreatingScan ? (
+                    {scanIsCreatingScan ? (
                       <>
                         <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

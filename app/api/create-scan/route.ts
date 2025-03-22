@@ -1,6 +1,6 @@
 import { google } from "@ai-sdk/google";
 import { streamObject } from "ai";
-import { createClient } from "../../../../supabase/server";
+import { createClient } from "@/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
