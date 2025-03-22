@@ -1,46 +1,60 @@
 ```mermaid
-flowchart TB
+flowchart LR
     %% Define subgraphs for bounded contexts
     subgraph SupabaseDB["Supabase Database"]
-        users["users\n- id (UUID, PK)\n- email\n- stripe_customer_id\n- created_at\n- updated_at"]
-        credit_purchases["credit_purchases\n- id (UUID, PK)\n- user_id (FK)\n- credit_amount\n- remaining_credits\n- stripe_session_id\n- purchase_date\n- expires_at\n- created_at"]
-        credit_usage["credit_usage\n- id (UUID, PK)\n- purchase_id (FK)\n- user_id (FK)\n- request_payload\n- response_payload\n- http_status\n- created_at"]
-        onboarding_sessions["onboarding_sessions\n- id (UUID, PK)\n- session_id\n- email\n- status\n- expires_at\n- metadata\n- created_at\n- updated_at"]
+        users["users"]
+        credit_purchases["credit_purchases"]
+        credit_usage["credit_usage"]
+        resumes["resumes"]
+        jobs["jobs"]
+        job_scans["job_scans"]
     end
 
     subgraph StripeSystem["Stripe Payment System"]
-        stripe_customers["stripe_customers\n- id (cus_...)\n- email\n- metadata (supabase_user_id)"]
-        stripe_products["stripe_products\n- id (prod_...)\n- name\n- metadata (credit_amount)"]
-        stripe_prices["stripe_prices\n- id (price_...)\n- product_id\n- unit_amount\n- currency"]
-        stripe_checkout_sessions["stripe_checkout_sessions\n- id (cs_...)\n- customer\n- payment_status\n- line_items"]
+        stripe_customers["stripe_customers"]
+        stripe_products["stripe_products"]
+        stripe_prices["stripe_prices"]
+        stripe_checkout_sessions["stripe_checkout_sessions"]
     end
 
-    subgraph EdgeFunctions["Supabase Edge Functions"]
-        edge_stripe_webhook["stripe-webhook\nPOST /stripe-webhook\nProcesses Stripe events"]
-        edge_create_checkout["create-checkout\nPOST /create-checkout\nCreates Stripe sessions"]
-        edge_get_customer["get-customer\nPOST /get-customer\nManages Stripe customers"]
-        edge_use_credit["use-credit\nPOST /use-credit\nHandles API requests"]
-        edge_set_temporary_session["set-temporary-session\nPOST /set-temporary-session\nSets session context"]
-        edge_create_onboarding["create-onboarding\nPOST /create-onboarding\nInitiates secure onboarding"]
-        edge_complete_onboarding["complete-onboarding\nPOST /complete-onboarding\nMigrates onboarding to user"]
+    subgraph DatabaseFunctions["Database Functions"]
+        func_get_available_credits["get_available_credits()"]
+        func_use_credit["use_credit()"]
+        func_create_job_scan["create_job_scan()"]
+        func_create_anonymous_user["create_anonymous_user()"]
+        func_convert_anonymous_user["convert_anonymous_user()"]
+        func_cleanup_expired["cleanup_expired_anonymous_users()"]
+        func_create_resume["create_resume()"]
+    end
+    
+    subgraph EdgeFunctions["Supabase Edge Functions (Inferred)"]
+        edge_stripe_webhook["stripe-webhook"]
+        edge_create_checkout["create-checkout"]
     end
 
-    subgraph OnboardingFlow["Onboarding Flow"]
-        step1["1. Create Secure Session\nCreates onboarding_session with unique token"]
-        step2["2. Set Session Context\nSets app.temporary_session_id"]
-        step3["3. Resume/Job Upload\nStores data with onboarding_session_id"]
-        step4["4. Job Scan Preview\nProvides analysis with limited results"]
-        step5["5. Account Creation\nUser creates account or signs in"]
-        step6["6. Complete Onboarding\nTransfers data to user account"]
+    subgraph AnonymousUserFlow["Anonymous User Flow"]
+        step1["Create Anonymous User"]
+        step2["Resume/Job Upload"]
+        step3["Job Scan Preview"]
+        step4["Account Creation"]
+        step5["Data Migration"]
+        step6["Cleanup Expired Users"]
     end
 
-    %% Relationships between database entities
+    %% Database entity relationships
     users --> credit_purchases
     users --> credit_usage
+    users --> jobs
+    users --> resumes
+    users --> job_scans
+    users --> |default_resume|resumes
     credit_purchases --> credit_usage
-    onboarding_sessions --> users
+    credit_purchases --> job_scans
+    jobs --> job_scans
+    resumes --> job_scans
+    job_scans --> credit_usage
 
-    %% Relationships between Stripe entities
+    %% Stripe entity relationships
     stripe_customers --> stripe_checkout_sessions
     stripe_products --> stripe_prices
     stripe_prices --> stripe_checkout_sessions
@@ -49,33 +63,43 @@ flowchart TB
     stripe_customers -.-> users
     stripe_checkout_sessions -.-> credit_purchases
 
-    %% Edge function relationships
+    %% Database function relationships
+    func_get_available_credits --> credit_purchases
+    func_use_credit --> credit_purchases
+    func_use_credit --> credit_usage
+    func_create_job_scan --> credit_purchases
+    func_create_job_scan --> job_scans
+    func_create_job_scan --> credit_usage
+    func_create_anonymous_user --> users
+    func_convert_anonymous_user --> users
+    func_cleanup_expired --> users
+    func_create_resume --> resumes
+    func_create_resume --> users
+
+    %% Edge function relationships (inferred)
     edge_stripe_webhook --> stripe_checkout_sessions
     edge_stripe_webhook --> credit_purchases
     edge_create_checkout --> stripe_checkout_sessions
-    edge_get_customer --> stripe_customers
-    edge_use_credit --> credit_usage
-    edge_set_temporary_session --> onboarding_sessions
-    edge_create_onboarding --> onboarding_sessions
-    edge_complete_onboarding --> onboarding_sessions
-    edge_complete_onboarding --> users
 
-    %% Onboarding flow relationships
-    step1 --> edge_create_onboarding
-    step2 --> edge_set_temporary_session
-    step3 --> onboarding_sessions
-    step4 --> credit_usage
+    %% Anonymous user flow relationships
+    step1 --> func_create_anonymous_user
+    step2 --> resumes
+    step2 --> jobs
+    step3 --> func_create_job_scan
+    step4 --> func_convert_anonymous_user
     step5 --> users
-    step6 --> edge_complete_onboarding
+    step6 --> func_cleanup_expired
 
-    %% Styling
-    classDef supabase fill:#f5f5f5,stroke:#333,stroke-width:2px
-    classDef stripe fill:#d1e7dd,stroke:#0d6832,stroke-width:2px
-    classDef edgefn fill:#d2f4ea,stroke:#0dcaf0,stroke-width:2px
-    classDef onboarding fill:#fff3cd,stroke:#ffc107,stroke-width:2px
+    %% Styling with higher contrast and darker backgrounds for better text visibility
+    classDef supabase fill:#2D4263,stroke:#ffffff,stroke-width:2px,color:#ffffff
+    classDef stripe fill:#084C61,stroke:#ffffff,stroke-width:2px,color:#ffffff
+    classDef edgefn fill:#177E89,stroke:#ffffff,stroke-width:2px,color:#ffffff
+    classDef dbfunc fill:#323031,stroke:#ffffff,stroke-width:2px,color:#ffffff
+    classDef onboarding fill:#DB504A,stroke:#ffffff,stroke-width:2px,color:#ffffff
 
     class SupabaseDB supabase
     class StripeSystem stripe
     class EdgeFunctions edgefn
-    class OnboardingFlow onboarding
+    class DatabaseFunctions dbfunc
+    class AnonymousUserFlow onboarding
 ```
