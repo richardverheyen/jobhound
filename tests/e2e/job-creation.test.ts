@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { setupTestUser, cleanupTestUser } from '../helpers/auth-helper';
+import { setupTestUser, cleanupTestUser } from '../integration/helpers/auth-helper';
 
 /**
  * Generate a unique test email with timestamp and random suffix
@@ -24,7 +24,7 @@ test.describe('Job Creation Flow', () => {
   // Set up a test user before all tests
   test.beforeAll(async () => {
     testEmail = generateUniqueTestEmail();
-    console.log(`Creating test user with email: ${testEmail}`);
+    // console.log(`Creating test user with email: ${testEmail}`);
     userId = await setupTestUser(testEmail, TEST_PASSWORD);
   });
 

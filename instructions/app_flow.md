@@ -4,7 +4,7 @@
 
 ### Sign-In/Sign-Up
 
-New users can access JobHound by either creating a new Supabase Auth user by either using an email/pwd combination or Google Third Party Auth. This can be achieved through the dedicated /sign-up route, or through the 'Onboarding Flow'. They will then be redirected to the /dashboard route where they can start creating Job, Resume and Scan records.
+New users can access JobHound by either creating a new Supabase Auth user by either using an email/pwd combination or Google Third Party Auth. This can be achieved through the dedicated /sign-up route, or through the 'Onboarding Flow'. They will then be redirected to the /dashboard route where they can start creating Job, Resume and Scan records. New users automatically have credit_purchase record created for them, granting them 10 free credits. This is not linked to stripe in any way, all further credits must be created by the stripe checkout.
 
 ### The Onboarding Flow
 

@@ -1,8 +1,8 @@
 import { test, expect, Page } from '@playwright/test';
-import { createTestUser, removeTestUser } from '../utils/test-utils';
+import { createTestUser, removeTestUser } from '../integration/utils/test-utils';
 import { TestUser } from '@/types';
 import { createClient } from '@supabase/supabase-js';
-import { generateUniqueEmail } from '../utils/test-utils';
+import { generateUniqueEmail } from '../integration/utils/test-utils';
 
 // Initialize Supabase client with service role key to bypass RLS
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321';
@@ -31,14 +31,14 @@ test.describe('Job Application Workflow', () => {
   // Set up a test user before all tests
   test.beforeAll(async () => {
     testUser = await createTestUser();
-    console.log(`Created test user: ${testUser.email}`);
+    // console.log(`Created test user: ${testUser.email}`);
   });
   
   // Clean up the test user after all tests
   test.afterAll(async () => {
     if (testUser) {
       await removeTestUser(testUser);
-      console.log(`Cleaned up test user: ${testUser.email}`);
+      // console.log(`Cleaned up test user: ${testUser.email}`);
     }
   });
   

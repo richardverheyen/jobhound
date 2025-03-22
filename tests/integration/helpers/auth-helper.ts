@@ -34,7 +34,7 @@ export async function setupTestUser(email: string, password: string, maxRetries 
 
     // Start fresh with a new unique email each time
     email = email || generateUniqueEmail();
-    console.log(`Setting up test user with email: ${email}`);
+    // console.log(`Setting up test user with email: ${email}`);
     
     // Clean up any existing users with this email
     await thoroughCleanup(email);
@@ -50,7 +50,7 @@ export async function setupTestUser(email: string, password: string, maxRetries 
     });
     
     if (authError) {
-      console.log(`Auth user creation failed: ${authError.message}`);
+      // console.log(`Auth user creation failed: ${authError.message}`);
       // Wait and retry with a new email
       await wait(1000);
       return setupTestUser(generateUniqueEmail(), password, maxRetries - 1);
@@ -61,7 +61,7 @@ export async function setupTestUser(email: string, password: string, maxRetries 
     }
     
     const userId = authData.user.id;
-    console.log(`Auth user created with ID: ${userId}`);
+    // console.log(`Auth user created with ID: ${userId}`);
     
     // Clean up any existing records with this ID in any tables
     await cleanupAllTablesForUserId(userId);
@@ -75,7 +75,7 @@ export async function setupTestUser(email: string, password: string, maxRetries 
       }]);
     
     if (insertError) {
-      console.log(`User record creation failed: ${insertError.message}`);
+      // console.log(`User record creation failed: ${insertError.message}`);
       
       // Clean up the auth user we just created
       try {
@@ -89,7 +89,7 @@ export async function setupTestUser(email: string, password: string, maxRetries 
       return setupTestUser(generateUniqueEmail(), password, maxRetries - 1);
     }
     
-    console.log(`Test user created successfully: ${email} with ID ${userId}`);
+    // console.log(`Test user created successfully: ${email} with ID ${userId}`);
     return userId;
   } catch (error) {
     console.error('Error setting up test user:', error);
@@ -111,6 +111,12 @@ export async function setupTestUser(email: string, password: string, maxRetries 
  */
 async function cleanupAllTablesForUserId(userId: string): Promise<void> {
   try {
+    // Delete from credit_usage table
+    await adminClient.from('credit_usage').delete().eq('user_id', userId);
+    
+    // Delete from credit_purchases table
+    await adminClient.from('credit_purchases').delete().eq('user_id', userId);
+    
     // Delete from jobs table
     await adminClient.from('jobs').delete().eq('user_id', userId);
     
@@ -135,20 +141,20 @@ async function thoroughCleanup(email: string): Promise<void> {
   try {
     if (!email) return;
     
-    console.log(`Performing thorough cleanup for email: ${email}`);
+    // console.log(`Performing thorough cleanup for email: ${email}`);
     
     // First find any auth users with this email
     const { data: authUsers } = await adminClient.auth.admin.listUsers();
     const testUsers = authUsers.users.filter(user => user.email === email);
     
     if (testUsers.length > 0) {
-      console.log(`Found ${testUsers.length} auth users with email ${email}, cleaning up...`);
+      // console.log(`Found ${testUsers.length} auth users with email ${email}, cleaning up...`);
       for (const user of testUsers) {
         await cleanupTestUser(user.id);
         await wait(300);
       }
     } else {
-      console.log(`No auth users found with email ${email}`);
+      // console.log(`No auth users found with email ${email}`);
     }
     
     // Check for orphaned records in the users table
@@ -158,7 +164,7 @@ async function thoroughCleanup(email: string): Promise<void> {
       .eq('email', email);
       
     if (userRecords && userRecords.length > 0) {
-      console.log(`Found ${userRecords.length} orphaned user records for ${email}, cleaning up...`);
+      // console.log(`Found ${userRecords.length} orphaned user records for ${email}, cleaning up...`);
       for (const record of userRecords) {
         await cleanupAllTablesForUserId(record.id);
       }
@@ -169,7 +175,7 @@ async function thoroughCleanup(email: string): Promise<void> {
     const remainingUsers = finalAuthUsers.users.filter(user => user.email === email);
     
     if (remainingUsers.length > 0) {
-      console.log(`Still found ${remainingUsers.length} remaining auth users, cleaning up...`);
+      // console.log(`Still found ${remainingUsers.length} remaining auth users, cleaning up...`);
       for (const user of remainingUsers) {
         try {
           await adminClient.auth.admin.deleteUser(user.id);
@@ -180,7 +186,7 @@ async function thoroughCleanup(email: string): Promise<void> {
       }
     }
     
-    console.log(`Thorough cleanup completed for ${email}`);
+    // console.log(`Thorough cleanup completed for ${email}`);
   } catch (error) {
     console.error(`Error in thoroughCleanup for ${email}:`, error);
   }
@@ -195,7 +201,7 @@ export async function cleanupTestUser(userId: string): Promise<void> {
   try {
     if (!userId) return;
     
-    console.log(`Cleaning up test user with ID: ${userId}`);
+    // console.log(`Cleaning up test user with ID: ${userId}`);
     
     // First clean up any records in other tables
     await cleanupAllTablesForUserId(userId);
@@ -206,7 +212,7 @@ export async function cleanupTestUser(userId: string): Promise<void> {
     if (error) {
       console.error(`Error deleting auth user: ${error.message}`);
     } else {
-      console.log(`Test user deleted: ${userId}`);
+      // console.log(`Test user deleted: ${userId}`);
     }
   } catch (error) {
     console.error('Error cleaning up test user:', error);
