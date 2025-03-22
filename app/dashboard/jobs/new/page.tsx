@@ -97,6 +97,78 @@ export default function NewJobPage() {
             </div>
           )}
 
+          {/* Dev-only RLS test button */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded">
+              <details>
+                <summary className="cursor-pointer text-sm font-semibold text-yellow-800 dark:text-yellow-300">
+                  RLS Diagnostic Tools (Development Only)
+                </summary>
+                <div className="mt-3 space-y-3">
+                  <button
+                    onClick={async () => {
+                      try {
+                        const supabase = createClient();
+                        const { data, error } = await supabase.rpc('test_user_rls_policies');
+                        
+                        if (error) throw error;
+                        
+                        console.log('RLS Policy Test Results:', data);
+                        alert('RLS Policy Test Results: ' + JSON.stringify(data, null, 2));
+                      } catch (err: any) {
+                        console.error('Error testing RLS policies:', err);
+                        setError(err.message || 'Error testing RLS policies');
+                      }
+                    }}
+                    className="px-3 py-1 text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-800 dark:bg-yellow-800 dark:hover:bg-yellow-700 dark:text-yellow-100 rounded"
+                  >
+                    Test RLS Policies
+                  </button>
+                  
+                  <button
+                    onClick={async () => {
+                      try {
+                        const supabase = createClient();
+                        const { data, error } = await supabase.rpc('get_user_records', { p_table_name: 'jobs' });
+                        
+                        if (error) throw error;
+                        
+                        console.log('User Jobs:', data);
+                        alert('User Jobs: ' + JSON.stringify(data, null, 2));
+                      } catch (err: any) {
+                        console.error('Error fetching user jobs:', err);
+                        setError(err.message || 'Error fetching user jobs');
+                      }
+                    }}
+                    className="ml-2 px-3 py-1 text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-800 dark:bg-indigo-800 dark:hover:bg-indigo-700 dark:text-indigo-100 rounded"
+                  >
+                    View My Jobs
+                  </button>
+                  
+                  <button
+                    onClick={async () => {
+                      try {
+                        const supabase = createClient();
+                        const { data, error } = await supabase.rpc('get_user_records', { p_table_name: 'resumes' });
+                        
+                        if (error) throw error;
+                        
+                        console.log('User Resumes:', data);
+                        alert('User Resumes: ' + JSON.stringify(data, null, 2));
+                      } catch (err: any) {
+                        console.error('Error fetching user resumes:', err);
+                        setError(err.message || 'Error fetching user resumes');
+                      }
+                    }}
+                    className="ml-2 px-3 py-1 text-xs bg-green-100 hover:bg-green-200 text-green-800 dark:bg-green-800 dark:hover:bg-green-700 dark:text-green-100 rounded"
+                  >
+                    View My Resumes
+                  </button>
+                </div>
+              </details>
+            </div>
+          )}
+
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
