@@ -121,8 +121,8 @@ export async function signInTestUser(page: any, email: string, password: string)
     await page.fill('input[name="email"]', email);
     await page.fill('input[name="password"]', password);
     
-    // Submit the form
-    await page.click('button[formAction="login"]');
+    // Submit the form - updated selector for the new button format
+    await page.click('button[type="submit"]:has-text("Log in")');
     
     // Wait for navigation to dashboard
     await page.waitForURL('/dashboard');

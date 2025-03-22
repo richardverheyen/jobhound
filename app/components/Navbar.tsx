@@ -2,15 +2,14 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/utils/supabase/client';
+import { supabase, signOut } from '@/app/utils/supabase';
 
 export function Navbar({ user }: { user: any | null }) {
   const router = useRouter();
 
   const handleSignOut = async () => {
     try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.signOut();
+      const { error } = await signOut();
       if (error) {
         console.error('Error signing out:', error);
       } else {

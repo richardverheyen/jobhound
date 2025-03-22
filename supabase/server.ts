@@ -4,8 +4,13 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { CookieOptions } from "@supabase/ssr";
 
-export const createClient = () => {
-  const cookieStore = cookies();
+/**
+ * Creates a Supabase client for server components with cookie handling
+ * This is the recommended way to access Supabase with authenticated user sessions
+ * in server components and API routes.
+ */
+export async function createClient() {
+  const cookieStore = await cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,19 +22,22 @@ export const createClient = () => {
         },
         set(name: string, value: string, options: CookieOptions) {
           try {
-            cookieStore.set(name, value, options);
+            cookieStore.set({ name, value, ...options });
           } catch (error) {
-            // Handle cookie errors
+            // Handle cookie errors in server components
           }
         },
         remove(name: string, options: CookieOptions) {
           try {
-            cookieStore.delete(name, options);
+            cookieStore.set({ name, value: '', ...options });
           } catch (error) {
-            // Handle cookie errors
+            // Handle cookie errors in server components
           }
         },
       },
     }
   );
-};
+}
+
+// Alias for semantic clarity when importing
+export const createServerComponentClient = createClient;

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
+import { supabase } from '@/app/utils/supabase';
 import { Navbar } from '@/app/components/Navbar';
 
 export default function NewJobPage() {
@@ -20,7 +20,6 @@ export default function NewJobPage() {
 
   useEffect(() => {
     const getUser = async () => {
-      const supabase = createClient();
       const { data } = await supabase.auth.getUser();
       setUser(data.user);
     };
@@ -39,8 +38,6 @@ export default function NewJobPage() {
     setError(null);
     
     try {
-      const supabase = createClient();
-      
       // Get the current user
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -108,7 +105,6 @@ export default function NewJobPage() {
                   <button
                     onClick={async () => {
                       try {
-                        const supabase = createClient();
                         const { data, error } = await supabase.rpc('test_user_rls_policies');
                         
                         if (error) throw error;
@@ -128,7 +124,6 @@ export default function NewJobPage() {
                   <button
                     onClick={async () => {
                       try {
-                        const supabase = createClient();
                         const { data, error } = await supabase.rpc('get_user_records', { p_table_name: 'jobs' });
                         
                         if (error) throw error;
@@ -148,7 +143,6 @@ export default function NewJobPage() {
                   <button
                     onClick={async () => {
                       try {
-                        const supabase = createClient();
                         const { data, error } = await supabase.rpc('get_user_records', { p_table_name: 'resumes' });
                         
                         if (error) throw error;

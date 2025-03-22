@@ -1,4 +1,4 @@
-import { createClient } from "@/supabase/client";
+import { createBrowserClient } from "@/lib/supabase/client";
 import { JobScan } from "@/types";
 
 interface CreateScanParams {
@@ -21,7 +21,7 @@ export async function createScan({
   error?: string;
 }> {
   try {
-    const supabase = createClient();
+    const supabase = createBrowserClient();
     
     // Get the authenticated user
     const { data: authData } = await supabase.auth.getSession();
@@ -124,7 +124,7 @@ export async function createScan({
 
 export async function getJobScans(jobId: string): Promise<JobScan[]> {
   try {
-    const supabase = createClient();
+    const supabase = createBrowserClient();
     
     // Get scans for a specific job
     const { data, error } = await supabase
@@ -144,7 +144,7 @@ export async function getJobScans(jobId: string): Promise<JobScan[]> {
 
 export async function getScanDetails(scanId: string): Promise<JobScan | null> {
   try {
-    const supabase = createClient();
+    const supabase = createBrowserClient();
     
     // Get details for a specific scan
     const { data, error } = await supabase

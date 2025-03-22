@@ -3,9 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../../supabase/supabase';
-import { login, signup } from './actions'
-import { createClient } from '@/utils/supabase/client'
+import { supabase } from '@/app/utils/supabase';
+import { login, signup } from './actions';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -13,38 +12,9 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const supabase = createClient()
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        setError(error.message);
-        return;
-      }
-
-      if (data.session) {
-        router.push('/dashboard');
-        router.refresh();
-      }
-    } catch (err) {
-      console.error('Login error:', err);
-      setError('An unexpected error occurred');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleGoogleSignIn = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
       await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -53,13 +23,13 @@ export default function LoginPage() {
             ? `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback` 
             : `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/auth/callback`,
         },
-      })
+      });
     } catch (error) {
-      console.error('Error signing in with Google:', error)
+      console.error('Error signing in with Google:', error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <>
@@ -78,7 +48,7 @@ export default function LoginPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form action={login} className="space-y-6">
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Email address
@@ -118,18 +88,18 @@ export default function LoginPage() {
 
         <div className="flex gap-4">
           <button
-            formAction="login"
-            name="formAction"
-            value="login"
+            type="submit"
+            formAction={login}
             className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            disabled={isLoading}
           >
             Log in
           </button>
           <button
-            formAction="signup"
-            name="formAction"
-            value="signup"
+            type="submit"
+            formAction={signup}
             className="flex-1 flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            disabled={isLoading}
           >
             Sign up
           </button>

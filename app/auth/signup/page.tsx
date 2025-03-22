@@ -3,11 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { signup } from '../login/actions';
-import { createClient } from '@/utils/supabase/client';
+import { supabase } from '@/app/utils/supabase';
 
 export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
-  const supabase = createClient();
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);

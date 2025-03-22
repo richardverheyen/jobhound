@@ -3,9 +3,10 @@
 import { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
+import { supabase } from '@/app/utils/supabase';
 import { Navbar } from '@/app/components/Navbar';
 import { Job, Resume } from '@/types';
+import { createScan } from '@/app/lib/scanService';
 import { useCreateScan } from "./createScan";
 
 export default function NewScanPage() {
@@ -41,7 +42,6 @@ export default function NewScanPage() {
 
   useEffect(() => {
     const getUser = async () => {
-      const supabase = createClient();
       const { data } = await supabase.auth.getUser();
       setUser(data.user);
     };
@@ -59,7 +59,6 @@ export default function NewScanPage() {
   const fetchJobs = async () => {
     setIsLoadingJobs(true);
     try {
-      const supabase = createClient();
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
@@ -84,7 +83,6 @@ export default function NewScanPage() {
   const fetchResumes = async () => {
     setIsLoadingResumes(true);
     try {
-      const supabase = createClient();
       const { data, error } = await supabase
         .from('resumes')
         .select('*')
@@ -120,8 +118,6 @@ export default function NewScanPage() {
     setError(null);
     
     try {
-      const supabase = createClient();
-      
       if (!user) {
         throw new Error('You must be logged in to create a job');
       }
@@ -205,8 +201,6 @@ export default function NewScanPage() {
     }
     
     try {
-      const supabase = createClient();
-      
       if (!user) {
         throw new Error('You must be logged in to upload a resume');
       }

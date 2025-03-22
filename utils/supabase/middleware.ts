@@ -68,7 +68,12 @@ export async function updateSession(request: NextRequest) {
   )
 
   // Refresh the session
-  await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // If the user is trying to access protected routes but isn't logged in, redirect to login
+  if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/auth/login', request.url))
+  }
 
   return response
 } 

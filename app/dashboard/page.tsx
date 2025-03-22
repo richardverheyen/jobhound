@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/utils/supabase/client'
+import { supabase } from '@/app/utils/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Navbar } from '@/app/components/Navbar'
@@ -27,7 +27,6 @@ export default function Dashboard() {
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
-      const supabase = createClient();
       
       // Check if user is authenticated
       const { data: { user } } = await supabase.auth.getUser();

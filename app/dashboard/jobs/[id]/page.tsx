@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Job, Resume, JobScan } from '@/types';
-import { createClient } from '@/utils/supabase/client';
+import { supabase } from '@/app/utils/supabase';
 import { Navbar } from '@/app/components/Navbar';
+import { Job, JobScan, Resume } from '@/types';
+import { useRouter } from 'next/navigation';
 
 interface JobDetailPageProps {
   params: {
@@ -23,7 +24,6 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   // Fetch user data
   useEffect(() => {
     const getUser = async () => {
-      const supabase = createClient();
       const { data } = await supabase.auth.getUser();
       setUser(data.user);
     };

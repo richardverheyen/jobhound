@@ -1,8 +1,8 @@
-import { createClient } from '@/utils/supabase/server'
+import { createClient } from '@/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Navbar } from '@/app/components/Navbar'
-import { Job, JobScan } from '@/types/index'
+import { Job, JobScan } from '@/types'
 
 export default async function JobsPage() {
   const supabase = await createClient()

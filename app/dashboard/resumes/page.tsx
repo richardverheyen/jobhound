@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Resume } from '@/types';
-import { createClient } from '@/utils/supabase/client';
+import { supabase } from '@/app/utils/supabase';
 import { Navbar } from '@/app/components/Navbar';
 import ResumeModal from '@/app/components/ResumeModal';
 
@@ -17,7 +17,6 @@ export default function ResumesPage() {
 
   useEffect(() => {
     const getUser = async () => {
-      const supabase = createClient();
       const { data } = await supabase.auth.getUser();
       setUser(data.user);
     };
@@ -29,8 +28,6 @@ export default function ResumesPage() {
     const fetchResumes = async () => {
       setLoading(true);
       try {
-        const supabase = createClient();
-        
         // Get user profile to find default resume ID
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
@@ -92,7 +89,7 @@ export default function ResumesPage() {
 
   const handleSetDefault = async (id: string) => {
     try {
-      const supabase = createClient();
+      // Call the Supabase function to set default resume
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
@@ -122,7 +119,6 @@ export default function ResumesPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       

@@ -9,7 +9,7 @@ import {
   getCurrentUser as _getCurrentUser
 } from '@/lib/supabase/client';
 
-// Create a single supabase client for interacting with your database
+// Create a single supabase client for client-side components
 export const supabase = createBrowserClient();
 
 // Re-export auth helpers

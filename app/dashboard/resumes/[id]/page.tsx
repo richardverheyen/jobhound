@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Resume, JobScan } from '@/types';
-import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/app/utils/supabase';
+import { Navbar } from '@/app/components/Navbar';
+import { Resume, JobScan } from '@/types';
 
 interface ResumeDetailPageProps {
   params: {
@@ -24,23 +25,18 @@ export default function ResumeDetailPage({ params }: ResumeDetailPageProps) {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const supabase = createClient();
-        
-        // Get user data
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           router.push('/auth/login');
           return;
         }
         
-        // Get user profile to check default resume ID
         const { data: userData } = await supabase
           .from('users')
           .select('default_resume_id')
           .eq('id', user.id)
           .single();
         
-        // Fetch resume details
         const { data: resumeData, error: resumeError } = await supabase
           .from('resumes')
           .select('*')
@@ -57,7 +53,6 @@ export default function ResumeDetailPage({ params }: ResumeDetailPageProps) {
         
         const isDefaultResume = userData?.default_resume_id === params.id;
         
-        // Fetch any job scans that used this resume
         const { data: scansData } = await supabase
           .from('job_scans')
           .select(`
@@ -91,12 +86,10 @@ export default function ResumeDetailPage({ params }: ResumeDetailPageProps) {
 
   const handleSetDefault = async () => {
     try {
-      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user || !resume) return;
       
-      // Call Supabase function to set default resume
       const { data, error } = await supabase.rpc('set_default_resume', {
         p_user_id: user.id,
         p_resume_id: resume.id

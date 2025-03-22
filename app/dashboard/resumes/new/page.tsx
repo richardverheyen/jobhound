@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import { useState, useEffect, useRef, FormEvent, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
+import { supabase } from '@/app/utils/supabase';
 import { Navbar } from '@/app/components/Navbar';
 
 export default function NewResumePage() {
@@ -17,7 +17,6 @@ export default function NewResumePage() {
   
   useEffect(() => {
     const getUser = async () => {
-      const supabase = createClient();
       const { data } = await supabase.auth.getUser();
       setUser(data.user);
     };
@@ -71,7 +70,6 @@ export default function NewResumePage() {
     setError(null);
     
     try {
-      const supabase = createClient();
       const { data: userData } = await supabase.auth.getUser();
       
       if (!userData.user) {
