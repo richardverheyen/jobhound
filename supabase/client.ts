@@ -1,7 +1,7 @@
 'use client';
 
 import { createBrowserClient } from '@supabase/ssr';
-import { SupabaseClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -9,6 +9,8 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 // Create a single supabase client for the entire app (client-side)
 export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
+
+export const supabaseRecords = createClient(supabaseUrl, supabaseAnonKey);
 
 // Helper to check if we're using the local development environment
 export const isLocalDev = () => {
@@ -23,11 +25,6 @@ export const logSupabaseEnvironment = () => {
     console.log('Using remote Supabase instance:', supabaseUrl);
   }
 };
-
-// For backward compatibility and explicit client creation if needed
-export function createClient() {
-  return supabase;
-}
 
 // Auth helpers with pre-bound client
 export async function signInWithEmail(email: string, password: string) {

@@ -1,4 +1,4 @@
-import { createClient, supabase } from "@/supabase/client";
+import { supabase } from "@/supabase/client";
 import { JobScan } from "@/types";
 
 interface CreateScanParams {
