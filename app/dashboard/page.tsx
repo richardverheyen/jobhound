@@ -55,20 +55,25 @@ export default function Dashboard() {
       
       setProfileData(profileData);
       
+      console.log("querying jobs, user id: ", user.id);
       // Get job listings with their latest scan results
       const { data: jobsData } = await supabase
-        .from('jobs')
-        .select(`
-          *,
-          job_scans(
-            id, 
-            match_score, 
-            created_at,
-            resume_id
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+
+      .from("jobs").select("*").eq("user_id", user.id)
+
+
+        // .from('jobs')
+        // .select(`
+        //   *,
+        //   job_scans(
+        //     id, 
+        //     match_score, 
+        //     created_at,
+        //     resume_id
+        //   )
+        // `)
+        // .eq('user_id', user.id)
+        // .order('created_at', { ascending: false });
       
       // Process and sort job scans by date
       const processedJobs = jobsData?.map((job: any) => {
