@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/supabase/client'
+import { supabase, getCurrentSession } from '@/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Navbar } from '@/app/components/Navbar'
@@ -24,7 +24,16 @@ export default function Dashboard() {
   const jobGoal = profileData?.job_search_goal || 5;
   const jobsFound = jobs.length;
   
+  const printSession = async () => {
+    let session = await getCurrentSession();
+    console.log(session);
+
+  }
   useEffect(() => {
+
+    printSession();
+
+
     async function fetchData() {
       setLoading(true);
       
