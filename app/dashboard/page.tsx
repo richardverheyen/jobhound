@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase, getCurrentSession } from '@/supabase/client'
+import { supabase, supabaseJs, getCurrentSession } from '@/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Navbar } from '@/app/components/Navbar'
@@ -57,7 +57,7 @@ export default function Dashboard() {
       
       console.log("querying jobs, user id: ", user.id);
       // Get job listings with their latest scan results
-      const { data: jobsData } = await supabase
+      const { data: jobsData } = await supabaseJs
 
       .from("jobs").select("*").eq("user_id", user.id)
 
