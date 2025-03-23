@@ -19,6 +19,7 @@ export const supabase = createBrowserClient(
     global: {
       headers: {
        'Accept': 'application/vnd.pgrst.error+json',
+       "apikey": supabaseAnonKey
       }
   }
 }
