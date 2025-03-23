@@ -1,7 +1,7 @@
 'use client';
 
 import { createBrowserClient } from '@supabase/ssr';
-import { SupabaseClien, createClient } from '@supabase/supabase-js';
+import { SupabaseClient, createClient } from '@supabase/supabase-js';
 
 
 // Environment variables
@@ -11,7 +11,10 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 // Create a single supabase client for the entire app (client-side)
 export const supabase = createBrowserClient(
   supabaseUrl, 
-  supabaseAnonKey,
+  supabaseAnonKey
+);
+
+export const supabaseJs = createClient(supabaseUrl, supabaseAnonKey,
   {
     auth: {
       persistSession: true,
@@ -22,11 +25,8 @@ export const supabase = createBrowserClient(
        'Accept': 'application/vnd.pgrst.error+json',
        "apikey": supabaseAnonKey
       }
-  }
-}
-);
-
-export const supabaseJs = createClient(supabaseUrl, supabaseAnonKey)
+    }
+  })
 
 
 // Helper to check if we're using the local development environment
