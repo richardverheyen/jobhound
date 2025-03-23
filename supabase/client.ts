@@ -11,7 +11,18 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 // Create a single supabase client for the entire app (client-side)
 export const supabase = createBrowserClient(
   supabaseUrl, 
-  supabaseAnonKey
+  supabaseAnonKey,
+  {
+    global: {
+      headers: {
+        'apikey': supabaseAnonKey
+      }
+    },
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true
+    }
+  }
 );
 
 export const supabaseJs = createClient(supabaseUrl, supabaseAnonKey,
@@ -22,8 +33,7 @@ export const supabaseJs = createClient(supabaseUrl, supabaseAnonKey,
     },
     global: {
       headers: {
-       'Accept': 'application/vnd.pgrst.error+json',
-       "apikey": supabaseAnonKey
+       'apikey': supabaseAnonKey
       }
     }
   })
