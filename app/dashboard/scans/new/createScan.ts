@@ -12,7 +12,8 @@ export function useCreateScan() {
     jobId: string,
     resumeId: string,
     resumeFile?: File,
-    resumeFilename?: string
+    resumeFilename?: string,
+    scanId?: string
   ) => {
     if (!jobId || !resumeId) {
       setError("Please select both a job and a resume before creating a scan.");
@@ -29,6 +30,7 @@ export function useCreateScan() {
         resumeId,
         resumeFile,
         resumeFilename,
+        scanId
       });
 
       if (!result.success) {

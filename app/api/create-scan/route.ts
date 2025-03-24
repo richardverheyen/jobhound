@@ -58,6 +58,7 @@ interface ScanRequest {
   resumeId: string;
   resumeUrl?: string;
   resumeFilename?: string;
+  scanId?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -104,6 +105,7 @@ export async function POST(req: NextRequest) {
     // Parse request - handle both FormData and JSON
     let scanRequest: ScanRequest;
     let resumeFile: ArrayBuffer | null = null;
+    let scanId: string | null = null;
     
     const contentType = req.headers.get('content-type') || '';
     
@@ -111,7 +113,7 @@ export async function POST(req: NextRequest) {
       const formData = await req.formData();
       const jobId = formData.get('jobId') as string;
       const resumeId = formData.get('resumeId') as string;
-      const scanId = formData.get('scanId') as string;
+      scanId = formData.get('scanId') as string;
       const resumeFileData = formData.get('resume') as File;
       const resumeFilename = resumeFileData?.name;
 
@@ -126,6 +128,7 @@ export async function POST(req: NextRequest) {
         jobId,
         resumeId,
         resumeFilename,
+        scanId
       };
       
       resumeFile = await resumeFileData.arrayBuffer();
@@ -145,6 +148,8 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+      
+      scanId = scanRequest.scanId || null;
     }
 
     // Get job details
@@ -218,35 +223,71 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create or use scan ID
+    // Generate timestamp for all operations
     const timestamp = new Date().toISOString();
     
-    try {
-      // Use the database function to create a scan and handle credit usage
-      const { data: createScanData, error: createScanError } = await supabase.rpc(
-        'create_scan',
-        {
-          p_user_id: user.id,
-          p_job_id: scanRequest.jobId,
-          p_resume_id: scanRequest.resumeId,
-          p_resume_filename: resumeData.filename,
-          p_job_posting: jobData.description
+    // Create a scan record first if we don't have a scan ID
+    if (!scanId) {
+      try {
+        // Use the database function to create a scan and handle credit usage
+        const { data: createScanData, error: createScanError } = await supabase.rpc(
+          'create_scan',
+          {
+            p_user_id: user.id,
+            p_job_id: scanRequest.jobId,
+            p_resume_id: scanRequest.resumeId,
+            p_resume_filename: resumeData.filename,
+            p_job_posting: jobData.description
+          }
+        );
+        
+        if (createScanError) {
+          console.error('Error creating scan:', createScanError);
+          return NextResponse.json(
+            { 
+              error: createScanError.message || 'Failed to create scan',
+              details: createScanError
+            },
+            { status: 400 }
+          );
         }
-      );
-      
-      if (createScanError) {
-        console.error('Error creating scan:', createScanError);
+        
+        scanId = createScanData;
+      } catch (error: any) {
+        console.error('Error in create_scan RPC:', error);
         return NextResponse.json(
-          { 
-            error: createScanError.message || 'Failed to create scan',
-            details: createScanError
-          },
+          { error: 'Failed to create scan record' },
+          { status: 500 }
+        );
+      }
+    } else {
+      // If scanId was provided, make sure it exists and update its status
+      const { error: updateError } = await supabase
+        .from('job_scans')
+        .update({
+          status: 'processing',
+          updated_at: timestamp
+        })
+        .eq('id', scanId)
+        .eq('user_id', user.id);
+      
+      if (updateError) {
+        console.error('Error updating scan record:', updateError);
+        return NextResponse.json(
+          { error: 'Failed to update scan record or scan not found' },
           { status: 400 }
         );
       }
-      
-      const scanId = createScanData;
+    }
 
+    if (!scanId) {
+      return NextResponse.json(
+        { error: 'Failed to create or validate scan ID' },
+        { status: 500 }
+      );
+    }
+
+    try {
       // Initialize the Google GenAI client
       const genAI = new GoogleGenerativeAI(googleApiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
@@ -254,9 +295,8 @@ export async function POST(req: NextRequest) {
       // Convert the resume file to base64 for the Google API
       const base64Data = Buffer.from(resumeFile).toString('base64');
       
-      try {
-        // Create the prompt for the AI
-        const systemPrompt = `You are an ATS analyzer focused on providing concise, actionable feedback. Compare the resume to the job posting and provide scores and brief insights for key areas. Keep all analysis short and mobile-friendly - each section should be 1-2 sentences maximum. Focus on the most important matches and gaps.
+      // Create the prompt for the AI
+      const systemPrompt = `You are an ATS analyzer focused on providing concise, actionable feedback. Compare the resume to the job posting and provide scores and brief insights for key areas. Keep all analysis short and mobile-friendly - each section should be 1-2 sentences maximum. Focus on the most important matches and gaps.
 
 Key points to analyze:
 - Overall match and key takeaways
@@ -321,147 +361,145 @@ You MUST return a JSON object exactly in this format:
     "dateFormatting": [{"issue": "string", "status": "pass|fail|warning", "tip": "string"}]
   }
 }`;
-        
-        const userPrompt = `Analyze this resume against the following job posting:\n${jobData.description}`;
-        
-        // Call the Google AI
-        const result = await model.generateContent({
-          contents: [
-            { role: "system", parts: [{ text: systemPrompt }] },
-            { 
-              role: "user", 
-              parts: [
-                { text: userPrompt },
-                { 
-                  inlineData: {
-                    mimeType: "application/pdf",
-                    data: base64Data
-                  }
+      
+      const userPrompt = `Analyze this resume against the following job posting:\n${jobData.description}`;
+      
+      // Call the Google AI
+      const result = await model.generateContent({
+        contents: [
+          { 
+            role: "user", 
+            parts: [
+              { 
+                text: `${systemPrompt}\n\n${userPrompt}` 
+              },
+              { 
+                inlineData: {
+                  mimeType: "application/pdf",
+                  data: base64Data
                 }
-              ]
-            }
-          ],
-          generationConfig: {
-            temperature: 0.3,
-            topP: 0.8,
-            topK: 40,
-            maxOutputTokens: 2048,
-            responseMimeType: "application/json",
-          },
-        });
-
-        // Parse the response
-        const responseText = result.response.text();
-        let analysisResult: ATSResponse;
-        
-        try {
-          // Extract JSON from the response if needed
-          const jsonMatches = responseText.match(/```json\n([\s\S]*?)\n```/) || 
-                            responseText.match(/```([\s\S]*?)```/) ||
-                            [null, responseText];
-          
-          const cleanJson = jsonMatches[1] || responseText;
-          analysisResult = JSON.parse(cleanJson);
-          
-          // Validate the response has all required fields
-          if (
-            !analysisResult.overallMatch ||
-            !analysisResult.hardSkills ||
-            !analysisResult.softSkills ||
-            !analysisResult.experienceMatch ||
-            !analysisResult.qualifications ||
-            !analysisResult.missingKeywords ||
-            !analysisResult.matchScore ||
-            !analysisResult.categoryScores ||
-            !analysisResult.categoryFeedback
-          ) {
-            throw new Error('Invalid AI response format');
+              }
+            ]
           }
-        } catch (error) {
-          console.error('Error parsing AI response:', error, 'Response:', responseText);
-          
-          // Update the scan record with error status
-          await supabase
-            .from('job_scans')
-            .update({
-              status: 'error',
-              error_message: 'Failed to parse AI response',
-            })
-            .eq('id', scanId);
-            
-          return NextResponse.json(
-            { error: 'Failed to parse AI response', scanId },
-            { status: 500 }
-          );
+        ],
+        generationConfig: {
+          temperature: 0.3,
+          topP: 0.8,
+          topK: 40,
+          maxOutputTokens: 2048,
+          responseMimeType: "application/json",
+        },
+      });
+
+      // Parse the response
+      const responseText = result.response.text();
+      let analysisResult: ATSResponse;
+      
+      try {
+        // Extract JSON from the response if needed
+        const jsonMatches = responseText.match(/```json\n([\s\S]*?)\n```/) || 
+                          responseText.match(/```([\s\S]*?)```/) ||
+                          [null, responseText];
+        
+        const cleanJson = jsonMatches[1] || responseText;
+        analysisResult = JSON.parse(cleanJson);
+        
+        // Validate the response has all required fields
+        if (
+          !analysisResult.overallMatch ||
+          !analysisResult.hardSkills ||
+          !analysisResult.softSkills ||
+          !analysisResult.experienceMatch ||
+          !analysisResult.qualifications ||
+          !analysisResult.missingKeywords ||
+          !analysisResult.matchScore ||
+          !analysisResult.categoryScores ||
+          !analysisResult.categoryFeedback
+        ) {
+          throw new Error('Invalid AI response format');
         }
-
-        // Update the scan record with the analysis results
-        const { error: updateError } = await supabase
-          .from('job_scans')
-          .update({
-            status: 'completed',
-            results: analysisResult,
-            match_score: analysisResult.matchScore,
-          })
-          .eq('id', scanId);
-
-        if (updateError) {
-          console.error('Error updating scan record:', updateError);
-          return NextResponse.json(
-            { error: 'Failed to update scan record', scanId },
-            { status: 500 }
-          );
-        }
-
-        // Update the credit usage record with the response payload
-        const { data: creditUsageData, error: creditUsageError } = await supabase
-          .from('credit_usage')
-          .select('id')
-          .eq('scan_id', scanId)
-          .single();
-
-        if (!creditUsageError && creditUsageData) {
-          await supabase
-            .from('credit_usage')
-            .update({
-              response_payload: analysisResult,
-              http_status: 200,
-            })
-            .eq('id', creditUsageData.id);
-        }
-
-        // Return success response
-        return NextResponse.json({
-          success: true,
-          scanId,
-          jobId: scanRequest.jobId,
-          matchScore: analysisResult.matchScore,
-          redirectUrl: `/dashboard/jobs/${scanRequest.jobId}` // For client-side redirection
-        }, { status: 200 });
-      } catch (error: any) {
-        console.error('Error processing AI request:', error);
+      } catch (error) {
+        console.error('Error parsing AI response:', error, 'Response:', responseText);
         
         // Update the scan record with error status
         await supabase
           .from('job_scans')
           .update({
             status: 'error',
-            error_message: error?.message || 'AI processing error',
+            error_message: 'Failed to parse AI response',
+            updated_at: new Date().toISOString()
           })
           .eq('id', scanId);
           
-        return NextResponse.json({ 
-          error: 'Error processing AI request', 
-          details: error?.message,
-          scanId 
-        }, { status: 500 });
+        return NextResponse.json(
+          { error: 'Failed to parse AI response', scanId },
+          { status: 500 }
+        );
       }
+
+      // Update the scan record with the analysis results
+      const { error: updateError } = await supabase
+        .from('job_scans')
+        .update({
+          status: 'completed',
+          results: analysisResult,
+          match_score: analysisResult.matchScore,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', scanId);
+
+      if (updateError) {
+        console.error('Error updating scan record:', updateError);
+        return NextResponse.json(
+          { error: 'Failed to update scan record', scanId },
+          { status: 500 }
+        );
+      }
+
+      // Update the credit usage record with the response payload
+      const { data: creditUsageData, error: creditUsageError } = await supabase
+        .from('credit_usage')
+        .select('id')
+        .eq('scan_id', scanId)
+        .single();
+
+      if (!creditUsageError && creditUsageData) {
+        await supabase
+          .from('credit_usage')
+          .update({
+            response_payload: analysisResult,
+            http_status: 200,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', creditUsageData.id);
+      }
+
+      // Return success response
+      return NextResponse.json({
+        success: true,
+        scanId,
+        jobId: scanRequest.jobId,
+        matchScore: analysisResult.matchScore,
+        redirectUrl: `/dashboard/jobs/${scanRequest.jobId}` // For client-side redirection
+      }, { status: 200 });
     } catch (error: any) {
-      console.error('Error in create_scan RPC:', error);
-      return NextResponse.json(
-        { error: 'Failed to create scan record' },
-        { status: 500 }
-      );
+      console.error('Error processing AI request:', error);
+      
+      // Update the scan record with error status
+      await supabase
+        .from('job_scans')
+        .update({
+          status: 'error',
+          error_message: error?.message || 'AI processing error',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', scanId);
+        
+      return NextResponse.json({ 
+        error: 'Error processing AI request', 
+        details: error?.message,
+        scanId 
+      }, { status: 500 });
     }
   } catch (error: any) {
     console.error('Unhandled error:', error);

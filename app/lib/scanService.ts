@@ -6,6 +6,7 @@ interface CreateScanParams {
   resumeId: string;
   resumeFile?: File;
   resumeFilename?: string;
+  scanId?: string;
 }
 
 export async function createScan({
@@ -13,6 +14,7 @@ export async function createScan({
   resumeId,
   resumeFile,
   resumeFilename,
+  scanId,
 }: CreateScanParams): Promise<{ 
   success: boolean; 
   scanId?: string; 
@@ -40,6 +42,7 @@ export async function createScan({
       const formData = new FormData();
       formData.append("jobId", jobId);
       formData.append("resumeId", resumeId);
+      if (scanId) formData.append("scanId", scanId);
       formData.append("resume", resumeFile);
       
       try {
@@ -63,6 +66,7 @@ export async function createScan({
         jobId,
         resumeId,
         resumeFilename,
+        scanId,
       };
       
       try {
