@@ -265,8 +265,7 @@ export async function POST(req: NextRequest) {
       const { error: updateError } = await supabase
         .from('job_scans')
         .update({
-          status: 'processing',
-          updated_at: timestamp
+          status: 'processing'
         })
         .eq('id', scanId)
         .eq('user_id', user.id);
@@ -426,8 +425,7 @@ You MUST return a JSON object exactly in this format:
           .from('job_scans')
           .update({
             status: 'error',
-            error_message: 'Failed to parse AI response',
-            updated_at: new Date().toISOString()
+            error_message: 'Failed to parse AI response'
           })
           .eq('id', scanId);
           
@@ -443,8 +441,7 @@ You MUST return a JSON object exactly in this format:
         .update({
           status: 'completed',
           results: analysisResult,
-          match_score: analysisResult.matchScore,
-          updated_at: new Date().toISOString()
+          match_score: analysisResult.matchScore
         })
         .eq('id', scanId);
 
@@ -490,8 +487,7 @@ You MUST return a JSON object exactly in this format:
         .from('job_scans')
         .update({
           status: 'error',
-          error_message: error?.message || 'AI processing error',
-          updated_at: new Date().toISOString()
+          error_message: error?.message || 'AI processing error'
         })
         .eq('id', scanId);
         
