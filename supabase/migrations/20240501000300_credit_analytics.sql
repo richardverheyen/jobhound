@@ -1,15 +1,7 @@
--- Enhance credit system with new functions for the frontend
+-- Credit System Analytics Functions
+-- This migration adds functions for credit usage analytics and dashboard displays
 
--- Function to get total available credits for a user
-CREATE OR REPLACE FUNCTION get_user_available_credits(p_user_id UUID)
-RETURNS INTEGER AS $$
-  SELECT COALESCE(SUM(remaining_credits), 0)::INTEGER
-  FROM credit_purchases
-  WHERE user_id = p_user_id
-  AND (expires_at IS NULL OR expires_at > NOW());
-$$ LANGUAGE sql SECURITY DEFINER;
-
--- Function to get credit usage history for a user
+-- Function to get detailed credit usage history for a user
 CREATE OR REPLACE FUNCTION get_user_credit_history(p_user_id UUID, p_limit INTEGER DEFAULT 10)
 RETURNS TABLE (
   usage_id UUID,
@@ -39,7 +31,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- API function to get user credit summary (for frontend dashboard)
+-- Function to get user credit summary (for frontend dashboard)
 CREATE OR REPLACE FUNCTION get_user_credit_summary(p_user_id UUID)
 RETURNS JSONB AS $$
 DECLARE
@@ -88,4 +80,10 @@ BEGIN
     'recent_usage', v_recent_usage
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER; 
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Simplified alias function for getting available credits
+CREATE OR REPLACE FUNCTION get_user_available_credits(p_user_id UUID)
+RETURNS INTEGER AS $$
+  SELECT get_available_credits(p_user_id);
+$$ LANGUAGE sql SECURITY DEFINER; 

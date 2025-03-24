@@ -98,13 +98,48 @@ export default function Dashboard() {
         
         // If resume has a file_path, get the URL
         if (resumeData && resumeData.file_path) {
-          const { data: fileData } = await supabase
-            .storage
-            .from('resumes')
-            .createSignedUrl(resumeData.file_path, 60 * 60); // 1 hour expiry
+          // Try to use existing URL first
+          if (resumeData.file_url) {
+            resumeData.file_url = resumeData.file_url;
+          } else {
+            // Try multiple methods to get a working URL
+            try {
+              // First try to get a public URL
+              const { data: publicUrlData } = await supabase
+                .storage
+                .from('resumes')
+                .getPublicUrl(resumeData.file_path);
+                
+              if (publicUrlData?.publicUrl) {
+                resumeData.file_url = publicUrlData.publicUrl;
+              }
+            } catch (urlErr) {
+              console.warn('Error getting public URL:', urlErr);
+            }
             
-          if (fileData) {
-            resumeData.file_url = fileData.signedUrl;
+            // If public URL failed, try signed URL
+            if (!resumeData.file_url) {
+              try {
+                const { data: fileData, error: fileError } = await supabase
+                  .storage
+                  .from('resumes')
+                  .createSignedUrl(resumeData.file_path, 60 * 60); // 1 hour expiry
+                  
+                if (fileError) {
+                  console.warn('Signed URL error:', fileError);
+                } else if (fileData) {
+                  resumeData.file_url = fileData.signedUrl;
+                }
+              } catch (signedErr) {
+                console.warn('Error creating signed URL:', signedErr);
+              }
+            }
+            
+            // If both methods failed, use a direct path-based URL
+            if (!resumeData.file_url) {
+              console.warn('No file URL generated, using path-based URL');
+              resumeData.file_url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/resumes/${resumeData.file_path}`;
+            }
           }
         }
         

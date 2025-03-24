@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/supabase/client';
 import { Navbar } from '@/app/components/Navbar';
+import { uploadResume, createResumeRecord } from '@/app/utils/resumeUtils';
 
 export default function NewResumePage() {
   const router = useRouter();
@@ -70,63 +71,51 @@ export default function NewResumePage() {
     setError(null);
     
     try {
-      const { data: userData } = await supabase.auth.getUser();
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error('Auth error:', userError);
+        throw new Error(`Authentication error: ${userError.message}`);
+      }
       
       if (!userData.user) {
         throw new Error('User not authenticated.');
       }
       
       const userId = userData.user.id;
-      const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
-      const filePath = `${userId}/${fileName}`;
       
-      // Upload file to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('resumes')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-          // @ts-ignore - The Supabase JS client supports onUploadProgress but the type definitions are missing
-          onUploadProgress: (progress: { loaded: number; total: number }) => {
-            const percent = Math.round((progress.loaded / progress.total) * 100);
-            setUploadProgress(percent);
-          }
-        });
-      
-      if (uploadError) {
-        throw new Error(`Error uploading file: ${uploadError.message}`);
-      }
-      
-      // Create a signed URL for the uploaded file
-      const { data: urlData } = await supabase.storage
-        .from('resumes')
-        .createSignedUrl(filePath, 60 * 60 * 24 * 365); // 1 year expiry
-      
-      // Get the public URL
-      const { data: publicUrlData } = await supabase.storage
-        .from('resumes')
-        .getPublicUrl(filePath);
-      
-      // Call RPC function to create resume record in database
-      const { data: resumeData, error: resumeError } = await supabase.rpc(
-        'create_resume',
-        {
-          p_filename: file.name,
-          p_name: name,
-          p_file_path: filePath,
-          p_file_size: file.size,
-          p_file_url: publicUrlData?.publicUrl || urlData?.signedUrl || null,
-          p_set_as_default: true // Set as default if it's the first resume
-        }
+      // Step 1: Upload the file
+      const uploadResult = await uploadResume(
+        supabase, 
+        file, 
+        userId, 
+        (progress) => setUploadProgress(progress)
       );
       
-      if (resumeError) {
-        throw new Error(`Error creating resume: ${resumeError.message}`);
+      if (!uploadResult.success) {
+        throw new Error(uploadResult.error || 'Failed to upload resume file');
       }
+      
+      // Step 2: Create the resume record
+      const createResult = await createResumeRecord(supabase, {
+        filename: file.name,
+        name: name,
+        filePath: uploadResult.filePath!,
+        fileSize: file.size,
+        fileUrl: uploadResult.fileUrl || null,
+        setAsDefault: true
+      });
+      
+      if (!createResult.success) {
+        throw new Error(createResult.error || 'Failed to create resume record');
+      }
+      
+      console.log('Resume created successfully:', createResult.resume);
       
       // Redirect to the resumes list page
       router.push('/dashboard/resumes');
     } catch (err: any) {
+      console.error('Resume upload failed:', err);
       setError(err.message || 'Error uploading resume. Please try again.');
       setUploadProgress(0);
     } finally {
