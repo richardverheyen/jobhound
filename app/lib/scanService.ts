@@ -31,9 +31,9 @@ export async function createScan({
     let requestPayload: any;
     let response;
     
-    // Build the URL for the edge function
-    const functionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-scan`;
-    console.log("Calling Supabase Edge Function:", functionUrl);
+    // Build the URL for the NextJS API route (instead of Supabase Edge Function)
+    const apiUrl = `/api/create-scan`;
+    console.log("Calling NextJS API route:", apiUrl);
 
     // If we have a resume file, use FormData to send it
     if (resumeFile) {
@@ -43,8 +43,8 @@ export async function createScan({
       formData.append("resume", resumeFile);
       
       try {
-        // Call the Edge Function with FormData
-        response = await fetch(functionUrl, {
+        // Call the API route with FormData
+        response = await fetch(apiUrl, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${authData.session.access_token}`,
@@ -55,7 +55,7 @@ export async function createScan({
         });
       } catch (error: any) {
         console.error("Fetch error with FormData:", error);
-        throw new Error(`Failed to connect to the edge function: ${error.message || 'Unknown error'}`);
+        throw new Error(`Failed to connect to the API: ${error.message || 'Unknown error'}`);
       }
     } else {
       // If no file, send JSON payload
@@ -66,8 +66,8 @@ export async function createScan({
       };
       
       try {
-        // Call the Edge Function with JSON
-        response = await fetch(functionUrl, {
+        // Call the API route with JSON
+        response = await fetch(apiUrl, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${authData.session.access_token}`,
@@ -79,13 +79,13 @@ export async function createScan({
         });
       } catch (error: any) {
         console.error("Fetch error with JSON payload:", error);
-        throw new Error(`Failed to connect to the edge function: ${error.message || 'Unknown error'}`);
+        throw new Error(`Failed to connect to the API: ${error.message || 'Unknown error'}`);
       }
     }
 
     // Check for successful response
     if (!response.ok) {
-      console.error("Edge function response not OK:", response.status, response.statusText);
+      console.error("API response not OK:", response.status, response.statusText);
       let errorMessage;
       try {
         const errorData = await response.json();
@@ -102,7 +102,7 @@ export async function createScan({
 
     // Parse the response
     const data = await response.json();
-    console.log("Edge function response:", data);
+    console.log("API response:", data);
 
     // Return with redirect URL for client-side navigation
     return {
