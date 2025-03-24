@@ -1,6 +1,9 @@
 -- Permissions Configuration
 -- This migration sets up proper permissions for authenticated users to access the database
 
+-- Grant select permissions on users table to authenticated users
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.users TO authenticated;
+
 -- Grant select permissions on jobs table to authenticated users
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.jobs TO authenticated;
 
