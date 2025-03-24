@@ -6,14 +6,18 @@ import { Resume } from '@/types';
 import { supabase } from '@/supabase/client';
 import { Navbar } from '@/app/components/Navbar';
 import ResumeModal from '@/app/components/ResumeModal';
+import CreateResumeModal from '@/app/components/CreateResumeModal';
+import { useRouter } from 'next/navigation';
 
 export default function ResumesPage() {
+  const router = useRouter();
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
-  const [defaultResumeId, setDefaultResumeId] = useState<string>('');
+  const [defaultResumeId, setDefaultResumeId] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
   const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [createResumeModalOpen, setCreateResumeModalOpen] = useState(false);
 
   useEffect(() => {
     const getUser = async () => {
@@ -25,67 +29,67 @@ export default function ResumesPage() {
   }, []);
 
   useEffect(() => {
-    const fetchResumes = async () => {
-      setLoading(true);
-      try {
-        // Get user profile to find default resume ID
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        
-        const { data: userData } = await supabase
-          .from('users')
-          .select('default_resume_id')
-          .eq('id', user.id)
-          .single();
-          
-        if (userData?.default_resume_id) {
-          setDefaultResumeId(userData.default_resume_id);
-        }
-        
-        // Fetch all user's resumes
-        const { data: resumesData, error } = await supabase
-          .from('resumes')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-        
-        if (error) {
-          console.error('Error fetching resumes:', error);
-          return;
-        }
-        
-        // Create signed URLs for each resume file
-        const processedResumes = await Promise.all(resumesData.map(async (resume) => {
-          let resumeWithUrl = {
-            ...resume,
-            is_default: resume.id === userData?.default_resume_id
-          };
-          
-          // If resume has a file_path, get the URL
-          if (resume.file_path) {
-            const { data: fileData } = await supabase
-              .storage
-              .from('resumes')
-              .createSignedUrl(resume.file_path, 60 * 60); // 1 hour expiry
-              
-            if (fileData) {
-              resumeWithUrl.file_url = fileData.signedUrl;
-            }
-          }
-          
-          return resumeWithUrl;
-        }));
-        
-        setResumes(processedResumes);
-      } catch (error) {
-        console.error('Error fetching resumes:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchResumes();
   }, []);
+
+  const fetchResumes = async () => {
+    setLoading(true);
+    try {
+      // Get user profile to find default resume ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data: userData } = await supabase
+        .from('users')
+        .select('default_resume_id')
+        .eq('id', user.id)
+        .single();
+        
+      if (userData?.default_resume_id) {
+        setDefaultResumeId(userData.default_resume_id);
+      }
+      
+      // Fetch all user's resumes
+      const { data: resumesData, error } = await supabase
+        .from('resumes')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching resumes:', error);
+        return;
+      }
+      
+      // Create signed URLs for each resume file
+      const processedResumes = await Promise.all(resumesData.map(async (resume) => {
+        let resumeWithUrl = {
+          ...resume,
+          is_default: resume.id === userData?.default_resume_id
+        };
+        
+        // If resume has a file_path, get the URL
+        if (resume.file_path) {
+          const { data: fileData } = await supabase
+            .storage
+            .from('resumes')
+            .createSignedUrl(resume.file_path, 60 * 60); // 1 hour expiry
+            
+          if (fileData) {
+            resumeWithUrl.file_url = fileData.signedUrl;
+          }
+        }
+        
+        return resumeWithUrl;
+      }));
+      
+      setResumes(processedResumes);
+    } catch (error) {
+      console.error('Error fetching resumes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSetDefault = async (id: string) => {
     try {
@@ -166,6 +170,18 @@ export default function ResumesPage() {
     setSelectedResume(null);
   };
 
+  const openCreateResumeModal = () => {
+    setCreateResumeModalOpen(true);
+  };
+
+  const closeCreateResumeModal = () => {
+    setCreateResumeModalOpen(false);
+  };
+
+  const handleResumeCreated = async (resumeId: string) => {
+    fetchResumes();
+  };
+
   const formatFileSize = (bytes: number | undefined): string => {
     if (!bytes) return '0 Bytes';
     
@@ -185,15 +201,15 @@ export default function ResumesPage() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h1 className="text-2xl font-bold">My Resumes</h1>
-              <Link
-                href="/dashboard/resumes/new"
+              <button
+                onClick={openCreateResumeModal}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                 </svg>
                 Upload New Resume
-              </Link>
+              </button>
             </div>
 
             <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
@@ -216,15 +232,15 @@ export default function ResumesPage() {
                   <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No resumes yet</h3>
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by uploading your resume.</p>
                   <div className="mt-6">
-                    <Link
-                      href="/dashboard/resumes/new"
+                    <button
+                      onClick={openCreateResumeModal}
                       className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                       </svg>
                       Upload New Resume
-                    </Link>
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -330,6 +346,12 @@ export default function ResumesPage() {
         resume={selectedResume}
         isOpen={modalOpen}
         onClose={closeResumeModal}
+      />
+      
+      <CreateResumeModal 
+        isOpen={createResumeModalOpen} 
+        onClose={closeCreateResumeModal} 
+        onSuccess={handleResumeCreated} 
       />
     </div>
   );

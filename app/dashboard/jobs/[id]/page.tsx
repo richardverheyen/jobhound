@@ -6,6 +6,7 @@ import { supabase } from '@/supabase/client';
 import { Navbar } from '@/app/components/Navbar';
 import { Job, JobScan, Resume } from '@/types';
 import { useRouter } from 'next/navigation';
+import CreateResumeModal from '@/app/components/CreateResumeModal';
 
 interface JobDetailPageProps {
   params: {
@@ -14,12 +15,15 @@ interface JobDetailPageProps {
 }
 
 export default function JobDetailPage({ params }: JobDetailPageProps) {
+  const router = useRouter();
+  const jobId = params.id;
   const [job, setJob] = useState<Job | null>(null);
   const [scans, setScans] = useState<JobScan[]>([]);
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [selectedResumeId, setSelectedResumeId] = useState<string>('');
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [user, setUser] = useState<any>(null);
+  const [createResumeModalOpen, setCreateResumeModalOpen] = useState<boolean>(false);
 
   // Fetch user data
   useEffect(() => {
@@ -33,76 +37,76 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
 
   // Fetch job and scans data
   useEffect(() => {
-    // This would be replaced with actual API calls
-    const fetchData = async () => {
-      // Simulating API calls with timeouts
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Mock job data
-      setJob({
-        id: params.id,
-        company: 'Tech Solutions Inc.',
-        title: 'Frontend Developer',
-        status: 'Applied',
-        applied_date: '2023-05-15',
-        location: 'Remote',
-        description: 'We are looking for a Frontend Developer proficient in React, TypeScript, and modern CSS frameworks. The ideal candidate should have 3+ years of experience building responsive web applications with a focus on user experience and performance optimization. Experience with Next.js, GraphQL, and state management libraries is a plus.'
-      });
-
-      // Mock scans data
-      setScans([
-        {
-          id: '1',
-          job_id: params.id,
-          resume_id: 'resume1',
-          status: 'Completed',
-          match_score: 85,
-          created_at: '2023-05-16T12:00:00Z',
-          results: {
-            skills_match: 90,
-            experience_match: 80,
-            education_match: 85,
-            overall_recommendation: 'Your resume is a strong match for this position. Consider highlighting your experience with React and TypeScript more prominently.'
-          }
-        },
-        {
-          id: '2',
-          job_id: params.id,
-          resume_id: 'resume2',
-          status: 'Completed',
-          match_score: 72,
-          created_at: '2023-05-18T15:30:00Z',
-          results: {
-            skills_match: 75,
-            experience_match: 70,
-            education_match: 80,
-            overall_recommendation: 'Your resume has several key matches but could be improved. Consider adding more details about your frontend development experience.'
-          }
-        }
-      ]);
-
-      // Mock resumes data
-      setResumes([
-        {
-          id: 'resume1',
-          filename: 'resume_frontend_dev.pdf',
-          is_default: true,
-          created_at: '2023-05-10T10:00:00Z'
-        },
-        {
-          id: 'resume2',
-          filename: 'resume_updated.pdf',
-          is_default: false,
-          created_at: '2023-05-12T14:00:00Z'
-        }
-      ]);
-      
-      // Set default selected resume
-      setSelectedResumeId('resume1');
-    };
-
     fetchData();
   }, [params.id]);
+  
+  // Function to fetch job, scans, and resume data
+  const fetchData = async () => {
+    // Simulating API calls with timeouts
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Mock job data
+    setJob({
+      id: params.id,
+      company: 'Tech Solutions Inc.',
+      title: 'Frontend Developer',
+      status: 'Applied',
+      applied_date: '2023-05-15',
+      location: 'Remote',
+      description: 'We are looking for a Frontend Developer proficient in React, TypeScript, and modern CSS frameworks. The ideal candidate should have 3+ years of experience building responsive web applications with a focus on user experience and performance optimization. Experience with Next.js, GraphQL, and state management libraries is a plus.'
+    });
+
+    // Mock scans data
+    setScans([
+      {
+        id: '1',
+        job_id: params.id,
+        resume_id: 'resume1',
+        status: 'Completed',
+        match_score: 85,
+        created_at: '2023-05-16T12:00:00Z',
+        results: {
+          skills_match: 90,
+          experience_match: 80,
+          education_match: 85,
+          overall_recommendation: 'Your resume is a strong match for this position. Consider highlighting your experience with React and TypeScript more prominently.'
+        }
+      },
+      {
+        id: '2',
+        job_id: params.id,
+        resume_id: 'resume2',
+        status: 'Completed',
+        match_score: 72,
+        created_at: '2023-05-18T15:30:00Z',
+        results: {
+          skills_match: 75,
+          experience_match: 70,
+          education_match: 80,
+          overall_recommendation: 'Your resume has several key matches but could be improved. Consider adding more details about your frontend development experience.'
+        }
+      }
+    ]);
+
+    // Mock resumes data
+    setResumes([
+      {
+        id: 'resume1',
+        filename: 'resume_frontend_dev.pdf',
+        is_default: true,
+        created_at: '2023-05-10T10:00:00Z'
+      },
+      {
+        id: 'resume2',
+        filename: 'resume_updated.pdf',
+        is_default: false,
+        created_at: '2023-05-12T14:00:00Z'
+      }
+    ]);
+    
+    // Set default selected resume
+    setSelectedResumeId('resume1');
+  };
 
   const handleScan = async () => {
     if (!selectedResumeId) return;
@@ -130,6 +134,22 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
     
     setScans(prev => [newScan, ...prev]);
     setIsScanning(false);
+  };
+
+  // Create resume modal functions
+  const openCreateResumeModal = () => {
+    setCreateResumeModalOpen(true);
+  };
+  
+  const closeCreateResumeModal = () => {
+    setCreateResumeModalOpen(false);
+  };
+  
+  const handleResumeCreated = async (resumeId: string) => {
+    // Refresh data
+    fetchData();
+    // Select the newly created resume
+    setSelectedResumeId(resumeId);
   };
 
   if (!job) {
@@ -258,9 +278,12 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                     </button>
                   </div>
                   <div className="mt-2">
-                    <Link href="/dashboard/resumes/new" className="text-sm text-blue-600 hover:text-blue-500">
+                    <button 
+                      onClick={openCreateResumeModal}
+                      className="text-sm text-blue-600 hover:text-blue-500"
+                    >
                       + Upload a new resume
-                    </Link>
+                    </button>
                   </div>
                 </div>
 
@@ -329,6 +352,13 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
           </div>
         </div>
       </main>
+      
+      {/* Add CreateResumeModal */}
+      <CreateResumeModal
+        isOpen={createResumeModalOpen}
+        onClose={closeCreateResumeModal}
+        onSuccess={handleResumeCreated}
+      />
     </div>
   );
 } 

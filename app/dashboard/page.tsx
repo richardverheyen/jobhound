@@ -7,6 +7,8 @@ import Link from 'next/link'
 import { Navbar } from '@/app/components/Navbar'
 import { Job, Resume, CreditUsage, User, JobScan } from '@/types'
 import ResumeModal from '@/app/components/ResumeModal';
+import CreateResumeModal from '@/app/components/CreateResumeModal';
+import CreateJobModal from '@/app/components/CreateJobModal';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -19,7 +21,9 @@ export default function Dashboard() {
   const [totalCredits, setTotalCredits] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
-  const [modalOpen, setModalOpen] = useState<boolean>(false);
+  const [resumeModalOpen, setResumeModalOpen] = useState<boolean>(false);
+  const [createResumeModalOpen, setCreateResumeModalOpen] = useState<boolean>(false);
+  const [createJobModalOpen, setCreateJobModalOpen] = useState<boolean>(false);
 
   const jobGoal = profileData?.job_search_goal || 5;
   const jobsFound = jobs.length;
@@ -30,10 +34,9 @@ export default function Dashboard() {
 
   }
   useEffect(() => {
-
     printSession();
 
-
+    // Define fetchData function
     async function fetchData() {
       setLoading(true);
       
@@ -111,35 +114,144 @@ export default function Dashboard() {
         setDefaultResume(resumeData);
       }
       
-      // Get credit summary using our new function
-      const { data: creditSummaryData } = await supabase
-        .rpc('get_user_credit_summary', {
-          p_user_id: user.id
-        });
+      // Get credit usage data
+      const { data: usageData } = await supabase
+        .from('credit_usage')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
       
-      setCreditSummary(creditSummaryData || { 
-        available_credits: 0, 
-        total_purchased: 0,
-        total_used: 0,
-        recent_usage: []
-      });
-      setCreditUsage(creditSummaryData?.recent_usage || []);
-      setTotalCredits(creditSummaryData?.available_credits || 0);
+      setCreditUsage(usageData || []);
+      
+      // Calculate total credits
+      const { data: creditData } = await supabase
+        .rpc('get_user_credit_summary');
+      
+      setCreditSummary(creditData);
+      setTotalCredits(creditData?.remaining_credits || 0);
       
       setLoading(false);
     }
-    
+
     fetchData();
   }, [router]);
 
-  const openResumeModal = (resume: Resume) => {
-    setSelectedResume(resume);
-    setModalOpen(true);
+  // Make fetchData available outside useEffect
+  const refreshData = async () => {
+    // Check if user is authenticated
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.push('/auth/login');
+      return;
+    }
+    
+    setUser(user);
+    
+    // Get user profile data to retrieve default resume ID
+    const { data: profileData } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+    
+    setProfileData(profileData);
+    
+    // Get job listings with their latest scan results
+    const { data: jobsData } = await supabase
+      .from('jobs')
+      .select(`
+        *,
+        job_scans(
+          id, 
+          match_score, 
+          created_at,
+          resume_id
+        )
+      `)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    
+    // Process and sort job scans by date
+    const processedJobs = jobsData?.map((job: any) => {
+      const sortedScans = job.job_scans.sort((a: JobScan, b: JobScan) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateB - dateA;
+      });
+      
+      return {
+        ...job,
+        job_scans: sortedScans,
+        latest_scan: sortedScans[0] || null
+      };
+    }) || [];
+    
+    setJobs(processedJobs);
+    
+    // Get default resume if set
+    if (profileData?.default_resume_id) {
+      const { data: resumeData } = await supabase
+        .from('resumes')
+        .select('*')
+        .eq('id', profileData.default_resume_id)
+        .single();
+      
+      setDefaultResume(resumeData);
+    }
+    
+    // Get credit usage data
+    const { data: usageData } = await supabase
+      .from('credit_usage')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    
+    setCreditUsage(usageData || []);
+    
+    // Calculate total credits
+    const { data: creditData } = await supabase
+      .rpc('get_user_credit_summary');
+    
+    setCreditSummary(creditData);
+    setTotalCredits(creditData?.remaining_credits || 0);
   };
 
+  // Resume view modal functions
+  const openResumeModal = (resume: Resume) => {
+    setSelectedResume(resume);
+    setResumeModalOpen(true);
+  };
+  
   const closeResumeModal = () => {
-    setModalOpen(false);
     setSelectedResume(null);
+    setResumeModalOpen(false);
+  };
+  
+  // Create resume modal functions
+  const openCreateResumeModal = () => {
+    setCreateResumeModalOpen(true);
+  };
+  
+  const closeCreateResumeModal = () => {
+    setCreateResumeModalOpen(false);
+  };
+  
+  const handleResumeCreated = async (resumeId: string) => {
+    // Refresh data to get the newly created resume
+    refreshData();
+  };
+  
+  // Create job modal functions
+  const openCreateJobModal = () => {
+    setCreateJobModalOpen(true);
+  };
+  
+  const closeCreateJobModal = () => {
+    setCreateJobModalOpen(false);
+  };
+  
+  const handleJobCreated = async (jobId: string) => {
+    // The modal will handle navigation to the job page if needed
   };
 
   if (loading) {
@@ -154,7 +266,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
       <Navbar user={user} />
       
       <main className="flex-grow px-4 py-8">
@@ -275,15 +387,15 @@ export default function Dashboard() {
                     <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No job listings yet</h3>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by adding your first job listing.</p>
                     <div className="mt-6">
-                      <Link
-                        href="/dashboard/jobs/new"
+                      <button
+                        onClick={openCreateJobModal}
                         className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                         </svg>
                         Add New Job
-                      </Link>
+                      </button>
                     </div>
                   </div>
                 )}
@@ -336,15 +448,15 @@ export default function Dashboard() {
                       Upload a resume to enhance your job matching.
                     </p>
                     <div className="mt-4">
-                      <Link
-                        href="/dashboard/resumes/new"
+                      <button
+                        onClick={openCreateResumeModal}
                         className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-blue-600 hover:bg-blue-700"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="-ml-0.5 mr-1.5 h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                         </svg>
                         Upload Resume
-                      </Link>
+                      </button>
                     </div>
                   </div>
                 )}
@@ -440,8 +552,21 @@ export default function Dashboard() {
       
       <ResumeModal 
         resume={selectedResume}
-        isOpen={modalOpen}
+        isOpen={resumeModalOpen}
         onClose={closeResumeModal}
+      />
+      
+      <CreateResumeModal 
+        isOpen={createResumeModalOpen} 
+        onClose={closeCreateResumeModal} 
+        onSuccess={handleResumeCreated} 
+      />
+      
+      <CreateJobModal 
+        isOpen={createJobModalOpen} 
+        onClose={closeCreateJobModal} 
+        onSuccess={handleJobCreated} 
+        navigateToJobOnSuccess={true} 
       />
     </div>
   );
