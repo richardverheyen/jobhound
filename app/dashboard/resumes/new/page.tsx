@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/supabase/client';
 import { Navbar } from '@/app/components/Navbar';
-import { uploadResume, createResumeRecord } from '@/app/utils/resumeUtils';
 
 export default function NewResumePage() {
   const router = useRouter();
@@ -83,34 +82,99 @@ export default function NewResumePage() {
       }
       
       const userId = userData.user.id;
+      const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+      const filePath = `${userId}/${fileName}`;
       
-      // Step 1: Upload the file
-      const uploadResult = await uploadResume(
-        supabase, 
-        file, 
-        userId, 
-        (progress) => setUploadProgress(progress)
+      console.log('Uploading file to path:', filePath);
+      
+      // Upload file to Supabase Storage with upsert enabled
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('resumes')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true, // Allow overwriting existing files
+          contentType: 'application/pdf',
+          // @ts-ignore - The Supabase JS client supports onUploadProgress but the type definitions are missing
+          onUploadProgress: (progress: { loaded: number; total: number }) => {
+            const percent = Math.round((progress.loaded / progress.total) * 100);
+            setUploadProgress(percent);
+          }
+        });
+      
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+        throw new Error(`Error uploading file: ${uploadError.message || uploadError.name || 'Unknown storage error'}`);
+      }
+      
+      if (!uploadData) {
+        throw new Error('No data returned from storage upload');
+      }
+      
+      console.log('File uploaded successfully:', uploadData);
+      
+      // Get the public URL - try both methods as fallbacks
+      let fileUrl: string | null = null;
+      
+      try {
+        // Try public URL first 
+        const { data: publicUrlData } = await supabase.storage
+          .from('resumes')
+          .getPublicUrl(filePath);
+          
+        fileUrl = publicUrlData?.publicUrl || null;
+      } catch (urlErr) {
+        console.warn('Error getting public URL:', urlErr);
+      }
+      
+      // If public URL failed, try signed URL
+      if (!fileUrl) {
+        try {
+          const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+            .from('resumes')
+            .createSignedUrl(filePath, 60 * 60 * 24 * 365); // 1 year expiry
+            
+          if (signedUrlError) {
+            console.warn('Signed URL error:', signedUrlError);
+          } else {
+            fileUrl = signedUrlData?.signedUrl || null;
+          }
+        } catch (signedErr) {
+          console.warn('Error creating signed URL:', signedErr);
+        }
+      }
+      
+      if (!fileUrl) {
+        console.warn('No file URL generated, using path-based URL');
+        // Construct a path-based URL as last resort
+        fileUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/resumes/${filePath}`;
+      }
+      
+      console.log('Using file URL:', fileUrl);
+      
+      // Call RPC function to create resume record in database
+      const { data: resumeData, error: resumeError } = await supabase.rpc(
+        'create_resume',
+        {
+          p_filename: file.name,
+          p_name: name,
+          p_file_path: filePath,
+          p_file_size: file.size,
+          p_file_url: fileUrl,
+          p_set_as_default: true // Set as default if it's the first resume
+        }
       );
       
-      if (!uploadResult.success) {
-        throw new Error(uploadResult.error || 'Failed to upload resume file');
+      if (resumeError) {
+        console.error('Resume creation error:', resumeError);
+        throw new Error(`Error creating resume: ${resumeError.message || resumeError.details || 'Unknown database error'}`);
       }
       
-      // Step 2: Create the resume record
-      const createResult = await createResumeRecord(supabase, {
-        filename: file.name,
-        name: name,
-        filePath: uploadResult.filePath!,
-        fileSize: file.size,
-        fileUrl: uploadResult.fileUrl || null,
-        setAsDefault: true
-      });
-      
-      if (!createResult.success) {
-        throw new Error(createResult.error || 'Failed to create resume record');
+      if (resumeData?.success === false) {
+        console.error('Resume function returned error:', resumeData);
+        throw new Error(`Database error: ${resumeData.error || 'Unknown function error'}`);
       }
       
-      console.log('Resume created successfully:', createResult.resume);
+      console.log('Resume created successfully:', resumeData);
       
       // Redirect to the resumes list page
       router.push('/dashboard/resumes');
@@ -118,6 +182,24 @@ export default function NewResumePage() {
       console.error('Resume upload failed:', err);
       setError(err.message || 'Error uploading resume. Please try again.');
       setUploadProgress(0);
+      
+      // If we had already uploaded the file but later steps failed, try to clean up
+      try {
+        if (file) {
+          const userId = (await supabase.auth.getUser()).data.user?.id;
+          const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+          const filePath = `${userId}/${fileName}`;
+          
+          // Check if the file exists and try to remove it
+          const { data } = await supabase.storage
+            .from('resumes')
+            .remove([filePath]);
+            
+          console.log('Cleaned up orphaned file:', data);
+        }
+      } catch (cleanupErr) {
+        console.error('Error cleaning up file:', cleanupErr);
+      }
     } finally {
       setLoading(false);
     }

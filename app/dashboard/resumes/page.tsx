@@ -6,7 +6,6 @@ import { Resume } from '@/types';
 import { supabase } from '@/supabase/client';
 import { Navbar } from '@/app/components/Navbar';
 import ResumeModal from '@/app/components/ResumeModal';
-import { getResumeUrl, deleteResume } from '@/app/utils/resumeUtils';
 
 export default function ResumesPage() {
   const [resumes, setResumes] = useState<Resume[]>([]);
@@ -55,7 +54,7 @@ export default function ResumesPage() {
           return;
         }
         
-        // Process and get URLs for resumes
+        // Create signed URLs for each resume file
         const processedResumes = await Promise.all(resumesData.map(async (resume) => {
           let resumeWithUrl = {
             ...resume,
@@ -64,48 +63,13 @@ export default function ResumesPage() {
           
           // If resume has a file_path, get the URL
           if (resume.file_path) {
-            // Try to use existing URL first
-            if (resume.file_url) {
-              resumeWithUrl.file_url = resume.file_url;
-            } else {
-              // Try multiple methods to get a working URL
-              try {
-                // First try to get a public URL
-                const { data: publicUrlData } = await supabase
-                  .storage
-                  .from('resumes')
-                  .getPublicUrl(resume.file_path);
-                  
-                if (publicUrlData?.publicUrl) {
-                  resumeWithUrl.file_url = publicUrlData.publicUrl;
-                }
-              } catch (urlErr) {
-                console.warn('Error getting public URL:', urlErr);
-              }
+            const { data: fileData } = await supabase
+              .storage
+              .from('resumes')
+              .createSignedUrl(resume.file_path, 60 * 60); // 1 hour expiry
               
-              // If public URL failed, try signed URL
-              if (!resumeWithUrl.file_url) {
-                try {
-                  const { data: fileData, error: fileError } = await supabase
-                    .storage
-                    .from('resumes')
-                    .createSignedUrl(resume.file_path, 60 * 60); // 1 hour expiry
-                    
-                  if (fileError) {
-                    console.warn('Signed URL error:', fileError);
-                  } else if (fileData) {
-                    resumeWithUrl.file_url = fileData.signedUrl;
-                  }
-                } catch (signedErr) {
-                  console.warn('Error creating signed URL:', signedErr);
-                }
-              }
-              
-              // If both methods failed, use a direct path-based URL
-              if (!resumeWithUrl.file_url) {
-                console.warn('No file URL generated for resume, using path-based URL');
-                resumeWithUrl.file_url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/resumes/${resume.file_path}`;
-              }
+            if (fileData) {
+              resumeWithUrl.file_url = fileData.signedUrl;
             }
           }
           
@@ -158,19 +122,23 @@ export default function ResumesPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
-      // Find the resume to get its file path
+      // First delete the file from storage if it exists
       const resumeToDelete = resumes.find(r => r.id === id);
-      if (!resumeToDelete) return;
+      if (resumeToDelete?.file_path) {
+        await supabase.storage
+          .from('resumes')
+          .remove([resumeToDelete.file_path]);
+      }
       
-      // Delete the resume and its file
-      const result = await deleteResume(
-        supabase,
-        id,
-        resumeToDelete.file_path
-      );
+      // Then delete the database entry
+      const { error } = await supabase
+        .from('resumes')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
       
-      if (!result.success) {
-        console.error('Error deleting resume:', result.error);
+      if (error) {
+        console.error('Error deleting resume:', error);
         return;
       }
       
