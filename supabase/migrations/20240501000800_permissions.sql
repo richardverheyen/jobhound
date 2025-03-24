@@ -8,7 +8,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.users TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.jobs TO authenticated;
 
 -- Grant select permissions on job_scans table to authenticated users
-GRANT SELECT, DELETE ON public.job_scans TO authenticated;
+GRANT SELECT, INSERT, DELETE, UPDATE ON public.job_scans TO authenticated;
 
 -- Grant select permissions on resumes table to authenticated users
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.resumes TO authenticated;
@@ -51,4 +51,10 @@ BEGIN
   EXECUTE format('GRANT EXECUTE ON FUNCTION create_resume(TEXT, TEXT, TEXT, INT8, TEXT, BOOLEAN) TO anon, authenticated');
   EXECUTE format('GRANT EXECUTE ON FUNCTION set_default_resume(UUID, UUID) TO authenticated');
   EXECUTE format('GRANT EXECUTE ON FUNCTION delete_resume(UUID) TO authenticated');
+  
+  -- Grant execution privileges for credit-related functions to authenticated users
+  EXECUTE format('GRANT EXECUTE ON FUNCTION get_user_credit_summary(UUID) TO authenticated');
+  EXECUTE format('GRANT EXECUTE ON FUNCTION get_user_available_credits(UUID) TO authenticated');
+  EXECUTE format('GRANT EXECUTE ON FUNCTION get_user_credit_history(UUID, INTEGER) TO authenticated');
+  EXECUTE format('GRANT EXECUTE ON FUNCTION get_available_credits(UUID) TO authenticated');
 END $$; 

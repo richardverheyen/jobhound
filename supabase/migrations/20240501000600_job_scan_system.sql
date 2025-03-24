@@ -35,8 +35,13 @@ CREATE POLICY "Users can view their own job scans"
 CREATE POLICY "Users can insert their own job scans" 
   ON job_scans FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update their own job scans" 
-  ON job_scans FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can update their own job scans"
+  ON job_scans
+  AS PERMISSIVE
+  FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
 -- Create function to create a job scan and use a credit
 CREATE OR REPLACE FUNCTION create_job_scan(

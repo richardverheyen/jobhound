@@ -125,10 +125,12 @@ export default function Dashboard() {
       
       // Calculate total credits
       const { data: creditData } = await supabase
-        .rpc('get_user_credit_summary');
+        .rpc('get_user_credit_summary', {
+          p_user_id: user.id
+        });
       
       setCreditSummary(creditData);
-      setTotalCredits(creditData?.remaining_credits || 0);
+      setTotalCredits(creditData?.available_credits || 0);
       
       setLoading(false);
     }
@@ -210,10 +212,12 @@ export default function Dashboard() {
     
     // Calculate total credits
     const { data: creditData } = await supabase
-      .rpc('get_user_credit_summary');
+      .rpc('get_user_credit_summary', {
+        p_user_id: user.id
+      });
     
     setCreditSummary(creditData);
-    setTotalCredits(creditData?.remaining_credits || 0);
+    setTotalCredits(creditData?.available_credits || 0);
   };
 
   // Resume view modal functions
