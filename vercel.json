@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/**/*.ts": {
+    "api/create-scan/route.ts": {
       "maxDuration": 30
     }
   }
