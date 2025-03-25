@@ -38,6 +38,11 @@ export interface Job {
   applied_date?: string;
   created_at?: string;
   updated_at?: string;
+  
+  // For displaying job scans - used in UI
+  job_scans?: JobScan[];
+  latest_scan?: JobScan;
+  scans?: JobScan[];
 }
 
 // Process Job Listing API interfaces

@@ -9,6 +9,7 @@ import { Job, Resume, CreditUsage, User, JobScan } from '@/types'
 import ResumeModal from '@/app/components/ResumeModal';
 import CreateResumeModal from '@/app/components/CreateResumeModal';
 import CreateJobModal from '@/app/components/CreateJobModal';
+import JobsList from '@/app/components/JobsList';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -255,7 +256,8 @@ export default function Dashboard() {
   };
   
   const handleJobCreated = async (jobId: string) => {
-    // The modal will handle navigation to the job page if needed
+    // Refresh data after a job is created
+    refreshData();
   };
 
   if (loading) {
@@ -314,96 +316,12 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Jobs List */}
             <div className="lg:col-span-2">
-              <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-lg font-medium text-gray-900 dark:text-white">Job Listings</h2>
-                  <Link href="/dashboard/jobs" className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400">
-                    View All
-                  </Link>
-                </div>
-
-                {jobs && jobs.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                      <thead className="bg-gray-50 dark:bg-gray-700">
-                        <tr>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                            Company
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                            Position
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                            Location
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                            Match
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {jobs.map((job: any) => {
-                          // Find most recent scan with a match score
-                          const latestScan = job.job_scans?.sort((a: any, b: any) => 
-                            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-                          )[0];
-                          
-                          return (
-                            <tr key={job.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <Link 
-                                  href={`/dashboard/jobs/${job.id}`}
-                                  className="text-sm font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400"
-                                >
-                                  {job.company}
-                                </Link>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900 dark:text-white">{job.title}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-500 dark:text-gray-400">{job.location || 'Not specified'}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                {latestScan?.match_score ? (
-                                  <span className={`font-medium ${
-                                    latestScan.match_score >= 80 ? 'text-green-600 dark:text-green-400' :
-                                    latestScan.match_score >= 60 ? 'text-blue-600 dark:text-blue-400' :
-                                    'text-yellow-600 dark:text-yellow-400'
-                                  }`}>
-                                    {latestScan.match_score}%
-                                  </span>
-                                ) : (
-                                  <span className="text-gray-500 dark:text-gray-400">Not scanned</span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="text-center py-10">
-                    <svg className="mx-auto h-12 w-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                    <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No job listings yet</h3>
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by adding your first job listing.</p>
-                    <div className="mt-6">
-                      <button
-                        onClick={openCreateJobModal}
-                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                        </svg>
-                        Add New Job
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <JobsList 
+                jobs={jobs}
+                emptyStateAction={openCreateJobModal}
+                title="Recent Job Applications"
+                viewAllLink="/dashboard/jobs"
+              />
             </div>
 
             {/* Right Column: Resume and Job Goal */}
@@ -570,7 +488,7 @@ export default function Dashboard() {
         isOpen={createJobModalOpen} 
         onClose={closeCreateJobModal} 
         onSuccess={handleJobCreated} 
-        navigateToJobOnSuccess={true} 
+        navigateToJobOnSuccess={false} 
       />
     </div>
   );
