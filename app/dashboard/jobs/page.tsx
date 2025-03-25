@@ -180,7 +180,7 @@ export default function JobsPage() {
             jobs={jobs}
             emptyStateAction={openCreateJobModal}
             showFullDetails={true}
-            title="All Job Applications"
+            title="My Job Listings"
           />
         </div>
       </main>

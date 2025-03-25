@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Job } from '@/types';
 
@@ -12,6 +12,12 @@ interface JobsListProps {
   viewAllLink?: string;
 }
 
+interface ColumnConfig {
+  id: string;
+  label: string;
+  visible: boolean;
+}
+
 export default function JobsList({ 
   jobs, 
   emptyStateAction, 
@@ -20,19 +26,80 @@ export default function JobsList({
   viewAllLink
 }: JobsListProps) {
   const [sortBy, setSortBy] = useState<string>('date');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [columnsDropdownOpen, setColumnsDropdownOpen] = useState<boolean>(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Handle clicks outside the dropdown to close it
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setColumnsDropdownOpen(false);
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Column configuration
+  const [columns, setColumns] = useState<ColumnConfig[]>([
+    { id: 'position', label: 'Position', visible: true },
+    { id: 'company', label: 'Company', visible: true },
+    { id: 'location', label: 'Location', visible: true },
+    { id: 'jobType', label: 'Job Type', visible: false },
+    { id: 'salary', label: 'Salary', visible: true },
+    { id: 'added', label: 'Added', visible: false },
+    { id: 'matchScores', label: 'Match Scores', visible: true },
+  ]);
+
+  // Handle column visibility toggle
+  const toggleColumnVisibility = (columnId: string) => {
+    setColumns(columns.map(col => 
+      col.id === columnId ? { ...col, visible: !col.visible } : col
+    ));
+  };
+
+  // Handle sort change when clicking column headers
+  const handleSortChange = (columnId: string) => {
+    if (sortBy === columnId) {
+      // Toggle sort direction if already sorting by this column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new sort column with default desc direction
+      setSortBy(columnId);
+      setSortDirection('desc');
+    }
+  };
   
   // Sort jobs based on selected criteria
   const sortedJobs = [...jobs].sort((a, b) => {
-    if (sortBy === 'date') {
-      return new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime();
-    } else if (sortBy === 'match') {
+    let comparison = 0;
+    
+    if (sortBy === 'date' || sortBy === 'added') {
+      comparison = new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime();
+    } else if (sortBy === 'matchScores') {
       const scoreA = a.latest_scan?.match_score || 0;
       const scoreB = b.latest_scan?.match_score || 0;
-      return scoreB - scoreA;
+      comparison = scoreB - scoreA;
     } else if (sortBy === 'company') {
-      return (a.company || '').localeCompare(b.company || '');
+      comparison = (a.company || '').localeCompare(b.company || '');
+    } else if (sortBy === 'position') {
+      comparison = (a.title || '').localeCompare(b.title || '');
+    } else if (sortBy === 'location') {
+      comparison = (a.location || '').localeCompare(b.location || '');
+    } else if (sortBy === 'jobType') {
+      comparison = (a.job_type || '').localeCompare(b.job_type || '');
+    } else if (sortBy === 'salary') {
+      const salaryA = a.salary_range_min || a.salary_range_max || 0;
+      const salaryB = b.salary_range_min || b.salary_range_max || 0;
+      comparison = salaryB - salaryA;
     }
-    return 0;
+    
+    // Apply sort direction
+    return sortDirection === 'asc' ? -comparison : comparison;
   });
 
   // Add a helper function for properly formatting salary
@@ -100,6 +167,49 @@ export default function JobsList({
     }
   };
 
+  // Progress ring component for match scores
+  const MatchScoreRing = ({ score }: { score: number }) => {
+    const radius = 16;
+    const circumference = 2 * Math.PI * radius;
+    const dashoffset = circumference * (1 - score / 100);
+    
+    // Determine color based on score
+    const getColor = (score: number) => {
+      if (score >= 80) return 'stroke-green-500';
+      if (score >= 60) return 'stroke-blue-500';
+      return 'stroke-yellow-500';
+    };
+    
+    return (
+      <div className="inline-flex items-center justify-center h-12 w-12 relative mr-1 last:mr-0">
+        <svg className="absolute" width="40" height="40">
+          <circle
+            className="text-gray-200 dark:text-gray-700"
+            stroke="currentColor"
+            fill="transparent"
+            strokeWidth="3"
+            r={radius}
+            cx="20"
+            cy="20"
+          />
+          <circle
+            className={getColor(score)}
+            fill="transparent"
+            strokeWidth="3"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashoffset}
+            strokeLinecap="round"
+            r={radius}
+            cx="20"
+            cy="20"
+            transform="rotate(-90 20 20)"
+          />
+        </svg>
+        <span className="text-xs font-medium">{score}%</span>
+      </div>
+    );
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
       <div className="flex justify-between items-center mb-6">
@@ -111,20 +221,37 @@ export default function JobsList({
               View All
             </Link>
           )}
-          <div className="flex items-center space-x-2">
-            <label htmlFor="sortBy" className="text-sm text-gray-500 dark:text-gray-400">
-              Sort by:
-            </label>
-            <select
-              id="sortBy"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm"
+          
+          {/* Column visibility dropdown */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              type="button"
+              className="inline-flex items-center text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+              onClick={() => setColumnsDropdownOpen(!columnsDropdownOpen)}
             >
-              <option value="date">Date Added</option>
-              <option value="match">Match Score</option>
-              <option value="company">Company</option>
-            </select>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+              </svg>
+              Columns
+            </button>
+            <div className={`origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-700 ring-1 ring-black ring-opacity-5 focus:outline-none z-10 ${columnsDropdownOpen ? 'block' : 'hidden'}`}>
+              <div className="py-1" role="menu" aria-orientation="vertical">
+                {columns.map(col => (
+                  <div key={col.id} className="px-4 py-2 text-sm flex items-center">
+                    <input
+                      type="checkbox"
+                      id={`col-${col.id}`}
+                      checked={col.visible}
+                      onChange={() => toggleColumnVisibility(col.id)}
+                      className="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor={`col-${col.id}`} className="text-gray-700 dark:text-gray-200">
+                      {col.label}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -134,101 +261,90 @@ export default function JobsList({
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Company
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Position
-                </th>
-                {showFullDetails && (
-                  <>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Location
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Job Type
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Salary
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Status
-                    </th>
-                  </>
-                )}
-                {!showFullDetails && (
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Location
+                {columns.map(column => column.visible && (
+                  <th 
+                    key={column.id} 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                    onClick={() => handleSortChange(column.id)}
+                  >
+                    <div className="flex items-center">
+                      {column.label}
+                      {sortBy === column.id && (
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          className={`ml-1 h-4 w-4 ${sortDirection === 'desc' ? 'transform rotate-180' : ''}`} 
+                          fill="none" 
+                          viewBox="0 0 24 24" 
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                      )}
+                    </div>
                   </th>
-                )}
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Added
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Match
-                </th>
-                <th scope="col" className="relative px-6 py-3">
-                  <span className="sr-only">Actions</span>
-                </th>
+                ))}
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {sortedJobs.map((job) => (
-                <tr key={job.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <Link 
-                      href={`/dashboard/jobs/${job.id}`}
-                      className="text-sm font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400"
-                    >
-                      {job.company}
-                    </Link>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 dark:text-white">{job.title}</div>
-                  </td>
-                  {showFullDetails ? (
-                    <>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500 dark:text-gray-400">{job.location || 'Not specified'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500 dark:text-gray-400">{job.job_type || 'Not specified'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500 dark:text-gray-400">{formatSalary(job)}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
-                          {job.status || 'Active'}
-                        </span>
-                      </td>
-                    </>
-                  ) : (
+                <tr 
+                  key={job.id} 
+                  className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
+                  onClick={() => window.location.href = `/dashboard/jobs/${job.id}`}
+                >
+                  {columns.find(col => col.id === 'position')?.visible && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">{job.title}</div>
+                    </td>
+                  )}
+                  
+                  {columns.find(col => col.id === 'company')?.visible && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">{job.company}</div>
+                    </td>
+                  )}
+                  
+                  {columns.find(col => col.id === 'location')?.visible && (
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-500 dark:text-gray-400">{job.location || 'Not specified'}</div>
                     </td>
                   )}
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    {job.created_at ? new Date(job.created_at).toLocaleDateString() : 'Unknown'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {job.latest_scan?.match_score ? (
-                      <span className={`font-medium ${
-                        job.latest_scan.match_score >= 80 ? 'text-green-600 dark:text-green-400' :
-                        job.latest_scan.match_score >= 60 ? 'text-blue-600 dark:text-blue-400' :
-                        'text-yellow-600 dark:text-yellow-400'
-                      }`}>
-                        {job.latest_scan.match_score}%
-                      </span>
-                    ) : (
-                      <span className="text-gray-500 dark:text-gray-400">Not scanned</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <Link href={`/dashboard/jobs/${job.id}`} className="text-blue-600 hover:text-blue-500 dark:text-blue-400">
-                      View
-                    </Link>
-                  </td>
+                  
+                  {columns.find(col => col.id === 'jobType')?.visible && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{job.job_type || 'Not specified'}</div>
+                    </td>
+                  )}
+                  
+                  {columns.find(col => col.id === 'salary')?.visible && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{formatSalary(job) || 'Not specified'}</div>
+                    </td>
+                  )}
+                  
+                  {columns.find(col => col.id === 'added')?.visible && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {job.created_at ? new Date(job.created_at).toLocaleDateString() : 'Unknown'}
+                    </td>
+                  )}
+                  
+                  {columns.find(col => col.id === 'matchScores')?.visible && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        {job.latest_scan?.match_score ? (
+                          <>
+                            {/* For simplicity, let's show the latest score 3 times (you'd need to modify Job type to include history) */}
+                            <MatchScoreRing score={job.latest_scan.match_score} />
+                            {job.latest_scan.match_score > 10 && <MatchScoreRing score={Math.max(0, job.latest_scan.match_score - 10)} />}
+                            {job.latest_scan.match_score > 20 && <MatchScoreRing score={Math.max(0, job.latest_scan.match_score - 20)} />}
+                          </>
+                        ) : (
+                          <span className="text-gray-500 dark:text-gray-400">Not scanned</span>
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

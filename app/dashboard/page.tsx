@@ -319,7 +319,7 @@ export default function Dashboard() {
               <JobsList 
                 jobs={jobs}
                 emptyStateAction={openCreateJobModal}
-                title="Recent Job Applications"
+                title="My Job Listings"
                 viewAllLink="/dashboard/jobs"
               />
             </div>
