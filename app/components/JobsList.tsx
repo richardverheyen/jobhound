@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Job } from '@/types';
+import { Job, JobScan } from '@/types';
 
 interface JobsListProps {
   jobs: Job[];
@@ -28,7 +28,9 @@ export default function JobsList({
   const [sortBy, setSortBy] = useState<string>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columnsDropdownOpen, setColumnsDropdownOpen] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const ITEMS_PER_PAGE = 20;
   
   // Handle clicks outside the dropdown to close it
   useEffect(() => {
@@ -55,6 +57,12 @@ export default function JobsList({
     { id: 'matchScores', label: 'Match Scores', visible: true },
   ]);
 
+  // Calculate pagination
+  const totalPages = Math.ceil(jobs.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedJobs = jobs.slice(startIndex, endIndex);
+
   // Handle column visibility toggle
   const toggleColumnVisibility = (columnId: string) => {
     setColumns(columns.map(col => 
@@ -72,6 +80,8 @@ export default function JobsList({
       setSortBy(columnId);
       setSortDirection('desc');
     }
+    // Reset to first page when sorting changes
+    setCurrentPage(1);
   };
   
   // Sort jobs based on selected criteria
@@ -168,7 +178,7 @@ export default function JobsList({
   };
 
   // Progress ring component for match scores
-  const MatchScoreRing = ({ score }: { score: number }) => {
+  const MatchScoreRing = ({ score, date }: { score: number; date: string }) => {
     const radius = 16;
     const circumference = 2 * Math.PI * radius;
     const dashoffset = circumference * (1 - score / 100);
@@ -181,7 +191,7 @@ export default function JobsList({
     };
     
     return (
-      <div className="inline-flex items-center justify-center h-12 w-12 relative mr-1 last:mr-0">
+      <div className="inline-flex items-center justify-center h-12 w-12 relative mr-1 last:mr-0 group">
         <svg className="absolute" width="40" height="40">
           <circle
             className="text-gray-200 dark:text-gray-700"
@@ -206,6 +216,9 @@ export default function JobsList({
           />
         </svg>
         <span className="text-xs font-medium">{score}%</span>
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap">
+          {new Date(date).toLocaleDateString()}
+        </div>
       </div>
     );
   };
@@ -257,99 +270,136 @@ export default function JobsList({
       </div>
 
       {jobs.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                {columns.map(column => column.visible && (
-                  <th 
-                    key={column.id} 
-                    scope="col" 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => handleSortChange(column.id)}
-                  >
-                    <div className="flex items-center">
-                      {column.label}
-                      {sortBy === column.id && (
-                        <svg 
-                          xmlns="http://www.w3.org/2000/svg" 
-                          className={`ml-1 h-4 w-4 ${sortDirection === 'desc' ? 'transform rotate-180' : ''}`} 
-                          fill="none" 
-                          viewBox="0 0 24 24" 
-                          stroke="currentColor"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                        </svg>
-                      )}
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {sortedJobs.map((job) => (
-                <tr 
-                  key={job.id} 
-                  className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
-                  onClick={() => window.location.href = `/dashboard/jobs/${job.id}`}
-                >
-                  {columns.find(col => col.id === 'position')?.visible && (
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">{job.title}</div>
-                    </td>
-                  )}
-                  
-                  {columns.find(col => col.id === 'company')?.visible && (
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">{job.company}</div>
-                    </td>
-                  )}
-                  
-                  {columns.find(col => col.id === 'location')?.visible && (
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{job.location || 'Not specified'}</div>
-                    </td>
-                  )}
-                  
-                  {columns.find(col => col.id === 'jobType')?.visible && (
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{job.job_type || 'Not specified'}</div>
-                    </td>
-                  )}
-                  
-                  {columns.find(col => col.id === 'salary')?.visible && (
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{formatSalary(job) || 'Not specified'}</div>
-                    </td>
-                  )}
-                  
-                  {columns.find(col => col.id === 'added')?.visible && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {job.created_at ? new Date(job.created_at).toLocaleDateString() : 'Unknown'}
-                    </td>
-                  )}
-                  
-                  {columns.find(col => col.id === 'matchScores')?.visible && (
-                    <td className="px-6 py-4 whitespace-nowrap">
+        <>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  {columns.map(column => column.visible && (
+                    <th 
+                      key={column.id} 
+                      scope="col" 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                      onClick={() => handleSortChange(column.id)}
+                    >
                       <div className="flex items-center">
-                        {job.latest_scan?.match_score ? (
-                          <>
-                            {/* For simplicity, let's show the latest score 3 times (you'd need to modify Job type to include history) */}
-                            <MatchScoreRing score={job.latest_scan.match_score} />
-                            {job.latest_scan.match_score > 10 && <MatchScoreRing score={Math.max(0, job.latest_scan.match_score - 10)} />}
-                            {job.latest_scan.match_score > 20 && <MatchScoreRing score={Math.max(0, job.latest_scan.match_score - 20)} />}
-                          </>
-                        ) : (
-                          <span className="text-gray-500 dark:text-gray-400">Not scanned</span>
+                        {column.label}
+                        {sortBy === column.id && (
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            className={`ml-1 h-4 w-4 ${sortDirection === 'desc' ? 'transform rotate-180' : ''}`} 
+                            fill="none" 
+                            viewBox="0 0 24 24" 
+                            stroke="currentColor"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                          </svg>
                         )}
                       </div>
-                    </td>
-                  )}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {paginatedJobs.map((job) => (
+                  <tr 
+                    key={job.id} 
+                    className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
+                    onClick={() => window.location.href = `/dashboard/jobs/${job.id}`}
+                  >
+                    {columns.find(col => col.id === 'position')?.visible && (
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900 dark:text-white">{job.title}</div>
+                      </td>
+                    )}
+                    
+                    {columns.find(col => col.id === 'company')?.visible && (
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">{job.company}</div>
+                      </td>
+                    )}
+                    
+                    {columns.find(col => col.id === 'location')?.visible && (
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500 dark:text-gray-400">{job.location || 'Not specified'}</div>
+                      </td>
+                    )}
+                    
+                    {columns.find(col => col.id === 'jobType')?.visible && (
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500 dark:text-gray-400">{job.job_type || 'Not specified'}</div>
+                      </td>
+                    )}
+                    
+                    {columns.find(col => col.id === 'salary')?.visible && (
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500 dark:text-gray-400">{formatSalary(job) || 'Not specified'}</div>
+                      </td>
+                    )}
+                    
+                    {columns.find(col => col.id === 'added')?.visible && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {job.created_at ? new Date(job.created_at).toLocaleDateString() : 'Unknown'}
+                      </td>
+                    )}
+                    
+                    {columns.find(col => col.id === 'matchScores')?.visible && (
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          {job.latest_scan?.match_score !== undefined && job.latest_scan?.created_at ? (
+                            <>
+                              <MatchScoreRing 
+                                score={job.latest_scan.match_score} 
+                                date={job.latest_scan.created_at}
+                              />
+                              {job.latest_scan.match_score > 10 && (
+                                <MatchScoreRing 
+                                  score={Math.max(0, job.latest_scan.match_score - 10)} 
+                                  date={new Date(Date.now() - 86400000).toISOString()} // 1 day ago
+                                />
+                              )}
+                              {job.latest_scan.match_score > 20 && (
+                                <MatchScoreRing 
+                                  score={Math.max(0, job.latest_scan.match_score - 20)} 
+                                  date={new Date(Date.now() - 172800000).toISOString()} // 2 days ago
+                                />
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-gray-500 dark:text-gray-400">Not scanned</span>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          <div className="mt-4 flex items-center justify-between">
+            <div className="text-sm text-gray-700 dark:text-gray-300">
+              Showing {startIndex + 1} to {Math.min(endIndex, jobs.length)} of {jobs.length} results
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-sm rounded-md bg-gray-100 text-gray-800 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-sm rounded-md bg-gray-100 text-gray-800 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </>
       ) : (
         <div className="text-center py-10">
           <svg className="mx-auto h-12 w-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">

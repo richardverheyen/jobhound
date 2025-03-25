@@ -2,6 +2,7 @@
 
 import { createBrowserClient } from '@supabase/ssr';
 import { SupabaseClient, createClient } from '@supabase/supabase-js';
+import '../types/supabase';
 
 
 // Environment variables

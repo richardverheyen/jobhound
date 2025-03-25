@@ -10,10 +10,22 @@ import ResumeModal from '@/app/components/ResumeModal';
 import CreateResumeModal from '@/app/components/CreateResumeModal';
 import CreateJobModal from '@/app/components/CreateJobModal';
 import JobsList from '@/app/components/JobsList';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
-export default function Dashboard() {
+export default async function DashboardPage() {
+  const supabase = createServerComponentClient({ cookies });
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
+    redirect('/auth/login');
+  }
+
+  const user = session.user;
+  const displayName = user.user_metadata?.full_name || user.email;
+
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
   const [profileData, setProfileData] = useState<any>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [defaultResume, setDefaultResume] = useState<Resume | null>(null);
@@ -48,16 +60,7 @@ export default function Dashboard() {
         return;
       }
       
-      setUser(user);
-      
-      // Get user profile data to retrieve default resume ID
-      const { data: profileData } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      
-      setProfileData(profileData);
+      setProfileData(user);
       
       console.log("querying jobs, user id: ", user.id);
       // Get job listings with their latest scan results
@@ -93,11 +96,11 @@ export default function Dashboard() {
       setJobs(processedJobs);
       
       // Get default resume if set
-      if (profileData?.default_resume_id) {
+      if (user.default_resume_id) {
         const { data: resumeData } = await supabase
           .from('resumes')
           .select('*')
-          .eq('id', profileData.default_resume_id)
+          .eq('id', user.default_resume_id)
           .single();
         
         // If resume has a file_path, get the URL
@@ -148,16 +151,7 @@ export default function Dashboard() {
       return;
     }
     
-    setUser(user);
-    
-    // Get user profile data to retrieve default resume ID
-    const { data: profileData } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-    
-    setProfileData(profileData);
+    setProfileData(user);
     
     // Get job listings with their latest scan results
     const { data: jobsData } = await supabase
@@ -192,11 +186,11 @@ export default function Dashboard() {
     setJobs(processedJobs);
     
     // Get default resume if set
-    if (profileData?.default_resume_id) {
+    if (user.default_resume_id) {
       const { data: resumeData } = await supabase
         .from('resumes')
         .select('*')
-        .eq('id', profileData.default_resume_id)
+        .eq('id', user.default_resume_id)
         .single();
       
       setDefaultResume(resumeData);
@@ -279,7 +273,7 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Welcome back, {user?.email?.split('@')[0] || 'User'}
+              Welcome back, {displayName}
             </h1>
             <Link
               href="/dashboard/scans/new"
