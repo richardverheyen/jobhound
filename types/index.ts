@@ -81,6 +81,35 @@ export interface JobScan {
   results?: any;
   match_score?: number;
   error_message?: string;
+  
+  // Additional structured data extracted from results JSONB
+  overall_match?: string;
+  hard_skills?: string;
+  soft_skills?: string;
+  experience_match?: string;
+  qualifications?: string;
+  missing_keywords?: string;
+  
+  // Category scores and feedback
+  category_scores?: {
+    searchability: number;
+    hardSkills: number;
+    softSkills: number;
+    recruiterTips: number;
+    formatting: number;
+    [key: string]: number;
+  };
+  
+  category_feedback?: {
+    searchability: string[];
+    contactInfo: string[];
+    summary: string[];
+    sectionHeadings: string[];
+    jobTitleMatch: string[];
+    dateFormatting: string[];
+    [key: string]: string[];
+  };
+  
   jobs?: {
     id: string;
     title: string;

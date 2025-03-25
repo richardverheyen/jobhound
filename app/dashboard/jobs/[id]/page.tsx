@@ -42,70 +42,81 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   
   // Function to fetch job, scans, and resume data
   const fetchData = async () => {
-    // Simulating API calls with timeouts
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Mock job data
-    setJob({
-      id: params.id,
-      company: 'Tech Solutions Inc.',
-      title: 'Frontend Developer',
-      status: 'Applied',
-      applied_date: '2023-05-15',
-      location: 'Remote',
-      description: 'We are looking for a Frontend Developer proficient in React, TypeScript, and modern CSS frameworks. The ideal candidate should have 3+ years of experience building responsive web applications with a focus on user experience and performance optimization. Experience with Next.js, GraphQL, and state management libraries is a plus.'
-    });
-
-    // Mock scans data
-    setScans([
-      {
-        id: '1',
-        job_id: params.id,
-        resume_id: 'resume1',
-        status: 'Completed',
-        match_score: 85,
-        created_at: '2023-05-16T12:00:00Z',
-        results: {
-          skills_match: 90,
-          experience_match: 80,
-          education_match: 85,
-          overall_recommendation: 'Your resume is a strong match for this position. Consider highlighting your experience with React and TypeScript more prominently.'
-        }
-      },
-      {
-        id: '2',
-        job_id: params.id,
-        resume_id: 'resume2',
-        status: 'Completed',
-        match_score: 72,
-        created_at: '2023-05-18T15:30:00Z',
-        results: {
-          skills_match: 75,
-          experience_match: 70,
-          education_match: 80,
-          overall_recommendation: 'Your resume has several key matches but could be improved. Consider adding more details about your frontend development experience.'
+    try {
+      // Fetch job details
+      const { data: jobData, error: jobError } = await supabase
+        .from('jobs')
+        .select('*')
+        .eq('id', params.id)
+        .single();
+        
+      if (jobError) {
+        console.error('Error fetching job:', jobError);
+        return;
+      }
+      
+      if (jobData) {
+        // Convert JSONB arrays to regular arrays if needed
+        const requirements = Array.isArray(jobData.requirements) 
+          ? jobData.requirements 
+          : (jobData.requirements ? JSON.parse(JSON.stringify(jobData.requirements)) : []);
+          
+        const benefits = Array.isArray(jobData.benefits) 
+          ? jobData.benefits 
+          : (jobData.benefits ? JSON.parse(JSON.stringify(jobData.benefits)) : []);
+        
+        setJob({
+          ...jobData,
+          requirements,
+          benefits
+        });
+      }
+      
+      // Fetch job scans
+      const { data: scansData, error: scansError } = await supabase
+        .from('job_scans')
+        .select('*')
+        .eq('job_id', params.id)
+        .order('created_at', { ascending: false });
+        
+      if (scansError) {
+        console.error('Error fetching job scans:', scansError);
+      } else {
+        setScans(scansData || []);
+      }
+      
+      // Fetch available resumes
+      const { data: resumesData, error: resumesError } = await supabase
+        .from('resumes')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (resumesError) {
+        console.error('Error fetching resumes:', resumesError);
+      } else {
+        setResumes(resumesData || []);
+        
+        // Set default selected resume if any exist
+        if (resumesData && resumesData.length > 0) {
+          // Try to find the default resume from the user record
+          const { data: userData } = await supabase.auth.getUser();
+          const { data: userProfile } = await supabase
+            .from('users')
+            .select('default_resume_id')
+            .eq('id', userData.user?.id)
+            .single();
+            
+          if (userProfile && userProfile.default_resume_id) {
+            setSelectedResumeId(userProfile.default_resume_id);
+          } else {
+            // Otherwise use the first resume
+            setSelectedResumeId(resumesData[0].id);
+          }
         }
       }
-    ]);
-
-    // Mock resumes data
-    setResumes([
-      {
-        id: 'resume1',
-        filename: 'resume_frontend_dev.pdf',
-        is_default: true,
-        created_at: '2023-05-10T10:00:00Z'
-      },
-      {
-        id: 'resume2',
-        filename: 'resume_updated.pdf',
-        is_default: false,
-        created_at: '2023-05-12T14:00:00Z'
-      }
-    ]);
-    
-    // Set default selected resume
-    setSelectedResumeId('resume1');
+    } catch (error) {
+      console.error('Error in fetchData:', error);
+    }
   };
 
   const handleScan = async () => {
@@ -113,27 +124,31 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
     
     setIsScanning(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Add mock scan result
-    const newScan: JobScan = {
-      id: `scan-${Date.now()}`,
-      job_id: params.id,
-      resume_id: selectedResumeId,
-      status: 'Completed',
-      match_score: Math.floor(Math.random() * 30) + 65, // Random score between 65-95
-      created_at: new Date().toISOString(),
-      results: {
-        skills_match: Math.floor(Math.random() * 30) + 70,
-        experience_match: Math.floor(Math.random() * 30) + 70,
-        education_match: Math.floor(Math.random() * 30) + 70,
-        overall_recommendation: 'This is a new scan result with automated feedback based on your resume and the job description.'
+    try {
+      // Get the resume filename for display purposes
+      const resume = resumes.find(r => r.id === selectedResumeId);
+      
+      // Create a new scan record
+      const { data: scanData, error: scanError } = await supabase.rpc('create_job_scan', {
+        p_user_id: user.id,
+        p_job_id: job?.id,
+        p_resume_id: selectedResumeId,
+        p_resume_filename: resume?.filename || 'Unknown',
+        p_job_posting: job?.description || ''
+      });
+      
+      if (scanError) {
+        console.error('Error creating scan:', scanError);
+        alert('Failed to create scan. Please try again.');
+      } else {
+        // Refresh the data to show the new scan
+        fetchData();
       }
-    };
-    
-    setScans(prev => [newScan, ...prev]);
-    setIsScanning(false);
+    } catch (error) {
+      console.error('Error in handleScan:', error);
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   // Create resume modal functions
@@ -203,26 +218,25 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                       <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Location</p>
                       <p className="mt-1 text-sm text-gray-900 dark:text-white">{job.location || 'Not specified'}</p>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</p>
-                      <p className="mt-1">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          job.status === 'Applied' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                          job.status === 'Interview' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                          job.status === 'Offer' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                          job.status === 'Rejected' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                          'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                        }`}>
-                          {job.status}
-                        </span>
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Date Applied</p>
-                      <p className="mt-1 text-sm text-gray-900 dark:text-white">
-                        {job.applied_date ? new Date(job.applied_date).toLocaleDateString() : 'Not specified'}
-                      </p>
-                    </div>
+                    {job.job_type && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Job Type</p>
+                        <p className="mt-1 text-sm text-gray-900 dark:text-white">{job.job_type}</p>
+                      </div>
+                    )}
+                    {(job.salary_range_min || job.salary_range_max) && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Salary Range</p>
+                        <p className="mt-1 text-sm text-gray-900 dark:text-white">
+                          {job.salary_range_min && job.salary_range_max
+                            ? `${job.salary_currency || ''}${job.salary_range_min.toLocaleString()} - ${job.salary_currency || ''}${job.salary_range_max.toLocaleString()} ${job.salary_period ? `(${job.salary_period})` : ''}`
+                            : job.salary_range_min 
+                              ? `${job.salary_currency || ''}${job.salary_range_min.toLocaleString()} ${job.salary_period ? `(${job.salary_period})` : ''} minimum`
+                              : `${job.salary_currency || ''}${job.salary_range_max?.toLocaleString()} ${job.salary_period ? `(${job.salary_period})` : ''} maximum`
+                          }
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -232,6 +246,28 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                     {job.description}
                   </div>
                 </div>
+
+                {job.requirements && job.requirements.length > 0 && (
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Requirements</h3>
+                    <ul className="mt-2 text-sm text-gray-900 dark:text-white list-disc pl-5 space-y-1">
+                      {job.requirements.map((req, index) => (
+                        <li key={index}>{req}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {job.benefits && job.benefits.length > 0 && (
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Benefits</h3>
+                    <ul className="mt-2 text-sm text-gray-900 dark:text-white list-disc pl-5 space-y-1">
+                      {job.benefits.map((benefit, index) => (
+                        <li key={index}>{benefit}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -304,41 +340,96 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                             <div className="flex justify-between items-start">
                               <div>
                                 <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-                                  Scan with {resumeName}
+                                  Scan with {scan.resume_filename || resumeName}
                                 </h4>
                                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                  {new Date(scan.created_at!).toLocaleString()}
+                                  {scan.created_at && new Date(scan.created_at).toLocaleString()}
+                                </p>
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                  Status: <span className={scan.status === 'completed' ? 'text-green-500' : scan.status === 'error' ? 'text-red-500' : 'text-yellow-500'}>
+                                    {scan.status}
+                                  </span>
                                 </p>
                               </div>
                               <div className="flex items-center">
-                                <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                                  {scan.match_score}%
-                                </span>
-                                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">Match Score</span>
+                                {scan.match_score !== null && scan.match_score !== undefined ? (
+                                  <>
+                                    <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                      {Math.round(scan.match_score)}%
+                                    </span>
+                                    <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">Match Score</span>
+                                  </>
+                                ) : (
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                                    {scan.status === 'error' ? 'Failed' : 'Processing...'}
+                                  </span>
+                                )}
                               </div>
                             </div>
                             
-                            {scan.results && (
+                            {scan.status === 'completed' && scan.results && (
                               <div className="mt-4">
                                 <div className="grid grid-cols-3 gap-2 mb-3">
-                                  <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Skills</p>
-                                    <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">{scan.results.skills_match}%</p>
-                                  </div>
-                                  <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Experience</p>
-                                    <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">{scan.results.experience_match}%</p>
-                                  </div>
-                                  <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Education</p>
-                                    <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">{scan.results.education_match}%</p>
-                                  </div>
+                                  {scan.category_scores ? (
+                                    <>
+                                      <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Hard Skills</p>
+                                        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+                                          {Math.round(scan.category_scores.hardSkills * 100)}%
+                                        </p>
+                                      </div>
+                                      <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Soft Skills</p>
+                                        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+                                          {Math.round(scan.category_scores.softSkills * 100)}%
+                                        </p>
+                                      </div>
+                                      <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Searchability</p>
+                                        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+                                          {Math.round(scan.category_scores.searchability * 100)}%
+                                        </p>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Skills</p>
+                                        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+                                          {scan.results.skills_match || (scan.results.hardSkills ? Math.round(scan.results.hardSkills * 100) : '—')}%
+                                        </p>
+                                      </div>
+                                      <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Experience</p>
+                                        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+                                          {scan.results.experience_match || (scan.results.experienceMatch ? Math.round(scan.results.experienceMatch * 100) : '—')}%
+                                        </p>
+                                      </div>
+                                      <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Education</p>
+                                        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+                                          {scan.results.education_match || (scan.results.qualifications ? Math.round(scan.results.qualifications * 100) : '—')}%
+                                        </p>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
                                 
                                 <div className="mt-3 text-sm text-gray-700 dark:text-gray-300">
                                   <p className="font-medium">Recommendation:</p>
-                                  <p className="mt-1">{scan.results.overall_recommendation}</p>
+                                  <p className="mt-1">
+                                    {scan.results.overall_recommendation || 
+                                     scan.results.overallMatch || 
+                                     scan.overall_match || 
+                                     'Analysis completed successfully. Check the match scores above.'}
+                                  </p>
                                 </div>
+                              </div>
+                            )}
+                            
+                            {scan.status === 'error' && (
+                              <div className="mt-3 text-sm text-red-500">
+                                <p>Error: {scan.error_message || 'An error occurred during scan processing'}</p>
                               </div>
                             )}
                           </div>
