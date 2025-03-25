@@ -57,7 +57,7 @@ export default function JobsList({
   const [columns, setColumns] = useState<ColumnConfig[]>([
     { id: 'position', label: 'Position', visible: true },
     { id: 'company', label: 'Company', visible: true },
-    { id: 'location', label: 'Location', visible: true },
+    { id: 'location', label: 'Location', visible: false },
     { id: 'jobType', label: 'Job Type', visible: false },
     { id: 'salary', label: 'Salary', visible: true },
     { id: 'added', label: 'Added', visible: false },
