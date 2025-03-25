@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/supabase/client';
 
@@ -39,6 +39,8 @@ export default function CreateJobModal({
   const [error, setError] = useState<string | null>(null);
   const [isProcessingAI, setIsProcessingAI] = useState(false);
   const [rawJobText, setRawJobText] = useState('');
+  const [newRequirement, setNewRequirement] = useState('');
+  const [newBenefit, setNewBenefit] = useState('');
   
   // Full form data for job creation
   const [formData, setFormData] = useState<JobFormData>({
@@ -107,67 +109,123 @@ export default function CreateJobModal({
     }
   };
 
-  const handleRawTextChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    setRawJobText(value);
+  // Add a debounce function
+  const debounce = <T extends (...args: any[]) => any>(
+    callback: T,
+    delay: number
+  ) => {
+    let timeoutId: NodeJS.Timeout;
+    return (...args: Parameters<T>) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        callback(...args);
+      }, delay);
+    };
+  };
+
+  // Refs to track if component is mounted and API call in progress
+  const isMounted = useRef(true);
+  const processingRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  const processJobListing = async (text: string) => {
+    if (processingRef.current || !isMounted.current) return;
     
     // Only process with AI if we have substantial text (more than 50 chars)
-    if (value.length > 50) {
+    if (text.length > 50) {
       try {
+        processingRef.current = true;
         setIsProcessingAI(true);
         
-        // Here we would call the Vercel Edge function to process the text
-        // For now we'll simulate a delay before switching tabs
-        // Replace this with actual API call later
+        // Call the Vercel Edge function to process the text
+        const response = await fetch('/api/process-job-listing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
         
-        // Simulate processing delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        if (!isMounted.current) return;
         
-        // TODO: Replace with actual API call
-        // const response = await fetch('/api/process-job-text', {
-        //   method: 'POST',
-        //   headers: { 'Content-Type': 'application/json' },
-        //   body: JSON.stringify({ text: value }),
-        // });
-        // const data = await response.json();
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to process job listing');
+        }
         
-        // For demonstration, we'll fake a successful response
-        const mockResponse = {
-          success: true,
-          data: {
-            company: 'Extracted Company',
-            title: 'Extracted Job Title',
-            location: 'Extracted Location',
-            description: 'Extracted description...',
-            job_type: 'Full-time',
-            salary_range_min: 80000,
-            salary_range_max: 120000,
-            salary_currency: 'USD',
-            salary_period: 'yearly',
-            requirements: ['Requirement 1', 'Requirement 2'],
-            benefits: ['Benefit 1', 'Benefit 2'],
-          }
-        };
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to extract job data');
+        }
         
         // Update form with AI extracted data
         setFormData({
-          ...mockResponse.data,
-          raw_job_text: value
+          ...data.data,
+          raw_job_text: text
         });
         
         // Switch to manual tab to review data
         setActiveTab('manual');
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error processing job text with AI:', error);
-        setError('Failed to process job text. Please try again or enter details manually.');
+        setError(error.message || 'Failed to process job text. Please try again or enter details manually.');
       } finally {
-        setIsProcessingAI(false);
+        processingRef.current = false;
+        if (isMounted.current) {
+          setIsProcessingAI(false);
+        }
       }
     }
   };
 
+  // Create a debounced version of the process function
+  const debouncedProcessJobListing = useRef(
+    debounce(processJobListing, 1000) // 1 second delay
+  ).current;
+
+  const handleRawTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setRawJobText(value);
+    
+    // Use the debounced function to process the text
+    debouncedProcessJobListing(value);
+  };
+
+  const validateForm = () => {
+    const errors: string[] = [];
+    
+    if (!formData.company) errors.push("Company name is required");
+    if (!formData.title) errors.push("Job title is required");
+    if (!formData.description) errors.push("Job description is required");
+    
+    if (formData.salary_range_min && formData.salary_range_max) {
+      if (formData.salary_range_min > formData.salary_range_max) {
+        errors.push("Minimum salary cannot be greater than maximum salary");
+      }
+    }
+    
+    if ((formData.salary_range_min || formData.salary_range_max) && 
+        (!formData.salary_currency || !formData.salary_period)) {
+      errors.push("Please provide currency and period for salary information");
+    }
+    
+    return errors;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form
+    const validationErrors = validateForm();
+    if (validationErrors.length > 0) {
+      setError(validationErrors.join(". "));
+      return;
+    }
+    
     setIsSubmitting(true);
     setError(null);
     
@@ -178,6 +236,15 @@ export default function CreateJobModal({
       if (!user) {
         throw new Error('You must be logged in to create a job');
       }
+      
+      // Ensure requirements and benefits are arrays
+      const requirements = Array.isArray(formData.requirements) 
+        ? formData.requirements 
+        : (formData.requirements ? [formData.requirements] : []);
+        
+      const benefits = Array.isArray(formData.benefits)
+        ? formData.benefits
+        : (formData.benefits ? [formData.benefits] : []);
       
       // Use the updated create_job RPC function with all fields
       const { data, error } = await supabase
@@ -191,11 +258,11 @@ export default function CreateJobModal({
           p_salary_range_max: formData.salary_range_max,
           p_salary_currency: formData.salary_currency,
           p_salary_period: formData.salary_period,
-          p_requirements: formData.requirements && formData.requirements.length > 0 
-            ? JSON.stringify(formData.requirements) 
+          p_requirements: requirements.length > 0 
+            ? JSON.stringify(requirements) 
             : null,
-          p_benefits: formData.benefits && formData.benefits.length > 0 
-            ? JSON.stringify(formData.benefits) 
+          p_benefits: benefits.length > 0 
+            ? JSON.stringify(benefits) 
             : null,
           p_raw_job_text: activeTab === 'ai' ? rawJobText : formData.raw_job_text
         });
@@ -221,6 +288,58 @@ export default function CreateJobModal({
       setError(error.message || 'An error occurred while creating the job');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleAddRequirement = () => {
+    if (newRequirement.trim()) {
+      const updatedRequirements = Array.isArray(formData.requirements) 
+        ? [...formData.requirements, newRequirement.trim()]
+        : [newRequirement.trim()];
+      
+      setFormData(prev => ({
+        ...prev,
+        requirements: updatedRequirements
+      }));
+      setNewRequirement('');
+    }
+  };
+
+  const handleAddBenefit = () => {
+    if (newBenefit.trim()) {
+      const updatedBenefits = Array.isArray(formData.benefits) 
+        ? [...formData.benefits, newBenefit.trim()]
+        : [newBenefit.trim()];
+      
+      setFormData(prev => ({
+        ...prev,
+        benefits: updatedBenefits
+      }));
+      setNewBenefit('');
+    }
+  };
+
+  const handleRemoveRequirement = (index: number) => {
+    if (Array.isArray(formData.requirements)) {
+      const updatedRequirements = [...formData.requirements];
+      updatedRequirements.splice(index, 1);
+      
+      setFormData(prev => ({
+        ...prev,
+        requirements: updatedRequirements
+      }));
+    }
+  };
+
+  const handleRemoveBenefit = (index: number) => {
+    if (Array.isArray(formData.benefits)) {
+      const updatedBenefits = [...formData.benefits];
+      updatedBenefits.splice(index, 1);
+      
+      setFormData(prev => ({
+        ...prev,
+        benefits: updatedBenefits
+      }));
     }
   };
 
@@ -554,6 +673,104 @@ export default function CreateJobModal({
                             placeholder="Full job description"
                             data-testid="job-description-input"
                           />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Requirements section */}
+                    <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                        Requirements
+                      </h4>
+                      <div className="space-y-2">
+                        {Array.isArray(formData.requirements) && formData.requirements.map((requirement, index) => (
+                          <div key={`req-${index}`} className="flex items-center space-x-2">
+                            <div className="flex-grow p-2 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 text-sm">
+                              {requirement}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveRequirement(index)}
+                              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="text"
+                            placeholder="Add a requirement"
+                            value={newRequirement}
+                            onChange={(e) => setNewRequirement(e.target.value)}
+                            className="flex-grow shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddRequirement();
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddRequirement}
+                            className="inline-flex items-center p-1.5 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Benefits section */}
+                    <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                        Benefits
+                      </h4>
+                      <div className="space-y-2">
+                        {Array.isArray(formData.benefits) && formData.benefits.map((benefit, index) => (
+                          <div key={`ben-${index}`} className="flex items-center space-x-2">
+                            <div className="flex-grow p-2 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 text-sm">
+                              {benefit}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveBenefit(index)}
+                              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="text"
+                            placeholder="Add a benefit"
+                            value={newBenefit}
+                            onChange={(e) => setNewBenefit(e.target.value)}
+                            className="flex-grow shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddBenefit();
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddBenefit}
+                            className="inline-flex items-center p-1.5 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                            </svg>
+                          </button>
                         </div>
                       </div>
                     </div>

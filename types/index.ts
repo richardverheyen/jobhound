@@ -15,13 +15,39 @@ export interface Job {
   user_id?: string;
   company: string;
   title: string;
-  position?: string;
   location?: string;
   description?: string;
+  
+  // Additional structured fields for AI extraction
+  job_type?: string;                    // Full-time, Part-time, Contract, etc.
+  salary_range_min?: number;           // Minimum salary amount
+  salary_range_max?: number;           // Maximum salary amount
+  salary_currency?: string;             // USD, EUR, etc.
+  salary_period?: string;               // yearly, monthly, hourly
+  
+  requirements?: string[];              // Array of requirement strings
+  benefits?: string[];                  // Array of benefit strings
+  
+  // AI processing metadata
+  raw_job_text?: string;                // Original pasted job description
+  ai_confidence?: Record<string, number>; // Confidence scores for each extracted field
+  ai_version?: string;                  // Version of AI model used for extraction
+  ai_processed_at?: string;             // When AI processing occurred
+  
   status?: string;
   applied_date?: string;
   created_at?: string;
   updated_at?: string;
+}
+
+// Process Job Listing API interfaces
+export interface ProcessJobListingRequest {
+  text: string;
+}
+
+export interface ProcessJobListingResponse {
+  success: boolean;
+  data: Omit<Job, 'id' | 'user_id' | 'status' | 'applied_date' | 'created_at' | 'updated_at'>;
 }
 
 export interface Resume {
