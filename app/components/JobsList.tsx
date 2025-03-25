@@ -4,9 +4,16 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Job, JobScan } from '@/types';
 
+// Extend Window interface to include our custom function
+declare global {
+  interface Window {
+    openJobModal?: () => void;
+  }
+}
+
 interface JobsListProps {
   jobs: Job[];
-  emptyStateAction?: () => void;
+  emptyStateAction?: (() => void) | string;
   showFullDetails?: boolean;
   title?: string;
   viewAllLink?: string;
@@ -410,7 +417,14 @@ export default function JobsList({
           {emptyStateAction && (
             <div className="mt-6">
               <button
-                onClick={emptyStateAction}
+                onClick={() => {
+                  if (typeof emptyStateAction === 'function') {
+                    emptyStateAction();
+                  } else if (typeof window !== 'undefined' && window.openJobModal) {
+                    // @ts-ignore - Using globally defined function
+                    window.openJobModal();
+                  }
+                }}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

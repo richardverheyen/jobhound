@@ -1,6 +1,6 @@
 export interface User {
   id: string;
-  email: string | undefined;
+  email?: string;
   stripe_customer_id?: string;
   default_resume_id?: string;
   job_search_goal?: number;
