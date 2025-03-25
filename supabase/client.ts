@@ -20,16 +20,24 @@ export const supabase = createBrowserClient(
     },
     auth: {
       persistSession: true,
-      autoRefreshToken: true,
-      storageKey: 'jobhound-auth-storage-key'
+      autoRefreshToken: true
     }
   }
 );
 
-// We should generally avoid having multiple Supabase clients
-// This one is kept for backward compatibility only
-// Consider using the above client (supabase) instead in most cases
-export const supabaseJs = supabase;
+export const supabaseJs = createClient(supabaseUrl, supabaseAnonKey,
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+    global: {
+      headers: {
+       'apikey': supabaseAnonKey
+      }
+    }
+  })
+
 
 // Helper to check if we're using the local development environment
 export const isLocalDev = () => {
