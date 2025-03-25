@@ -56,14 +56,46 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
       }
       
       if (jobData) {
-        // Convert JSONB arrays to regular arrays if needed
-        const requirements = Array.isArray(jobData.requirements) 
-          ? jobData.requirements 
-          : (jobData.requirements ? JSON.parse(JSON.stringify(jobData.requirements)) : []);
-          
-        const benefits = Array.isArray(jobData.benefits) 
-          ? jobData.benefits 
-          : (jobData.benefits ? JSON.parse(JSON.stringify(jobData.benefits)) : []);
+        // Properly parse requirements and benefits which may be JSONB columns
+        let requirements = [];
+        if (jobData.requirements) {
+          try {
+            // Handle if the data is a JSON string
+            if (typeof jobData.requirements === 'string') {
+              requirements = JSON.parse(jobData.requirements);
+            } 
+            // Handle if the data is already an array
+            else if (Array.isArray(jobData.requirements)) {
+              requirements = jobData.requirements;
+            } 
+            // Handle if the data is a JSONB object already parsed
+            else if (typeof jobData.requirements === 'object') {
+              requirements = Object.values(jobData.requirements);
+            }
+          } catch (e) {
+            console.error('Error parsing requirements:', e);
+          }
+        }
+        
+        let benefits = [];
+        if (jobData.benefits) {
+          try {
+            // Handle if the data is a JSON string
+            if (typeof jobData.benefits === 'string') {
+              benefits = JSON.parse(jobData.benefits);
+            } 
+            // Handle if the data is already an array
+            else if (Array.isArray(jobData.benefits)) {
+              benefits = jobData.benefits;
+            } 
+            // Handle if the data is a JSONB object already parsed
+            else if (typeof jobData.benefits === 'object') {
+              benefits = Object.values(jobData.benefits);
+            }
+          } catch (e) {
+            console.error('Error parsing benefits:', e);
+          }
+        }
         
         setJob({
           ...jobData,
@@ -228,11 +260,13 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                       <div>
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Salary Range</p>
                         <p className="mt-1 text-sm text-gray-900 dark:text-white">
-                          {job.salary_range_min && job.salary_range_max
-                            ? `${job.salary_currency || ''}${job.salary_range_min.toLocaleString()} - ${job.salary_currency || ''}${job.salary_range_max.toLocaleString()} ${job.salary_period ? `(${job.salary_period})` : ''}`
-                            : job.salary_range_min 
-                              ? `${job.salary_currency || ''}${job.salary_range_min.toLocaleString()} ${job.salary_period ? `(${job.salary_period})` : ''} minimum`
-                              : `${job.salary_currency || ''}${job.salary_range_max?.toLocaleString()} ${job.salary_period ? `(${job.salary_period})` : ''} maximum`
+                          {job.salary_range_min !== undefined && job.salary_range_max !== undefined
+                            ? `${job.salary_currency ? job.salary_currency + ' ' : ''}${job.salary_range_min.toLocaleString()} - ${job.salary_currency ? job.salary_currency + ' ' : ''}${job.salary_range_max.toLocaleString()} ${job.salary_period ? `(${job.salary_period})` : ''}`
+                            : job.salary_range_min !== undefined
+                              ? `${job.salary_currency ? job.salary_currency + ' ' : ''}${job.salary_range_min.toLocaleString()} ${job.salary_period ? `(${job.salary_period})` : ''} minimum`
+                              : job.salary_range_max !== undefined
+                                ? `${job.salary_currency ? job.salary_currency + ' ' : ''}${job.salary_range_max.toLocaleString()} ${job.salary_period ? `(${job.salary_period})` : ''} maximum`
+                                : 'Salary details not available'
                           }
                         </p>
                       </div>
@@ -251,9 +285,12 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                   <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                     <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Requirements</h3>
                     <ul className="mt-2 text-sm text-gray-900 dark:text-white list-disc pl-5 space-y-1">
-                      {job.requirements.map((req, index) => (
-                        <li key={index}>{req}</li>
-                      ))}
+                      {Array.isArray(job.requirements) ? 
+                        job.requirements.map((req, index) => (
+                          <li key={index}>{req}</li>
+                        ))
+                        : null
+                      }
                     </ul>
                   </div>
                 )}
@@ -262,9 +299,12 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                   <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                     <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Benefits</h3>
                     <ul className="mt-2 text-sm text-gray-900 dark:text-white list-disc pl-5 space-y-1">
-                      {job.benefits.map((benefit, index) => (
-                        <li key={index}>{benefit}</li>
-                      ))}
+                      {Array.isArray(job.benefits) ? 
+                        job.benefits.map((benefit, index) => (
+                          <li key={index}>{benefit}</li>
+                        ))
+                        : null
+                      }
                     </ul>
                   </div>
                 )}
