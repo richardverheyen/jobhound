@@ -63,8 +63,18 @@ export default function JobsPage() {
           return dateB - dateA;
         });
         
+        // Clean up currency data if it contains '$' or other invalid currency codes
+        let cleanedJob = { ...job };
+        if (cleanedJob.salary_currency === '$') {
+          cleanedJob.salary_currency = 'USD';
+        } else if (cleanedJob.salary_currency === '£') {
+          cleanedJob.salary_currency = 'GBP';
+        } else if (cleanedJob.salary_currency === '€') {
+          cleanedJob.salary_currency = 'EUR';
+        }
+        
         return {
-          ...job,
+          ...cleanedJob,
           scans: sortedScans || [],
           latest_scan: sortedScans?.[0] || null
         };
@@ -114,8 +124,18 @@ export default function JobsPage() {
             return dateB - dateA;
           });
           
+          // Clean up currency data if it contains '$' or other invalid currency codes
+          let cleanedJob = { ...job };
+          if (cleanedJob.salary_currency === '$') {
+            cleanedJob.salary_currency = 'USD';
+          } else if (cleanedJob.salary_currency === '£') {
+            cleanedJob.salary_currency = 'GBP';
+          } else if (cleanedJob.salary_currency === '€') {
+            cleanedJob.salary_currency = 'EUR';
+          }
+          
           return {
-            ...job,
+            ...cleanedJob,
             scans: sortedScans || [],
             latest_scan: sortedScans?.[0] || null
           };

@@ -35,31 +35,69 @@ export default function JobsList({
     return 0;
   });
 
-  // Format salary range for display
+  // Add a helper function for properly formatting salary
   const formatSalary = (job: Job) => {
-    if (!job.salary_range_min && !job.salary_range_max) return 'Not specified';
-    
-    const formatter = new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: job.salary_currency || 'USD',
-      maximumFractionDigits: 0,
-    });
-    
-    let salaryText = '';
-    
-    if (job.salary_range_min && job.salary_range_max) {
-      salaryText = `${formatter.format(job.salary_range_min)} - ${formatter.format(job.salary_range_max)}`;
-    } else if (job.salary_range_min) {
-      salaryText = `From ${formatter.format(job.salary_range_min)}`;
-    } else if (job.salary_range_max) {
-      salaryText = `Up to ${formatter.format(job.salary_range_max)}`;
+    try {
+      // Skip if no salary info
+      if (!job.salary_range_min && !job.salary_range_max) {
+        return null;
+      }
+      
+      // Use a standard 3-letter currency code for formatting
+      let currencyCode = job.salary_currency || '';
+      
+      // Convert common symbols to ISO currency codes
+      if (currencyCode === '$') currencyCode = 'USD';
+      if (currencyCode === '£') currencyCode = 'GBP';
+      if (currencyCode === '€') currencyCode = 'EUR';
+      
+      // If still not a valid currency code, just display without currency formatting
+      const options: Intl.NumberFormatOptions = {};
+      if (currencyCode && currencyCode.length === 3) {
+        options.style = 'currency';
+        options.currency = currencyCode;
+      }
+      
+      // Format the salary range
+      if (job.salary_range_min && job.salary_range_max) {
+        const minSalary = options.style === 'currency' 
+          ? new Intl.NumberFormat('en-US', options).format(job.salary_range_min)
+          : `${currencyCode}${job.salary_range_min.toLocaleString()}`;
+        
+        const maxSalary = options.style === 'currency'
+          ? new Intl.NumberFormat('en-US', options).format(job.salary_range_max)
+          : `${currencyCode}${job.salary_range_max.toLocaleString()}`;
+        
+        return `${minSalary} - ${maxSalary} ${job.salary_period ? `(${job.salary_period})` : ''}`;
+      } else if (job.salary_range_min) {
+        const salary = options.style === 'currency'
+          ? new Intl.NumberFormat('en-US', options).format(job.salary_range_min)
+          : `${currencyCode}${job.salary_range_min.toLocaleString()}`;
+        
+        return `${salary} ${job.salary_period ? `(${job.salary_period})` : ''} minimum`;
+      } else if (job.salary_range_max) {
+        const salary = options.style === 'currency'
+          ? new Intl.NumberFormat('en-US', options).format(job.salary_range_max)
+          : `${currencyCode}${job.salary_range_max.toLocaleString()}`;
+        
+        return `${salary} ${job.salary_period ? `(${job.salary_period})` : ''} maximum`;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error formatting salary:', error);
+      
+      // Fallback to simple display without formatting
+      if (job.salary_range_min && job.salary_range_max) {
+        return `${job.salary_range_min.toLocaleString()} - ${job.salary_range_max.toLocaleString()} ${job.salary_period || ''}`;
+      } else if (job.salary_range_min) {
+        return `${job.salary_range_min.toLocaleString()} ${job.salary_period || ''}`;
+      } else if (job.salary_range_max) {
+        return `${job.salary_range_max.toLocaleString()} ${job.salary_period || ''}`;
+      }
+      
+      return null;
     }
-    
-    if (job.salary_period) {
-      salaryText += ` (${job.salary_period})`;
-    }
-    
-    return salaryText;
   };
 
   return (
