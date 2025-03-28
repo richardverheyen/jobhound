@@ -7,6 +7,8 @@ import { Navbar } from '@/app/components/Navbar';
 import { Job, JobScan, Resume } from '@/types';
 import { useRouter } from 'next/navigation';
 import CreateResumeModal from '@/app/components/CreateResumeModal';
+import CompareResumeToJob from '@/app/components/CompareResumeToJob';
+import JobScansList from '@/app/components/JobScansList';
 
 interface JobDetailPageProps {
   params: {
@@ -20,8 +22,6 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   const [job, setJob] = useState<Job | null>(null);
   const [scans, setScans] = useState<JobScan[]>([]);
   const [resumes, setResumes] = useState<Resume[]>([]);
-  const [selectedResumeId, setSelectedResumeId] = useState<string>('');
-  const [isScanning, setIsScanning] = useState<boolean>(false);
   const [user, setUser] = useState<any>(null);
   const [createResumeModalOpen, setCreateResumeModalOpen] = useState<boolean>(false);
 
@@ -127,67 +127,13 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
         console.error('Error fetching resumes:', resumesError);
       } else {
         setResumes(resumesData || []);
-        
-        // Set default selected resume if any exist
-        if (resumesData && resumesData.length > 0) {
-          // Try to find the default resume from the user record
-          const { data: userData } = await supabase.auth.getUser();
-          const { data: userProfile } = await supabase
-            .from('users')
-            .select('default_resume_id')
-            .eq('id', userData.user?.id)
-            .single();
-            
-          if (userProfile && userProfile.default_resume_id) {
-            setSelectedResumeId(userProfile.default_resume_id);
-          } else {
-            // Otherwise use the first resume
-            setSelectedResumeId(resumesData[0].id);
-          }
-        }
       }
     } catch (error) {
       console.error('Error in fetchData:', error);
     }
   };
 
-  const handleScan = async () => {
-    if (!selectedResumeId) return;
-    
-    setIsScanning(true);
-    
-    try {
-      // Get the resume filename for display purposes
-      const resume = resumes.find(r => r.id === selectedResumeId);
-      
-      // Create a new scan record
-      const { data: scanData, error: scanError } = await supabase.rpc('create_job_scan', {
-        p_user_id: user.id,
-        p_job_id: job?.id,
-        p_resume_id: selectedResumeId,
-        p_resume_filename: resume?.filename || 'Unknown',
-        p_job_posting: job?.description || ''
-      });
-      
-      if (scanError) {
-        console.error('Error creating scan:', scanError);
-        alert('Failed to create scan. Please try again.');
-      } else {
-        // Refresh the data to show the new scan
-        fetchData();
-      }
-    } catch (error) {
-      console.error('Error in handleScan:', error);
-    } finally {
-      setIsScanning(false);
-    }
-  };
-
   // Create resume modal functions
-  const openCreateResumeModal = () => {
-    setCreateResumeModalOpen(true);
-  };
-  
   const closeCreateResumeModal = () => {
     setCreateResumeModalOpen(false);
   };
@@ -195,8 +141,6 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   const handleResumeCreated = async (resumeId: string) => {
     // Refresh data
     fetchData();
-    // Select the newly created resume
-    setSelectedResumeId(resumeId);
   };
 
   if (!job) {
@@ -311,174 +255,21 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
               </div>
             </div>
 
-            {/* Right column: Scan section */}
-            <div className="md:col-span-2">
-              <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-                <h2 className="text-lg font-medium text-gray-900 dark:text-white">Resume Analysis</h2>
-                
-                <div className="mt-4 mb-6">
-                  <label htmlFor="resume" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Select Resume to Scan
-                  </label>
-                  <div className="mt-1 flex">
-                    <select
-                      id="resume"
-                      name="resume"
-                      value={selectedResumeId}
-                      onChange={(e) => setSelectedResumeId(e.target.value)}
-                      className="block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-800 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    >
-                      <option value="">Select a resume</option>
-                      {resumes.map(resume => (
-                        <option key={resume.id} value={resume.id}>
-                          {resume.filename} {resume.is_default ? '(Default)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={handleScan}
-                      disabled={!selectedResumeId || isScanning}
-                      className="ml-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                    >
-                      {isScanning ? (
-                        <>
-                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Analyzing...
-                        </>
-                      ) : (
-                        'Scan Resume'
-                      )}
-                    </button>
-                  </div>
-                  <div className="mt-2">
-                    <button 
-                      onClick={openCreateResumeModal}
-                      className="text-sm text-blue-600 hover:text-blue-500"
-                    >
-                      + Upload a new resume
-                    </button>
-                  </div>
-                </div>
-
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Previous Scans</h3>
-                  
-                  {scans.length === 0 ? (
-                    <div className="mt-4 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                      No scans yet. Select a resume and click "Scan Resume" to analyze your resume against this job.
-                    </div>
-                  ) : (
-                    <div className="mt-4 space-y-4">
-                      {scans.map((scan) => {
-                        const resumeName = resumes.find(r => r.id === scan.resume_id)?.filename || 'Unknown Resume';
-                        
-                        return (
-                          <div key={scan.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-                                  Scan with {scan.resume_filename || resumeName}
-                                </h4>
-                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                  {scan.created_at && new Date(scan.created_at).toLocaleString()}
-                                </p>
-                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                  Status: <span className={scan.status === 'completed' ? 'text-green-500' : scan.status === 'error' ? 'text-red-500' : 'text-yellow-500'}>
-                                    {scan.status}
-                                  </span>
-                                </p>
-                              </div>
-                              <div className="flex items-center">
-                                {scan.match_score !== null && scan.match_score !== undefined ? (
-                                  <>
-                                    <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                                      {Math.round(scan.match_score)}%
-                                    </span>
-                                    <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">Match Score</span>
-                                  </>
-                                ) : (
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                                    {scan.status === 'error' ? 'Failed' : 'Processing...'}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            
-                            {scan.status === 'completed' && scan.results && (
-                              <div className="mt-4">
-                                <div className="grid grid-cols-3 gap-2 mb-3">
-                                  {scan.category_scores ? (
-                                    <>
-                                      <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Hard Skills</p>
-                                        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
-                                          {Math.round(scan.category_scores.hardSkills * 100)}%
-                                        </p>
-                                      </div>
-                                      <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Soft Skills</p>
-                                        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
-                                          {Math.round(scan.category_scores.softSkills * 100)}%
-                                        </p>
-                                      </div>
-                                      <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Searchability</p>
-                                        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
-                                          {Math.round(scan.category_scores.searchability * 100)}%
-                                        </p>
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Skills</p>
-                                        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
-                                          {scan.results.skills_match || (scan.results.hardSkills ? Math.round(scan.results.hardSkills * 100) : '—')}%
-                                        </p>
-                                      </div>
-                                      <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Experience</p>
-                                        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
-                                          {scan.results.experience_match || (scan.results.experienceMatch ? Math.round(scan.results.experienceMatch * 100) : '—')}%
-                                        </p>
-                                      </div>
-                                      <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Education</p>
-                                        <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
-                                          {scan.results.education_match || (scan.results.qualifications ? Math.round(scan.results.qualifications * 100) : '—')}%
-                                        </p>
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
-                                
-                                <div className="mt-3 text-sm text-gray-700 dark:text-gray-300">
-                                  <p className="font-medium">Recommendation:</p>
-                                  <p className="mt-1">
-                                    {scan.results.overall_recommendation || 
-                                     scan.results.overallMatch || 
-                                     scan.overall_match || 
-                                     'Analysis completed successfully. Check the match scores above.'}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                            
-                            {scan.status === 'error' && (
-                              <div className="mt-3 text-sm text-red-500">
-                                <p>Error: {scan.error_message || 'An error occurred during scan processing'}</p>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
+            {/* Right column: Resume Analysis */}
+            <div className="md:col-span-2 space-y-6">
+              {/* Resume Analysis Component */}
+              <CompareResumeToJob 
+                job={job}
+                resumes={resumes}
+                onScanComplete={fetchData}
+                user={user}
+              />
+              
+              {/* Previous Scans List */}
+              <JobScansList 
+                scans={scans}
+                resumes={resumes}
+              />
             </div>
           </div>
         </div>
