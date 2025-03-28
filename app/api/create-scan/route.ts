@@ -231,7 +231,7 @@ export async function POST(req: NextRequest) {
       try {
         // Use the database function to create a scan and handle credit usage
         const { data: createScanData, error: createScanError } = await supabase.rpc(
-          'create_scan',
+          'create_job_scan',
           {
             p_user_id: user.id,
             p_job_id: scanRequest.jobId,
@@ -254,7 +254,7 @@ export async function POST(req: NextRequest) {
         
         scanId = createScanData;
       } catch (error: any) {
-        console.error('Error in create_scan RPC:', error);
+        console.error('Error in create_job_scan RPC:', error);
         return NextResponse.json(
           { error: 'Failed to create scan record' },
           { status: 500 }
