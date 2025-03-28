@@ -10,6 +10,7 @@ import ResumeModal from '@/app/components/ResumeModal';
 import CreateResumeModal from '@/app/components/CreateResumeModal';
 import CreateJobModal from '@/app/components/CreateJobModal';
 import JobsList from '@/app/components/JobsList';
+import DefaultResumeWidget from '@/app/components/DefaultResumeWidget';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -49,9 +50,26 @@ export default function DashboardPage() {
         return;
       }
       
-      setUser(user);
+      // Get complete user profile to ensure we have default_resume_id
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      if (userError) {
+        console.error('Error fetching user profile:', userError);
+      } else {
+        // Merge user auth data with profile data for complete user object
+        const completeUser = {
+          ...user,
+          ...userData
+        };
+        setUser(completeUser);
+        setProfileData(completeUser);
+      }
+      
       setDisplayName(user.user_metadata?.full_name || user.email);
-      setProfileData(user);
       
       console.log("querying jobs, user id: ", user.id);
       // Get job listings with their latest scan results
@@ -142,7 +160,24 @@ export default function DashboardPage() {
       return;
     }
     
-    setProfileData(user);
+    // Get complete user profile to ensure we have default_resume_id
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+    
+    if (userError) {
+      console.error('Error fetching user profile:', userError);
+    } else {
+      // Merge user auth data with profile data for complete user object
+      const completeUser = {
+        ...user,
+        ...userData
+      };
+      setUser(completeUser);
+      setProfileData(completeUser);
+    }
     
     // Get job listings with their latest scan results
     const { data: jobsData } = await supabase
@@ -312,62 +347,11 @@ export default function DashboardPage() {
             {/* Right Column: Resume and Job Goal */}
             <div className="space-y-6">
               {/* Default Resume */}
-              <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg font-medium text-gray-900 dark:text-white">Default Resume</h2>
-                  <Link href="/dashboard/resumes" className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400">
-                    Manage Resumes
-                  </Link>
-                </div>
-
-                {defaultResume ? (
-                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                    <div className="flex items-start space-x-4">
-                      <div className="flex-shrink-0">
-                        <svg className="h-10 w-10 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                          {defaultResume.filename}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Uploaded {defaultResume.created_at ? new Date(defaultResume.created_at).toLocaleDateString() : 'Unknown date'}
-                        </p>
-                      </div>
-                      <div>
-                        <button
-                          onClick={() => openResumeModal(defaultResume)}
-                          className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
-                        >
-                          View
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-6">
-                    <svg className="mx-auto h-10 w-10 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                      Upload a resume to enhance your job matching.
-                    </p>
-                    <div className="mt-4">
-                      <button
-                        onClick={openCreateResumeModal}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-blue-600 hover:bg-blue-700"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="-ml-0.5 mr-1.5 h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                        </svg>
-                        Upload Resume
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <DefaultResumeWidget
+                user={user}
+                onViewResume={openResumeModal}
+                onCreateResume={openCreateResumeModal}
+              />
 
               {/* Job Search Goal */}
               <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
