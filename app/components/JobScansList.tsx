@@ -20,6 +20,17 @@ export default function JobScansList({ scans, resumes }: JobScansListProps) {
     }));
   };
   
+  // Helper function to safely render content
+  const safeRender = (content: any): string => {
+    if (content === null || content === undefined) return '—';
+    if (typeof content === 'string') return content;
+    if (typeof content === 'number') return content.toString();
+    if (typeof content === 'boolean') return content ? 'Yes' : 'No';
+    if (Array.isArray(content)) return content.join(', ');
+    if (typeof content === 'object') return JSON.stringify(content);
+    return '—';
+  };
+  
   // Render empty state if no scans
   if (scans.length === 0) {
     return (
@@ -148,19 +159,19 @@ export default function JobScansList({ scans, resumes }: JobScansListProps) {
                         <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
                           <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Skills</p>
                           <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
-                            {scan.results?.skills_match || (scan.results?.hardSkills ? Math.round(scan.results.hardSkills * 100) : '—')}%
+                            {scan.results?.skills_match ? `${scan.results.skills_match}%` : (scan.results?.hardSkills ? `${Math.round(scan.results.hardSkills * 100)}%` : '—')}
                           </p>
                         </div>
                         <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
                           <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Experience</p>
                           <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
-                            {scan.results?.experience_match || (scan.results?.experienceMatch ? Math.round(scan.results.experienceMatch * 100) : '—')}%
+                            {scan.results?.experience_match ? `${scan.results.experience_match}%` : (scan.results?.experienceMatch ? `${Math.round(scan.results.experienceMatch * 100)}%` : '—')}
                           </p>
                         </div>
                         <div className="text-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
                           <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Education</p>
                           <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
-                            {scan.results?.education_match || (scan.results?.qualifications ? Math.round(scan.results.qualifications * 100) : '—')}%
+                            {scan.results?.education_match ? `${scan.results.education_match}%` : (scan.results?.qualifications ? `${Math.round(scan.results.qualifications * 100)}%` : '—')}
                           </p>
                         </div>
                       </>
@@ -171,10 +182,12 @@ export default function JobScansList({ scans, resumes }: JobScansListProps) {
                   <div className="mt-3 text-sm">
                     <p className="font-medium text-gray-700 dark:text-gray-300">Recommendation:</p>
                     <p className="mt-1 text-gray-600 dark:text-gray-400">
-                      {scan.results?.overall_recommendation || 
-                       scan.results?.overallMatch || 
-                       scan.overall_match || 
-                       'Analysis completed successfully. Check the match scores above.'}
+                      {safeRender(
+                        scan.results?.overall_recommendation || 
+                        scan.results?.overallMatch || 
+                        scan.overall_match || 
+                        'Analysis completed successfully. Check the match scores above.'
+                      )}
                     </p>
                   </div>
                   
@@ -183,20 +196,24 @@ export default function JobScansList({ scans, resumes }: JobScansListProps) {
                     <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
                       <p className="font-medium text-gray-700 dark:text-gray-300 mb-2">Detailed Feedback:</p>
                       <div className="space-y-3">
-                        {Object.entries(scan.category_feedback).map(([category, feedback]) => (
-                          feedback.length > 0 && (
+                        {Object.entries(scan.category_feedback).map(([category, feedback]) => {
+                          if (!Array.isArray(feedback)) {
+                            return null;
+                          }
+                          
+                          return feedback.length > 0 && (
                             <div key={category} className="text-sm">
                               <p className="text-gray-600 dark:text-gray-400 font-medium">
                                 {category.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
                               </p>
                               <ul className="list-disc pl-5 mt-1 space-y-1 text-gray-600 dark:text-gray-400">
                                 {feedback.map((item, idx) => (
-                                  <li key={idx}>{item}</li>
+                                  <li key={idx}>{safeRender(item)}</li>
                                 ))}
                               </ul>
                             </div>
-                          )
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}

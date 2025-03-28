@@ -6,7 +6,6 @@ import { supabase } from '@/supabase/client';
 import { Navbar } from '@/app/components/Navbar';
 import { Job, JobScan, Resume } from '@/types';
 import { useRouter } from 'next/navigation';
-import CreateResumeModal from '@/app/components/CreateResumeModal';
 import CompareResumeToJob from '@/app/components/CompareResumeToJob';
 import JobScansList from '@/app/components/JobScansList';
 
@@ -23,7 +22,6 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   const [scans, setScans] = useState<JobScan[]>([]);
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [user, setUser] = useState<any>(null);
-  const [createResumeModalOpen, setCreateResumeModalOpen] = useState<boolean>(false);
 
   // Fetch user data
   useEffect(() => {
@@ -131,16 +129,6 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
     } catch (error) {
       console.error('Error in fetchData:', error);
     }
-  };
-
-  // Create resume modal functions
-  const closeCreateResumeModal = () => {
-    setCreateResumeModalOpen(false);
-  };
-  
-  const handleResumeCreated = async (resumeId: string) => {
-    // Refresh data
-    fetchData();
   };
 
   if (!job) {
@@ -274,13 +262,6 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
           </div>
         </div>
       </main>
-      
-      {/* Add CreateResumeModal */}
-      <CreateResumeModal
-        isOpen={createResumeModalOpen}
-        onClose={closeCreateResumeModal}
-        onSuccess={handleResumeCreated}
-      />
     </div>
   );
 } 
