@@ -43,7 +43,7 @@ export default function ResumeModal({ resume, isOpen, onClose }: ResumeModalProp
           className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity duration-300 ease-out"
           onClick={onClose}
           aria-hidden="true"
-          style={{ opacity: isOpen ? 1 : 0 }}
+          style={{ opacity: isOpen ? 0.5 : 0 }}
         ></div>
 
         {/* Modal panel */}
