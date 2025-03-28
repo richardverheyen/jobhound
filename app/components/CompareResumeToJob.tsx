@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Resume, Job } from '@/types';
 import { supabase } from '@/supabase/client';
 import CreateResumeModal from './CreateResumeModal';
+import { createScan } from '@/app/lib/scanService';
 
 interface CompareResumeToJobProps {
   job: Job;
@@ -21,6 +22,7 @@ export default function CompareResumeToJob({
   const [selectedResumeId, setSelectedResumeId] = useState<string>('');
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [createResumeModalOpen, setCreateResumeModalOpen] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   
   // Effect to watch for "upload_new" selection and open modal immediately
   useEffect(() => {
@@ -34,29 +36,28 @@ export default function CompareResumeToJob({
     if (!selectedResumeId || selectedResumeId === 'upload_new') return;
     
     setIsScanning(true);
+    setError(null);
     
     try {
       // Get the resume filename for display purposes
       const resume = resumes.find(r => r.id === selectedResumeId);
       
-      // Create a new scan record
-      const { data: scanData, error: scanError } = await supabase.rpc('create_job_scan', {
-        p_user_id: user.id,
-        p_job_id: job?.id,
-        p_resume_id: selectedResumeId,
-        p_resume_filename: resume?.filename || 'Unknown',
-        p_job_posting: job?.description || ''
+      // Create a new scan record using the scanService
+      const result = await createScan({
+        jobId: job?.id,
+        resumeId: selectedResumeId,
+        resumeFilename: resume?.filename || 'Unknown'
       });
       
-      if (scanError) {
-        console.error('Error creating scan:', scanError);
-        alert('Failed to create scan. Please try again.');
-      } else {
-        // Call the onScanComplete callback to refresh data
-        onScanComplete();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create scan. Please try again.');
       }
-    } catch (error) {
+      
+      // Call the onScanComplete callback to refresh data
+      onScanComplete();
+    } catch (error: any) {
       console.error('Error in handleScan:', error);
+      setError(error.message || 'Failed to create scan. Please try again.');
     } finally {
       setIsScanning(false);
     }
@@ -130,6 +131,12 @@ export default function CompareResumeToJob({
             </button>
           </div>
         </div>
+        
+        {error && (
+          <div className="mt-4 text-sm text-red-600 dark:text-red-400">
+            {error}
+          </div>
+        )}
       </div>
       
       {/* Resume Upload Modal */}
