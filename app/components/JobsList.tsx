@@ -59,7 +59,7 @@ export default function JobsList({
     { id: 'company', label: 'Company', visible: true },
     { id: 'location', label: 'Location', visible: false },
     { id: 'jobType', label: 'Job Type', visible: false },
-    { id: 'salary', label: 'Salary', visible: true },
+    { id: 'salary', label: 'Renumeration', visible: true },
     { id: 'added', label: 'Added', visible: false },
     { id: 'matchScores', label: 'Match Scores', visible: true },
   ]);
