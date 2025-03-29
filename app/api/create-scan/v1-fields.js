@@ -1,4 +1,4 @@
-export const fields = [
+const fields = [
     {
         id: "physicalAddressPresent",
         
@@ -468,3 +468,4 @@ export const fields = [
         }
     }
 ]
+export { fields }
