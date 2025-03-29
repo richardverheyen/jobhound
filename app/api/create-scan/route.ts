@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       
       supabase
         .from('resumes')
-        .select('id, filename, file_url, file_path, storage_path')
+        .select('id, filename, file_url, file_path')
         .eq('id', scanRequest.resumeId)
         .eq('user_id', user.id)
         .single()
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
     const resumeData = resumeResult.data;
 
     // Download resume file from storage
-    if (!resumeData.storage_path) {
+    if (!resumeData.file_path) {
       return NextResponse.json(
         { error: 'Resume file not found in storage' },
         { status: 400 }
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
     const { data: resumeFile, error: resumeFileError } = await supabase
       .storage
       .from('resumes')
-      .download(resumeData.storage_path);
+      .download(resumeData.file_path);
 
     if (resumeFileError || !resumeFile) {
       console.error('Error downloading resume file:', resumeFileError);
