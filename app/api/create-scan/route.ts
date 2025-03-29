@@ -190,7 +190,7 @@ export async function POST(req: NextRequest) {
         
       // Initialize the Google GenAI client
       const genAI = new GoogleGenerativeAI(googleApiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
       
       // Convert the resume file to base64 for the Google API
       const arrayBuffer = await resumeFile.arrayBuffer();
@@ -261,7 +261,7 @@ Key mapping:
           temperature: 0.3,
           topP: 0.8,
           topK: 40,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 50000,
           responseMimeType: "application/json",
         },
       });
