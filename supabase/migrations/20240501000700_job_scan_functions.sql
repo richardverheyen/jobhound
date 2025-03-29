@@ -1,10 +1,3 @@
--- Create a trigger that automatically updates the structured columns
-DROP TRIGGER IF EXISTS scan_results_trigger ON job_scans;
-CREATE TRIGGER scan_results_trigger
-BEFORE INSERT OR UPDATE ON job_scans
-FOR EACH ROW
-EXECUTE FUNCTION update_scan_results();
-
 -- Create function to create a job scan and use a credit
 CREATE OR REPLACE FUNCTION create_job_scan(
   p_user_id UUID,

@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS job_scans (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   status TEXT NOT NULL DEFAULT 'pending',
   error_message TEXT,
-  results JSONB,
+  results JSONB
 );
 
 -- Create indexes for job_scans
