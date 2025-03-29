@@ -190,7 +190,7 @@ export async function POST(req: NextRequest) {
         
       // Initialize the Google GenAI client
       const genAI = new GoogleGenerativeAI(googleApiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
       
       // Convert the resume file to base64 for the Google API
       const arrayBuffer = await resumeFile.arrayBuffer();

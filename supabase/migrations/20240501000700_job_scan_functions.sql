@@ -54,14 +54,12 @@ BEGIN
     purchase_id,
     user_id,
     scan_id,
-    request_payload,
     created_at
   )
   VALUES (
     v_purchase_id,
     p_user_id,
     v_scan_id,
-    p_request_payload,
     NOW()
   );
   

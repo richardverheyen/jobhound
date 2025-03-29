@@ -19,8 +19,6 @@ CREATE TABLE IF NOT EXISTS credit_usage (
   purchase_id UUID REFERENCES credit_purchases(id) NOT NULL,
   user_id UUID REFERENCES users(id) NOT NULL,
   scan_id UUID,
-  request_payload JSONB,
-  response_payload JSONB,
   http_status INTEGER,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -56,8 +54,6 @@ $$ LANGUAGE sql SECURITY DEFINER;
 -- Function to use a credit (general purpose)
 CREATE OR REPLACE FUNCTION use_credit(
   p_user_id UUID,
-  p_request_payload JSONB DEFAULT NULL,
-  p_response_payload JSONB DEFAULT NULL,
   p_http_status INTEGER DEFAULT NULL
 )
 RETURNS JSONB AS $$
@@ -89,16 +85,12 @@ BEGIN
   INSERT INTO credit_usage (
     purchase_id,
     user_id,
-    request_payload,
-    response_payload,
     http_status,
     created_at
   )
   VALUES (
     v_purchase_id,
     p_user_id,
-    p_request_payload,
-    p_response_payload,
     p_http_status,
     NOW()
   )
