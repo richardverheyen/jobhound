@@ -11,16 +11,7 @@ CREATE TABLE IF NOT EXISTS job_scans (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   status TEXT NOT NULL DEFAULT 'pending',
   error_message TEXT,
-  match_score FLOAT,
   results JSONB,
-  overall_match TEXT,
-  hard_skills TEXT,
-  soft_skills TEXT,
-  experience_match TEXT,
-  qualifications TEXT,
-  missing_keywords TEXT,
-  category_scores JSONB,
-  category_feedback JSONB
 );
 
 -- Create indexes for job_scans

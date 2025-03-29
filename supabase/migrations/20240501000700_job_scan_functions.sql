@@ -1,27 +1,3 @@
--- Job Scan Results Structure
--- This migration enhances the job_scans table with structured results and analysis capabilities
-
--- Create a function to handle scan analysis results
-CREATE OR REPLACE FUNCTION update_scan_results() 
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Extract data from the results JSONB into dedicated columns for better querying
-  IF NEW.results IS NOT NULL THEN
-    NEW.overall_match := NEW.results->>'overallMatch';
-    NEW.hard_skills := NEW.results->>'hardSkills';
-    NEW.soft_skills := NEW.results->>'softSkills';
-    NEW.experience_match := NEW.results->>'experienceMatch';
-    NEW.qualifications := NEW.results->>'qualifications';
-    NEW.missing_keywords := NEW.results->>'missingKeywords';
-    NEW.match_score := (NEW.results->>'matchScore')::float;
-    NEW.category_scores := NEW.results->'categoryScores';
-    NEW.category_feedback := NEW.results->'categoryFeedback';
-  END IF;
-  
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
 -- Create a trigger that automatically updates the structured columns
 DROP TRIGGER IF EXISTS scan_results_trigger ON job_scans;
 CREATE TRIGGER scan_results_trigger
@@ -33,8 +9,7 @@ EXECUTE FUNCTION update_scan_results();
 CREATE OR REPLACE FUNCTION create_job_scan(
   p_user_id UUID,
   p_job_id UUID,
-  p_resume_id UUID,
-  p_request_payload JSONB DEFAULT NULL
+  p_resume_id UUID
 )
 RETURNS UUID AS $$
 DECLARE
