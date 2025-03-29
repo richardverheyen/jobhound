@@ -26,6 +26,20 @@ export type FieldResponse = OneToOneFieldResponse | SkillFieldResponse;
 // The overall response type is an array of field responses
 export type ResumeAnalysisResponse = FieldResponse[];
 
+// Interface for field definitions used in v1-fields.ts
+export interface FieldDefinition {
+  id: string;
+  fieldContext: {
+    category: string;
+    section: string;
+    type: "one-to-one" | "one-to-many";
+    label: string;
+    prompt: string;
+    weightInCategory: number;
+  };
+  fieldResponse: any; // The shape varies based on the field type
+}
+
 // Helper to calculate a match score from the analysis results
 export function calculateMatchScore(response: ResumeAnalysisResponse): number {
   if (!response || response.length === 0) return 0;

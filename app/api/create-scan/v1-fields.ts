@@ -1,4 +1,6 @@
-const fields = [
+import { FieldDefinition } from './types';
+
+const fields: FieldDefinition[] = [
     {
         id: "physicalAddressPresent",
         
@@ -14,9 +16,9 @@ const fields = [
         fieldResponse: {
             id: "physicalAddressPresent",
             parentFieldId: "physicalAddressPresent",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -34,9 +36,9 @@ const fields = [
         fieldResponse: {
             id: "emailPresent",
             parentFieldId: "emailPresent",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -54,9 +56,9 @@ const fields = [
         fieldResponse: {
             id: "phonePresent",
             parentFieldId: "phonePresent",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -74,9 +76,9 @@ const fields = [
         fieldResponse: {
             id: "summaryPresent",
             parentFieldId: "summaryPresent",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -94,9 +96,9 @@ const fields = [
         fieldResponse: {
             id: "educationSectionPresent",
             parentFieldId: "educationSectionPresent",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -114,9 +116,9 @@ const fields = [
         fieldResponse: {
             id: "workExperienceSectionPresent",
             parentFieldId: "workExperienceSectionPresent",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -134,9 +136,9 @@ const fields = [
         fieldResponse: {
             id: "jobTitleIncluded",
             parentFieldId: "jobTitleIncluded",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -154,9 +156,9 @@ const fields = [
         fieldResponse: {
             id: "correctDateFormat",
             parentFieldId: "correctDateFormat",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -174,9 +176,9 @@ const fields = [
         fieldResponse: {
             id: "meetsEducationRequirements",
             parentFieldId: "meetsEducationRequirements",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -194,9 +196,9 @@ const fields = [
         fieldResponse: {
             id: "isPdfFormat",
             parentFieldId: "isPdfFormat",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -214,9 +216,9 @@ const fields = [
         fieldResponse: {
             id: "noSpecialCharactersInFilename",
             parentFieldId: "noSpecialCharactersInFilename",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -234,9 +236,9 @@ const fields = [
         fieldResponse: {
             id: "conciseFilename",
             parentFieldId: "conciseFilename",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -254,9 +256,9 @@ const fields = [
         fieldResponse: {
             id: "appropriateLength",
             parentFieldId: "appropriateLength",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -274,9 +276,9 @@ const fields = [
         fieldResponse: {
             id: "consistentFormatting",
             parentFieldId: "consistentFormatting",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -294,9 +296,9 @@ const fields = [
         fieldResponse: {
             id: "readableFonts",
             parentFieldId: "readableFonts",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -314,9 +316,9 @@ const fields = [
         fieldResponse: {
             id: "properMargins",
             parentFieldId: "properMargins",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -334,9 +336,9 @@ const fields = [
         fieldResponse: {
             id: "achievementFocused",
             parentFieldId: "achievementFocused",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -354,9 +356,9 @@ const fields = [
         fieldResponse: {
             id: "actionVerbs",
             parentFieldId: "actionVerbs",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -374,9 +376,9 @@ const fields = [
         fieldResponse: {
             id: "spellingGrammar",
             parentFieldId: "spellingGrammar",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -394,9 +396,9 @@ const fields = [
         fieldResponse: {
             id: "keywordsAligned",
             parentFieldId: "keywordsAligned",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -414,9 +416,9 @@ const fields = [
         fieldResponse: {
             id: "relevantExperienceHighlighted",
             parentFieldId: "relevantExperienceHighlighted",
-            value: boolean,
-            confidence: number,
-            explanation: string,
+            value: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -435,12 +437,12 @@ const fields = [
             id: "${skillNameSlug}", // Generate a unique ID for each skill
             parentFieldId: "hardSkills", // Include this field's ID as the parentFieldId
             label: "${skillName}",
-            synonyms: string[],
-            exactMatchInResume: boolean,
-            synonymMatchInResume: boolean,
-            relatedTermMatchInResume: boolean,
-            confidence: number,
-            explanation: string,
+            synonyms: [],
+            exactMatchInResume: false,
+            synonymMatchInResume: false,
+            relatedTermMatchInResume: false,
+            confidence: 0,
+            explanation: "",
         }
     },
     {
@@ -459,13 +461,14 @@ const fields = [
             id: "${skillNameSlug}", // Generate a unique ID for each skill
             parentFieldId: "softSkills", // Include this field's ID as the parentFieldId
             label: "${skillName}",
-            synonyms: string[],
-            exactMatchInResume: boolean,
-            synonymMatchInResume: boolean,
-            relatedTermMatchInResume: boolean,
-            confidence: number,
-            explanation: string,
+            synonyms: [],
+            exactMatchInResume: false,
+            synonymMatchInResume: false,
+            relatedTermMatchInResume: false,
+            confidence: 0,
+            explanation: "",
         }
     }
-]
-export { fields }
+];
+
+export { fields }; 
