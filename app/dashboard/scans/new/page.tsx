@@ -313,12 +313,8 @@ export default function NewScanPage() {
     
     // Call the Edge Function through our hook
     const result = await handleCreateScan(
-      user?.id,
       selectedJob.id,
       selectedResume.id,
-      resumeFile || undefined, // Convert null to undefined to match the expected type
-      selectedResume.filename,
-      undefined  // We don't have a scanId in this flow, but adding the parameter for API compatibility
     );
     
     if (!result?.success) {

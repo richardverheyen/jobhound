@@ -8,12 +8,8 @@ export function useCreateScan() {
   const [error, setError] = useState<string | null>(null);
 
   const handleCreateScan = async (
-    userId: string,
     jobId: string,
-    resumeId: string,
-    resumeFile?: File,
-    resumeFilename?: string,
-    scanId?: string
+    resumeId: string
   ) => {
     if (!jobId || !resumeId) {
       setError("Please select both a job and a resume before creating a scan.");
@@ -27,10 +23,7 @@ export function useCreateScan() {
       // Call the scan service
       const result = await createScan({
         jobId,
-        resumeId,
-        resumeFile,
-        resumeFilename,
-        scanId
+        resumeId
       });
 
       if (!result.success) {

@@ -1,98 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@supabase/supabase-js';
-
-// Define our ATS analysis response interface
-interface ATSResponse {
-  overallMatch: string;
-  hardSkills: string;
-  softSkills: string;
-  experienceMatch: string;
-  qualifications: string;
-  missingKeywords: string;
-  matchScore: number;
-  categoryScores: {
-    searchability: number;
-    hardSkills: number;
-    softSkills: number;
-    recruiterTips: number;
-    formatting: number;
-  };
-  categoryFeedback: {
-    searchability: Array<{
-      issue: string;
-      status: "pass" | "fail" | "warning";
-      tip?: string;
-    }>;
-    contactInfo: Array<{
-      issue: string;
-      status: "pass" | "fail" | "warning";
-      tip?: string;
-    }>;
-    summary: Array<{
-      issue: string;
-      status: "pass" | "fail" | "warning";
-      tip?: string;
-    }>;
-    sectionHeadings: Array<{
-      issue: string;
-      status: "pass" | "fail" | "warning";
-      tip?: string;
-    }>;
-    jobTitleMatch: Array<{
-      issue: string;
-      status: "pass" | "fail" | "warning";
-      tip?: string;
-    }>;
-    dateFormatting: Array<{
-      issue: string;
-      status: "pass" | "fail" | "warning";
-      tip?: string;
-    }>;
-  };
-}
+import { fields } from './v1-fields';
+import { ResumeAnalysisResponse, calculateMatchScore } from './types';
 
 // Define structure for request
 interface ScanRequest {
   jobId: string;
   resumeId: string;
-  resumeUrl?: string;
-  resumeFilename?: string;
-  scanId?: string;
 }
 
 export async function POST(req: NextRequest) {
+  // Initialize environment variables once
+  const googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  
+  // Early validation of essential environment variables
+  if (!googleApiKey) {
+    console.error('Missing GOOGLE_GENERATIVE_AI_API_KEY environment variable');
+    return NextResponse.json(
+      { error: 'Server configuration error: Missing AI API key' },
+      { status: 500 }
+    );
+  }
+
   try {
-    // Get API key from environment variable
-    const googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-    if (!googleApiKey) {
-      console.error('Missing GOOGLE_GENERATIVE_AI_API_KEY environment variable');
-      return NextResponse.json(
-        { error: 'Server configuration error: Missing AI API key' },
-        { status: 500 }
-      );
-    }
-
-    // Initialize Supabase client with service role key for admin operations
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-    const adminClient = createClient(supabaseUrl, supabaseServiceRole);
-
-    // Get the JWT from the request headers
+    // Authentication setup
     const authHeader = req.headers.get('Authorization') || '';
     const token = authHeader.replace('Bearer ', '');
-
-    // Create a client authorized with the user's JWT
-    const supabase = createClient(
-      supabaseUrl,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-      {
-        global: {
-          headers: { Authorization: authHeader },
-        },
-      }
-    );
-
+    
+    // Create user-based client with auth header
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    
     // Verify authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) {
@@ -102,142 +45,95 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Parse request - handle both FormData and JSON
+    // Parse request - simplified approach for JSON only
     let scanRequest: ScanRequest;
-    let resumeFile: ArrayBuffer | null = null;
     let scanId: string | null = null;
     
-    const contentType = req.headers.get('content-type') || '';
-    
-    if (contentType.includes('multipart/form-data')) {
-      const formData = await req.formData();
-      const jobId = formData.get('jobId') as string;
-      const resumeId = formData.get('resumeId') as string;
-      scanId = formData.get('scanId') as string;
-      const resumeFileData = formData.get('resume') as File;
-      const resumeFilename = resumeFileData?.name;
-
-      if (!jobId || !resumeId || !resumeFileData) {
-        return NextResponse.json(
-          { error: 'Missing required form fields' }, 
-          { status: 400 }
-        );
-      }
-
-      scanRequest = {
-        jobId,
-        resumeId,
-        resumeFilename,
-        scanId
-      };
-      
-      resumeFile = await resumeFileData.arrayBuffer();
-    } else {
-      try {
-        scanRequest = await req.json();
-      } catch (error) {
-        return NextResponse.json(
-          { error: 'Invalid JSON payload' },
-          { status: 400 }
-        );
-      }
-
-      if (!scanRequest.jobId || !scanRequest.resumeId) {
-        return NextResponse.json(
-          { error: 'Missing required fields: jobId and resumeId are required' },
-          { status: 400 }
-        );
-      }
-      
-      scanId = scanRequest.scanId || null;
+    try {
+      scanRequest = await req.json();
+    } catch (error) {
+      return NextResponse.json(
+        { error: 'Invalid JSON payload' },
+        { status: 400 }
+      );
     }
 
-    // Get job details
-    const { data: jobData, error: jobError } = await supabase
-      .from('jobs')
-      .select('id, title, company, description')
-      .eq('id', scanRequest.jobId)
-      .eq('user_id', user.id)
-      .single();
+    if (!scanRequest.jobId || !scanRequest.resumeId) {
+      return NextResponse.json(
+        { error: 'Missing required fields: jobId and resumeId are required' },
+        { status: 400 }
+      );
+    }
 
-    if (jobError || !jobData) {
-      console.error('Error fetching job:', jobError);
+    // Fetch job and resume data in parallel
+    const [jobResult, resumeResult] = await Promise.all([
+      supabase
+        .from('jobs')
+        .select('id, title, company, description')
+        .eq('id', scanRequest.jobId)
+        .eq('user_id', user.id)
+        .single(),
+      
+      supabase
+        .from('resumes')
+        .select('id, filename, file_url, file_path, storage_path')
+        .eq('id', scanRequest.resumeId)
+        .eq('user_id', user.id)
+        .single()
+    ]);
+
+    // Handle job data errors
+    if (jobResult.error || !jobResult.data) {
+      console.error('Error fetching job:', jobResult.error);
       return NextResponse.json(
         { error: 'Job not found or access denied' },
         { status: 404 }
       );
     }
 
-    // Get resume details
-    const { data: resumeData, error: resumeError } = await supabase
-      .from('resumes')
-      .select('id, filename, file_url, file_path')
-      .eq('id', scanRequest.resumeId)
-      .eq('user_id', user.id)
-      .single();
-
-    if (resumeError || !resumeData) {
-      console.error('Error fetching resume:', resumeError);
+    // Handle resume data errors
+    if (resumeResult.error || !resumeResult.data) {
+      console.error('Error fetching resume:', resumeResult.error);
       return NextResponse.json(
         { error: 'Resume not found or access denied' },
         { status: 404 }
       );
     }
 
-    // If resumeFile is not already provided, fetch it from storage
-    if (!resumeFile && resumeData.file_path) {
-      const { data: fileData, error: fileError } = await supabase.storage
-        .from('resumes')
-        .download(resumeData.file_path);
-      
-      if (fileError || !fileData) {
-        console.error('Error downloading resume file:', fileError);
-        return NextResponse.json(
-          { error: 'Failed to download resume file' },
-          { status: 500 }
-        );
-      }
-      
-      resumeFile = await fileData.arrayBuffer();
-    } else if (!resumeFile && scanRequest.resumeUrl) {
-      // If we have a URL but not a file, fetch the file from the URL
-      try {
-        const pdfResponse = await fetch(scanRequest.resumeUrl);
-        if (!pdfResponse.ok) {
-          throw new Error(`Failed to fetch PDF: ${pdfResponse.statusText}`);
-        }
-        resumeFile = await pdfResponse.arrayBuffer();
-      } catch (error) {
-        console.error('Error fetching resume from URL:', error);
-        return NextResponse.json(
-          { error: 'Failed to fetch resume file from URL' },
-          { status: 500 }
-        );
-      }
-    }
+    const jobData = jobResult.data;
+    const resumeData = resumeResult.data;
 
-    if (!resumeFile) {
+    // Download resume file from storage
+    if (!resumeData.storage_path) {
       return NextResponse.json(
-        { error: 'Resume file is required for analysis' },
+        { error: 'Resume file not found in storage' },
         { status: 400 }
       );
     }
 
-    // Generate timestamp for all operations
-    const timestamp = new Date().toISOString();
-    
-    // Create a scan record first if we don't have a scan ID
+    const { data: resumeFile, error: resumeFileError } = await supabase
+      .storage
+      .from('resumes')
+      .download(resumeData.storage_path);
+
+    if (resumeFileError || !resumeFile) {
+      console.error('Error downloading resume file:', resumeFileError);
+      return NextResponse.json(
+        { error: 'Failed to download resume file' },
+        { status: 500 }
+      );
+    }
+
+    // Create or update scan record
     if (!scanId) {
+      // Create a new scan record
       try {
-        // Use the database function to create a scan and handle credit usage
         const { data: createScanData, error: createScanError } = await supabase.rpc(
           'create_job_scan',
           {
             p_user_id: user.id,
             p_job_id: scanRequest.jobId,
-            p_resume_id: scanRequest.resumeId,
-            p_resume_filename: resumeData.filename,
-            p_job_posting: jobData.description
+            p_resume_id: scanRequest.resumeId
           }
         );
         
@@ -261,12 +157,10 @@ export async function POST(req: NextRequest) {
         );
       }
     } else {
-      // If scanId was provided, make sure it exists and update its status
+      // Update existing scan
       const { error: updateError } = await supabase
         .from('job_scans')
-        .update({
-          status: 'processing'
-        })
+        .update({ status: 'pending' })
         .eq('id', scanId)
         .eq('user_id', user.id);
       
@@ -286,82 +180,66 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Process with AI
     try {
+      // Update scan status to 'processing'
+      await supabase
+        .from('job_scans')
+        .update({ status: 'processing' })
+        .eq('id', scanId);
+        
       // Initialize the Google GenAI client
       const genAI = new GoogleGenerativeAI(googleApiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
       
       // Convert the resume file to base64 for the Google API
-      const base64Data = Buffer.from(resumeFile).toString('base64');
+      const arrayBuffer = await resumeFile.arrayBuffer();
+      const base64Data = Buffer.from(arrayBuffer).toString('base64');
+      
+      // Get the system prompt from v1-prompt.md
+      const systemPrompt = `
+# System Instructions for Resume Analysis
+
+You are an expert resume analyzer. Process each field in the \`fieldDefinitions\` array according to its prompt and context.
+
+## Processing Instructions:
+
+1. Iterate through each field in the \`fieldDefinitions\` array.
+
+2. For each field, carefully analyze the resume according to the prompt in the field's \`fieldContext.prompt\`.
+
+3. Generate responses based on the field's \`type\`:
+
+   - For fields with \`type: "one-to-one"\`: 
+     Create a SINGLE response object matching the structure in \`fieldResponse\`.
+   
+   - For fields with \`type: "one-to-many"\`: 
+     Create MULTIPLE response objects in an array, with each object following the structure in \`fieldResponse\`.
+     Generate as many objects as are justified by the content found in the resume.
+     Each object should represent a distinct item (like a specific skill) identified from the prompt.
+
+4. Replace any template variables in the response (e.g., \`\${skillNameSlug}\`, \`\${skillName}\`) with appropriate values.
+
+## Key Abbreviation Dictionary:
+For token efficiency, use these abbreviated keys in your response:
+
+\`\`\`
+Key mapping:
+- id: id (unchanged)
+- p: parentFieldId
+- l: label
+- v: value
+- syn: synonyms
+- em: exactMatchInResume
+- sm: synonymMatchInResume
+- rm: relatedTermMatchInResume
+- c: confidence
+- e: explanation
+\`\`\`
+`;
       
       // Create the prompt for the AI
-      const systemPrompt = `You are an ATS analyzer focused on providing concise, actionable feedback. Compare the resume to the job posting and provide scores and brief insights for key areas. Keep all analysis short and mobile-friendly - each section should be 1-2 sentences maximum. Focus on the most important matches and gaps.
-
-Key points to analyze:
-- Overall match and key takeaways
-- Essential hard skills (technical skills, tools)
-- Critical soft skills
-- Experience level match
-- Must-have qualifications
-- Key missing keywords
-
-Additionally, provide detailed category scores and feedback for:
-
-1. Searchability (0-100 score):
-   - Check if resume has proper keywords from job description
-   - Verify if resume format is ATS-friendly
-   - Check if contact information is complete
-
-2. Contact Information (pass/fail checks):
-   - Verify presence of email address
-   - Verify presence of phone number
-   - Check for physical address
-
-3. Summary Section (pass/fail checks):
-   - Check if resume has a summary/objective section
-   - Evaluate if summary aligns with job requirements
-
-4. Section Headings (pass/fail checks):
-   - Verify if experience section has proper heading ("Work History" or "Professional Experience")
-   - Check if education section is properly labeled
-
-5. Job Title Match (pass/fail checks):
-   - Check if resume contains job titles similar to the one in job description
-   - Suggest title modifications if needed
-
-6. Date Formatting (pass/fail checks):
-   - Verify if work experience dates are properly formatted
-   - Check for any gaps in employment
-
-For each category, provide specific issues with a status of 'pass', 'fail', or 'warning' and optional tips for improvement.
-
-You MUST return a JSON object exactly in this format:
-{
-  "overallMatch": "string",
-  "hardSkills": "string",
-  "softSkills": "string",
-  "experienceMatch": "string",
-  "qualifications": "string",
-  "missingKeywords": "string",
-  "matchScore": number between 0-100,
-  "categoryScores": {
-    "searchability": number between 0-100,
-    "hardSkills": number between 0-100,
-    "softSkills": number between 0-100,
-    "recruiterTips": number between 0-100,
-    "formatting": number between 0-100
-  },
-  "categoryFeedback": {
-    "searchability": [{"issue": "string", "status": "pass|fail|warning", "tip": "string"}],
-    "contactInfo": [{"issue": "string", "status": "pass|fail|warning", "tip": "string"}],
-    "summary": [{"issue": "string", "status": "pass|fail|warning", "tip": "string"}],
-    "sectionHeadings": [{"issue": "string", "status": "pass|fail|warning", "tip": "string"}],
-    "jobTitleMatch": [{"issue": "string", "status": "pass|fail|warning", "tip": "string"}],
-    "dateFormatting": [{"issue": "string", "status": "pass|fail|warning", "tip": "string"}]
-  }
-}`;
-      
-      const userPrompt = `Analyze this resume against the following job posting:\n${jobData.description}`;
+      const userPrompt = `Analyze this resume against the following job posting:\n${jobData.description}\n\nUse these field definitions for your analysis:\n${JSON.stringify(fields, null, 2)}`;
       
       // Call the Google AI
       const result = await model.generateContent({
@@ -369,9 +247,7 @@ You MUST return a JSON object exactly in this format:
           { 
             role: "user", 
             parts: [
-              { 
-                text: `${systemPrompt}\n\n${userPrompt}` 
-              },
+              { text: `${systemPrompt}\n\n${userPrompt}` },
               { 
                 inlineData: {
                   mimeType: "application/pdf",
@@ -392,7 +268,7 @@ You MUST return a JSON object exactly in this format:
 
       // Parse the response
       const responseText = result.response.text();
-      let analysisResult: ATSResponse;
+      let analysisResult: ResumeAnalysisResponse;
       
       try {
         // Extract JSON from the response if needed
@@ -403,20 +279,6 @@ You MUST return a JSON object exactly in this format:
         const cleanJson = jsonMatches[1] || responseText;
         analysisResult = JSON.parse(cleanJson);
         
-        // Validate the response has all required fields
-        if (
-          !analysisResult.overallMatch ||
-          !analysisResult.hardSkills ||
-          !analysisResult.softSkills ||
-          !analysisResult.experienceMatch ||
-          !analysisResult.qualifications ||
-          !analysisResult.missingKeywords ||
-          !analysisResult.matchScore ||
-          !analysisResult.categoryScores ||
-          !analysisResult.categoryFeedback
-        ) {
-          throw new Error('Invalid AI response format');
-        }
       } catch (error) {
         console.error('Error parsing AI response:', error, 'Response:', responseText);
         
@@ -435,32 +297,36 @@ You MUST return a JSON object exactly in this format:
         );
       }
 
-      // Update the scan record with the analysis results
-      const { error: updateError } = await supabase
-        .from('job_scans')
-        .update({
-          status: 'completed',
-          results: analysisResult,
-          match_score: analysisResult.matchScore
-        })
-        .eq('id', scanId);
+      // Update database with scan results and credit usage in parallel
+      const [scanUpdateResult, creditUsageData] = await Promise.all([
+        // Update the scan record with the analysis results
+        supabase
+          .from('job_scans')
+          .update({
+            status: 'completed',
+            results: analysisResult,
+            match_score: calculateMatchScore(analysisResult)
+          })
+          .eq('id', scanId),
+          
+        // Get credit usage record
+        supabase
+          .from('credit_usage')
+          .select('id')
+          .eq('scan_id', scanId)
+          .single()
+      ]);
 
-      if (updateError) {
-        console.error('Error updating scan record:', updateError);
+      if (scanUpdateResult.error) {
+        console.error('Error updating scan record:', scanUpdateResult.error);
         return NextResponse.json(
           { error: 'Failed to update scan record', scanId },
           { status: 500 }
         );
       }
 
-      // Update the credit usage record with the response payload
-      const { data: creditUsageData, error: creditUsageError } = await supabase
-        .from('credit_usage')
-        .select('id')
-        .eq('scan_id', scanId)
-        .single();
-
-      if (!creditUsageError && creditUsageData) {
+      // Update credit usage if record exists
+      if (!creditUsageData.error && creditUsageData.data) {
         await supabase
           .from('credit_usage')
           .update({
@@ -468,7 +334,7 @@ You MUST return a JSON object exactly in this format:
             http_status: 200,
             updated_at: new Date().toISOString()
           })
-          .eq('id', creditUsageData.id);
+          .eq('id', creditUsageData.data.id);
       }
 
       // Return success response
@@ -476,8 +342,9 @@ You MUST return a JSON object exactly in this format:
         success: true,
         scanId,
         jobId: scanRequest.jobId,
-        matchScore: analysisResult.matchScore,
-        redirectUrl: `/dashboard/jobs/${scanRequest.jobId}` // For client-side redirection
+        matchScore: calculateMatchScore(analysisResult),
+        redirectUrl: `/dashboard/jobs/${scanRequest.jobId}`, // For client-side redirection
+        status: 'completed'
       }, { status: 200 });
     } catch (error: any) {
       console.error('Error processing AI request:', error);
@@ -504,4 +371,4 @@ You MUST return a JSON object exactly in this format:
       { status: 500 }
     );
   }
-} 
+}
