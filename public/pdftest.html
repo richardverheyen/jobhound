@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PDF.js Worker Test</title>
+</head>
+<body>
+    <h1>PDF.js Worker Test</h1>
+    <p>This page tests if the PDF.js worker file is being served correctly.</p>
+    <script>
+        fetch('/pdf.worker.min.js')
+            .then(response => {
+                if (response.ok) {
+                    document.body.innerHTML += '<p style="color:green">✓ PDF worker file is accessible</p>';
+                } else {
+                    document.body.innerHTML += '<p style="color:red">✗ PDF worker file is NOT accessible: ' + response.status + '</p>';
+                }
+            })
+            .catch(error => {
+                document.body.innerHTML += '<p style="color:red">✗ Error accessing PDF worker file: ' + error.message + '</p>';
+            });
+    </script>
+</body>
+</html> 

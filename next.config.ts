@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { join } from 'path';
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -13,15 +14,13 @@ const nextConfig: NextConfig = {
   ),
   // Configure webpack to handle PDF.js worker
   webpack: (config) => {
-    // This prevents worker files from being included in the pages bundle
-    config.module.rules.push({
-      test: /pdf\.worker\.(min\.)?js/,
-      type: 'asset/resource',
-      generator: {
-        filename: 'static/chunks/[name].[hash][ext]',
-      },
-    });
-    
+    // PDF.js worker configuration
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      // Use path.join to ensure proper path resolution
+      'pdfjs-dist': join(__dirname, 'node_modules/pdfjs-dist'),
+    };
+
     return config;
   },
 };
