@@ -216,8 +216,8 @@ You are an expert resume analyzer. Process each field in the \`fieldDefinitions\
    
    - For fields with \`type: "one-to-many"\`: 
      Create MULTIPLE response objects in an array, with each object following the structure in \`fieldResponse\`.
-     Generate as many objects as are justified by the content found in the resume.
-     Each object should represent a distinct item (like a specific skill) identified from the prompt.
+     Generate as many objects as are justified by the content found in the job description and requirements.
+     Each object should represent a distinct item (like a specific skill) identified from the prompt, and use the fieldContext.prompt to generate a response comparing the Job Description and Requirements to the resume.
 
 4. Replace any template variables in the response (e.g., \`$\{skillNameSlug}\`, \`$\{skillName}\`) with appropriate values.
 
