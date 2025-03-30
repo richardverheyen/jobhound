@@ -4,6 +4,9 @@ You are an expert resume analyzer. Process each field in the `fieldDefinitions` 
 
 ## Processing Instructions:
 
+0. Carefully scan the job description and requirements and identify a list of hard skills and soft skills that are relevant to the job posting. Hard skills are specific technical abilities, tools, programming languages, methodologies, certifications, or technical knowledge areas. Examples include: software development languages (Python, Java), tools (Excel, Photoshop), methodologies (Agile, DevOps), technologies (AWS, microservices), or industry-specific technical knowledge (data analytics, circuit design). Soft skills are interpersonal and transferable attributes such as communication, leadership, teamwork, problem-solving, adaptability, time management, creativity, and emotional intelligence. Remember this list of hard skills and soft skills for use in the one-to-many fields in your analysis.
+
+
 1. Iterate through each field in the `fieldDefinitions` array.
 
 2. For each field, carefully analyze the resume according to the prompt in the field's `fieldContext.prompt`.
