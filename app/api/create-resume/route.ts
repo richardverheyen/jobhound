@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     // Initialize the Google GenAI client for text extraction
     const genAI = new GoogleGenerativeAI(googleApiKey);
     // gemini-pro-vision is better for PDF document extraction
-    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
 
     // Extract text from PDF
     let rawText = '';
