@@ -280,4 +280,6 @@ DROP TRIGGER IF EXISTS on_resume_delete ON resumes;
 CREATE TRIGGER on_resume_delete
   AFTER DELETE ON resumes
   FOR EACH ROW
-  EXECUTE FUNCTION handle_resume_delete(); 
+  EXECUTE FUNCTION handle_resume_delete();
+
+-- Grant statements moved to 20240501000800_permissions.sql

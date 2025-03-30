@@ -386,7 +386,7 @@ export default function CreateResumeModal({ isOpen, onClose, onSuccess }: Create
                       }`}
                       data-testid="upload-resume-button"
                     >
-                      {loading ? 'Uploading...' : 'Upload Resume'}
+                      {loading ? (uploadProgress < 100 ? 'Uploading...' : 'Processing resume...') : 'Upload Resume'}
                     </button>
                     <button
                       type="button"

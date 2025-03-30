@@ -90,12 +90,13 @@ export async function POST(req: NextRequest) {
 
     // Initialize the Google GenAI client for text extraction
     const genAI = new GoogleGenerativeAI(googleApiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-pro-vision" });
+    // gemini-pro-vision is better for PDF document extraction
+    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
 
     // Extract text from PDF
     let rawText = '';
     try {
-      const prompt = "Extract all text content from this PDF file. Include all paragraphs, bullet points, headers, and any visible text. Maintain the original formatting as much as possible.";
+      const prompt = "Extract all text content from this PDF file. Include all paragraphs, bullet points, headers, and any visible text. Maintain the original formatting as much as possible. This is a resume document, so pay special attention to skills, work experience, education, and contact information.";
       
       const result = await model.generateContent({
         contents: [
@@ -118,10 +119,16 @@ export async function POST(req: NextRequest) {
       });
 
       rawText = result.response.text();
+      
+      // Simple validation of extracted text
+      if (!rawText || rawText.trim().length < 50) {
+        console.warn('Text extraction yielded unusually short text:', rawText);
+        rawText = rawText || `Failed to extract meaningful text from resume (${requestData.filename})`;
+      }
     } catch (aiError: any) {
       console.error('Error extracting text from PDF:', aiError);
       // We'll continue even if text extraction fails, just store an empty string
-      rawText = 'Error extracting text: ' + (aiError.message || 'Unknown error');
+      rawText = `Error extracting text: ${aiError.message || 'Unknown error'}`;
     }
 
     // Call the create_resume function to store the resume with raw text
