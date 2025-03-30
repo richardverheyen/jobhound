@@ -65,4 +65,19 @@ BEGIN
   
   RETURN v_scan_id;
 END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to update a job scan with match score
+CREATE OR REPLACE FUNCTION update_job_scan_match_score(
+  p_scan_id UUID,
+  p_match_score INTEGER
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+  UPDATE job_scans
+  SET match_score = p_match_score
+  WHERE id = p_scan_id;
+  
+  RETURN FOUND;
+END;
 $$ LANGUAGE plpgsql SECURITY DEFINER; 

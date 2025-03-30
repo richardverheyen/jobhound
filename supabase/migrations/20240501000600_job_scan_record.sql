@@ -11,13 +11,18 @@ CREATE TABLE IF NOT EXISTS job_scans (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   status TEXT NOT NULL DEFAULT 'pending',
   error_message TEXT,
-  results JSONB
+  results JSONB,
+  match_score INTEGER
 );
 
 -- Create indexes for job_scans
 CREATE INDEX idx_job_scans_user_id ON job_scans(user_id);
 CREATE INDEX idx_job_scans_job_id ON job_scans(job_id);
 CREATE INDEX idx_job_scans_resume_id ON job_scans(resume_id);
+CREATE INDEX idx_job_scans_match_score ON job_scans(match_score);
+
+-- Add comment to explain the match_score column
+COMMENT ON COLUMN job_scans.match_score IS 'Score representing how well the resume matches the job requirements (0-100)';
 
 -- Enable Row Level Security on job_scans
 ALTER TABLE job_scans ENABLE ROW LEVEL SECURITY;

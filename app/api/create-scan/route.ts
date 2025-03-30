@@ -269,6 +269,7 @@ Key mapping:
       // Parse the response
       const responseText = result.response.text();
       let analysisResult: ResumeAnalysisResponse;
+      let matchScore: number = 0;
       
       try {
         // Extract JSON from the response if needed
@@ -278,6 +279,9 @@ Key mapping:
         
         const cleanJson = jsonMatches[1] || responseText;
         analysisResult = JSON.parse(cleanJson);
+        
+        // Calculate match score but don't save it to the database yet
+        matchScore = calculateMatchScore(analysisResult);
         
       } catch (error) {
         console.error('Error parsing AI response:', error, 'Response:', responseText);
@@ -305,7 +309,7 @@ Key mapping:
           .update({
             status: 'completed',
             results: analysisResult,
-            match_score: calculateMatchScore(analysisResult)
+            match_score: matchScore
           })
           .eq('id', scanId),
           
@@ -342,7 +346,7 @@ Key mapping:
         success: true,
         scanId,
         jobId: scanRequest.jobId,
-        matchScore: calculateMatchScore(analysisResult),
+        matchScore: matchScore,
         redirectUrl: `/dashboard/jobs/${scanRequest.jobId}`, // For client-side redirection
         status: 'completed'
       }, { status: 200 });
