@@ -25,7 +25,9 @@ export default function DefaultResumeWidget({
 
   useEffect(() => {
     if (!user) return;
-
+    
+    let isMounted = true;
+    
     const fetchDefaultResume = async () => {
       setLoading(true);
       try {
@@ -38,7 +40,6 @@ export default function DefaultResumeWidget({
         }
         
         console.log('DefaultResumeWidget fetching resume with ID:', resumeId);
-        console.log('User data:', user);
         
         // If we have a resume ID, fetch the resume
         if (resumeId) {
@@ -51,8 +52,7 @@ export default function DefaultResumeWidget({
           if (error) {
             console.error('Error fetching default resume:', error);
             console.error('Resume ID used:', resumeId);
-            setDefaultResume(null);
-            setLoading(false);
+            if (isMounted) setDefaultResume(null);
             return;
           }
           
@@ -87,21 +87,73 @@ export default function DefaultResumeWidget({
             }
           }
           
-          setDefaultResume(resumeData);
+          if (isMounted) setDefaultResume(resumeData);
         } else {
           console.log('No resume ID available to fetch default resume');
-          setDefaultResume(null);
+          if (isMounted) setDefaultResume(null);
         }
       } catch (error) {
         console.error('Error in fetchDefaultResume:', error);
-        setDefaultResume(null);
+        if (isMounted) setDefaultResume(null);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchDefaultResume();
-  }, [user, defaultResumeId]);
+    
+    // If we have a resume but no thumbnail, set up a polling mechanism to check for it
+    // This is useful because the thumbnail is generated asynchronously
+    let pollInterval: NodeJS.Timeout | null = null;
+    
+    if (defaultResume && defaultResume.id && !defaultResume.thumbnail_url) {
+      console.log('Setting up polling for thumbnail generation');
+      
+      // Poll every 5 seconds for up to 30 seconds to see if thumbnail is ready
+      let attempts = 0;
+      const maxAttempts = 6;
+      
+      pollInterval = setInterval(async () => {
+        attempts++;
+        console.log(`Checking for thumbnail update (attempt ${attempts}/${maxAttempts})`);
+        
+        const { data: updatedResume, error } = await supabase
+          .from('resumes')
+          .select('*')
+          .eq('id', defaultResume.id)
+          .single();
+          
+        if (!error && updatedResume && updatedResume.thumbnail_path && !updatedResume.thumbnail_url) {
+          // Try to get a signed URL for the thumbnail
+          const { data: thumbnailData, error: thumbnailError } = await supabase
+            .storage
+            .from('thumbnails')
+            .createSignedUrl(updatedResume.thumbnail_path, 60 * 60);
+            
+          if (!thumbnailError && thumbnailData) {
+            updatedResume.thumbnail_url = thumbnailData.signedUrl;
+            console.log('Thumbnail URL updated:', thumbnailData.signedUrl);
+            if (isMounted) setDefaultResume(updatedResume);
+          }
+        } else if (!error && updatedResume && updatedResume.thumbnail_url) {
+          console.log('Resume now has thumbnail URL');
+          if (isMounted) setDefaultResume(updatedResume);
+          if (pollInterval) clearInterval(pollInterval);
+        }
+        
+        if (attempts >= maxAttempts && pollInterval) {
+          console.log('Max polling attempts reached, stopping thumbnail checks');
+          clearInterval(pollInterval);
+        }
+      }, 5000); // Check every 5 seconds
+    }
+    
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [user, defaultResumeId, defaultResume?.id]);
 
   if (loading) {
     return (

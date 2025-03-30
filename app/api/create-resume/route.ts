@@ -74,9 +74,19 @@ export async function POST(req: NextRequest) {
     // Store base64 data for async processing
     const fileBase64 = requestData.fileBase64;
 
-    // Create admin client for thumbnail generation
+    // Create admin client for thumbnail generation with service role
     const adminSupabase = createClient(supabaseUrl, supabaseServiceRole);
     
+    // Log bucket existence for debugging
+    const { data: buckets, error: bucketsError } = await adminSupabase
+      .storage
+      .listBuckets();
+    
+    console.log('Available buckets:', buckets?.map(b => b.name));
+    if (bucketsError) {
+      console.error('Error listing storage buckets:', bucketsError);
+    }
+
     // The thumbnail will be generated asynchronously, so we'll start with empty thumbnail fields
     let thumbnailPath = null;
     let thumbnailUrl = null;
@@ -158,7 +168,7 @@ export async function POST(req: NextRequest) {
           console.log(`Using provided base64 data, converted to buffer (${pdfBuffer.length} bytes)`);
         }
 
-        // Generate thumbnail image using Sharp
+        // Generate and upload thumbnail 
         try {
           if (pdfBuffer) {
             console.log('Starting thumbnail generation process...');
@@ -172,40 +182,88 @@ export async function POST(req: NextRequest) {
             fs.writeFileSync(tempPdfPath, pdfBuffer);
             console.log(`Temporary PDF file created at: ${tempPdfPath}`);
             
-            // Generate thumbnail directly using sharp from a PDF preview
-            // Since Sharp cannot directly process PDFs, we'll use a simple approach to generate a PNG first page
-            
-            // 1. Generate a thumbnail directly in memory using Sharp
+            // Generate thumbnail
             const thumbnailImageBuffer = await generatePdfThumbnail(tempPdfPath, tempDir);
             
             if (thumbnailImageBuffer) {
-              // Create file path for thumbnail in storage
+              console.log(`Thumbnail generated successfully (${thumbnailImageBuffer.length} bytes)`);
+              
+              // Verify the thumbnails bucket exists
+              const { data: bucketInfo, error: bucketError } = await adminSupabase
+                .storage
+                .getBucket('thumbnails');
+                
+              if (bucketError) {
+                console.error('Error checking thumbnails bucket:', bucketError);
+                
+                // Try to create it if it doesn't exist
+                const { data: createData, error: createError } = await adminSupabase
+                  .storage
+                  .createBucket('thumbnails', { 
+                    public: false,
+                    allowedMimeTypes: ['image/webp'],
+                    fileSizeLimit: 5242880 // 5MB
+                  });
+                  
+                if (createError) {
+                  console.error('Error creating thumbnails bucket:', createError);
+                } else {
+                  console.log('Thumbnails bucket created successfully:', createData);
+                }
+              } else {
+                console.log('Thumbnails bucket exists:', bucketInfo);
+              }
+              
+              // Create file path for thumbnail
               const userId = user.id;
               const fileNameWithoutExt = path.basename(requestData.filename, path.extname(requestData.filename));
               thumbnailPath = `${userId}/${fileNameWithoutExt}_thumbnail_${Date.now()}.webp`;
               
-              console.log(`Uploading thumbnail to storage path: ${thumbnailPath}`);
+              console.log(`Attempting to upload thumbnail to: ${thumbnailPath}`);
               
-              // Upload to thumbnails bucket
-              const { data: uploadData, error: uploadError } = await adminSupabase
-                .storage
-                .from('thumbnails')
-                .upload(thumbnailPath, thumbnailImageBuffer, {
-                  contentType: 'image/webp',
-                  cacheControl: '3600',
-                  upsert: true // Overwrite if exists
-                });
+              try {
+                // Try direct upload to test bucket access
+                const { data: uploadData, error: uploadError } = await adminSupabase
+                  .storage
+                  .from('thumbnails')
+                  .upload(thumbnailPath, thumbnailImageBuffer, {
+                    contentType: 'image/webp',
+                    cacheControl: '3600',
+                    upsert: true // Overwrite if exists
+                  });
                 
-              if (uploadError) {
-                console.error('Error uploading thumbnail:', uploadError);
-              } else {
-                console.log('Thumbnail uploaded successfully, creating signed URL...');
+                if (uploadError) {
+                  console.error('Thumbnail upload error:', uploadError);
+                  
+                  // Try a simpler path as fallback
+                  const simpleFileName = `resume_${Date.now()}.webp`;
+                  console.log(`Trying simpler path: ${simpleFileName}`);
+                  
+                  const { data: simpleUploadData, error: simpleUploadError } = await adminSupabase
+                    .storage
+                    .from('thumbnails')
+                    .upload(simpleFileName, thumbnailImageBuffer, {
+                      contentType: 'image/webp',
+                      upsert: true
+                    });
+                    
+                  if (simpleUploadError) {
+                    console.error('Simple path upload also failed:', simpleUploadError);
+                    throw new Error(`Thumbnail upload failed: ${simpleUploadError.message}`);
+                  } else {
+                    thumbnailPath = simpleFileName;
+                    console.log('Upload succeeded with simple path');
+                  }
+                } else {
+                  console.log('Thumbnail uploaded successfully:', uploadData);
+                }
                 
-                // Create signed URL for the thumbnail
+                // Generate signed URL for the thumbnail
+                console.log(`Generating signed URL for: ${thumbnailPath}`);
                 const { data: urlData, error: urlError } = await adminSupabase
                   .storage
                   .from('thumbnails')
-                  .createSignedUrl(thumbnailPath, 3600); // 1 hour expiry
+                  .createSignedUrl(thumbnailPath, 3600 * 24); // 24 hour expiry for better caching
                   
                 if (urlError) {
                   console.error('Error creating thumbnail signed URL:', urlError);
@@ -228,7 +286,11 @@ export async function POST(req: NextRequest) {
                     console.log('Resume record updated with thumbnail information');
                   }
                 }
+              } catch (storageError) {
+                console.error('Storage operation error:', storageError);
               }
+            } else {
+              console.error('Failed to generate thumbnail image buffer');
             }
             
             // Clean up temp files
@@ -242,7 +304,7 @@ export async function POST(req: NextRequest) {
             }
           }
         } catch (thumbnailError) {
-          console.error('Error generating thumbnail:', thumbnailError);
+          console.error('Error in thumbnail generation/upload process:', thumbnailError);
           // Continue with text extraction even if thumbnail generation fails
         }
 
@@ -323,41 +385,63 @@ async function generatePdfThumbnail(pdfPath: string, tempDir: string): Promise<B
   try {
     console.log(`Generating thumbnail from PDF: ${pdfPath}`);
     
-    // Create a fallback thumbnail directly with sharp
+    // Create a resume-like thumbnail directly with sharp
     // This creates a clean placeholder image that looks professional
     try {
-      // Generate a nice looking placeholder thumbnail
+      // Generate a nicer looking placeholder thumbnail that looks more resume-like
       const thumbnailBuffer = await sharp({
         create: {
           width: 1000,
           height: 562,
           channels: 4,
-          background: { r: 245, g: 245, b: 245, alpha: 1 }
+          background: { r: 255, g: 255, b: 255, alpha: 1 }
         }
       })
       .composite([{
         input: Buffer.from(
           `<svg width="1000" height="562">
-            <rect width="1000" height="562" fill="#f8f9fa"/>
-            <rect x="50" y="50" width="900" height="462" fill="#ffffff" stroke="#e9ecef" stroke-width="1"/>
+            <rect width="1000" height="562" fill="#ffffff"/>
             
-            <!-- Header area -->
-            <rect x="100" y="100" width="800" height="60" fill="#4263eb" rx="4" ry="4"/>
+            <!-- Profile Section -->
+            <rect x="50" y="50" width="900" height="100" fill="#f8f9fa" rx="4" ry="4"/>
+            <circle cx="110" cy="100" r="40" fill="#e9ecef"/>
+            <rect x="170" y="70" width="300" height="24" fill="#dee2e6" rx="2" ry="2"/>
+            <rect x="170" y="104" width="220" height="16" fill="#dee2e6" rx="2" ry="2"/>
             
-            <!-- Content blocks -->
-            <rect x="100" y="200" width="400" height="20" fill="#e9ecef" rx="2" ry="2"/>
-            <rect x="100" y="230" width="350" height="20" fill="#e9ecef" rx="2" ry="2"/>
-            <rect x="100" y="260" width="380" height="20" fill="#e9ecef" rx="2" ry="2"/>
+            <!-- Contact Info -->
+            <rect x="650" y="70" width="250" height="16" fill="#dee2e6" rx="2" ry="2"/>
+            <rect x="650" y="96" width="180" height="16" fill="#dee2e6" rx="2" ry="2"/>
             
-            <rect x="100" y="320" width="200" height="30" fill="#e9ecef" rx="2" ry="2"/>
-            <rect x="100" y="360" width="800" height="15" fill="#e9ecef" rx="2" ry="2"/>
-            <rect x="100" y="385" width="700" height="15" fill="#e9ecef" rx="2" ry="2"/>
-            <rect x="100" y="410" width="750" height="15" fill="#e9ecef" rx="2" ry="2"/>
+            <!-- Divider -->
+            <rect x="50" y="170" width="900" height="2" fill="#e9ecef"/>
             
-            <!-- Resume Title -->
-            <text x="500" y="140" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#ffffff" font-weight="bold">
-              Resume Preview
-            </text>
+            <!-- Experience Section -->
+            <rect x="50" y="190" width="200" height="24" fill="#4263eb" rx="2" ry="2"/>
+            
+            <!-- Job 1 -->
+            <rect x="50" y="230" width="240" height="20" fill="#dee2e6" rx="2" ry="2"/>
+            <rect x="300" y="230" width="120" height="20" fill="#e9ecef" rx="2" ry="2"/>
+            <rect x="70" y="260" width="850" height="12" fill="#e9ecef" rx="2" ry="2"/>
+            <rect x="70" y="280" width="820" height="12" fill="#e9ecef" rx="2" ry="2"/>
+            <rect x="70" y="300" width="840" height="12" fill="#e9ecef" rx="2" ry="2"/>
+            
+            <!-- Job 2 -->
+            <rect x="50" y="330" width="260" height="20" fill="#dee2e6" rx="2" ry="2"/>
+            <rect x="320" y="330" width="140" height="20" fill="#e9ecef" rx="2" ry="2"/>
+            <rect x="70" y="360" width="840" height="12" fill="#e9ecef" rx="2" ry="2"/>
+            <rect x="70" y="380" width="810" height="12" fill="#e9ecef" rx="2" ry="2"/>
+            
+            <!-- Skills Section -->
+            <rect x="50" y="420" width="120" height="24" fill="#4263eb" rx="2" ry="2"/>
+            <rect x="50" y="455" width="100" height="20" fill="#e9ecef" rx="10" ry="10"/>
+            <rect x="160" y="455" width="120" height="20" fill="#e9ecef" rx="10" ry="10"/>
+            <rect x="290" y="455" width="80" height="20" fill="#e9ecef" rx="10" ry="10"/>
+            <rect x="380" y="455" width="140" height="20" fill="#e9ecef" rx="10" ry="10"/>
+            <rect x="530" y="455" width="110" height="20" fill="#e9ecef" rx="10" ry="10"/>
+            
+            <rect x="50" y="485" width="90" height="20" fill="#e9ecef" rx="10" ry="10"/>
+            <rect x="150" y="485" width="130" height="20" fill="#e9ecef" rx="10" ry="10"/>
+            <rect x="290" y="485" width="100" height="20" fill="#e9ecef" rx="10" ry="10"/>
           </svg>`),
         top: 0,
         left: 0
@@ -365,7 +449,7 @@ async function generatePdfThumbnail(pdfPath: string, tempDir: string): Promise<B
       .webp({ quality: 90 })
       .toBuffer();
         
-      console.log('Generated thumbnail image');
+      console.log('Generated resume-like thumbnail image');
       return thumbnailBuffer;
     } catch (error) {
       console.error('Error generating thumbnail with Sharp:', error);
@@ -393,6 +477,7 @@ async function generatePdfThumbnail(pdfPath: string, tempDir: string): Promise<B
       .webp({ quality: 90 })
       .toBuffer();
       
+      console.log('Generated fallback thumbnail');
       return fallbackBuffer;
     }
   } catch (error) {
