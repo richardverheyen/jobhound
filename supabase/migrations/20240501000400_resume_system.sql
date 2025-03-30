@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS resumes (
   file_url TEXT,
   file_size INT8,
   mime_type TEXT,
+  raw_text TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -74,6 +75,7 @@ CREATE OR REPLACE FUNCTION create_resume(
   p_file_path TEXT,
   p_file_size INT8,
   p_file_url TEXT,
+  p_raw_text TEXT DEFAULT NULL,
   p_set_as_default BOOLEAN DEFAULT FALSE
 )
 RETURNS JSONB AS $$
@@ -132,7 +134,8 @@ BEGIN
     file_path,
     file_url,
     file_size,
-    mime_type
+    mime_type,
+    raw_text
   )
   VALUES (
     v_user_id,
@@ -140,7 +143,8 @@ BEGIN
     p_file_path,
     p_file_url,
     p_file_size,
-    'application/pdf'  -- Assuming PDF as per the upload restrictions
+    'application/pdf',  -- Assuming PDF as per the upload restrictions
+    p_raw_text
   )
   RETURNING id INTO v_resume_id;
   
@@ -160,6 +164,7 @@ BEGIN
     'file_url', r.file_url,
     'file_size', r.file_size,
     'mime_type', r.mime_type,
+    'raw_text', r.raw_text,
     'created_at', r.created_at,
     'updated_at', r.updated_at,
     'is_default', (u.default_resume_id = r.id)

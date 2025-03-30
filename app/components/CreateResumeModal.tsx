@@ -153,33 +153,67 @@ export default function CreateResumeModal({ isOpen, onClose, onSuccess }: Create
         fileUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/resumes/${filePath}`;
       }
       
-      // Call RPC function to create resume record in database
-      const { data: resumeData, error: resumeError } = await supabase.rpc(
-        'create_resume',
-        {
-          p_filename: file.name,
-          p_name: name,
-          p_file_path: filePath,
-          p_file_size: file.size,
-          p_file_url: fileUrl,
-          p_set_as_default: true // Set as default if it's the first resume
-        }
-      );
+      // Get authentication token for the API call
+      const { data: sessionData } = await supabase.auth.getSession();
+      const authToken = sessionData?.session?.access_token;
       
-      if (resumeError) {
-        console.error('Resume creation error:', resumeError);
-        throw new Error(`Error creating resume: ${resumeError.message || resumeError.details || 'Unknown database error'}`);
+      if (!authToken) {
+        throw new Error('Failed to get authentication token');
       }
       
-      if (resumeData?.success === false) {
-        console.error('Resume function returned error:', resumeData);
-        throw new Error(`Database error: ${resumeData.error || 'Unknown function error'}`);
+      // Read file as base64 for text extraction
+      const fileReader = new FileReader();
+      const fileBase64Promise = new Promise<string>((resolve, reject) => {
+        fileReader.onload = () => {
+          const base64 = fileReader.result?.toString().split(',')[1]; // Remove data URL prefix
+          if (base64) {
+            resolve(base64);
+          } else {
+            reject(new Error('Failed to convert file to base64'));
+          }
+        };
+        fileReader.onerror = () => reject(fileReader.error);
+        fileReader.readAsDataURL(file);
+      });
+      
+      const fileBase64 = await fileBase64Promise;
+      
+      // Call the API to create resume and extract text
+      const apiResponse = await fetch('/api/create-resume', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          name: name,
+          filePath: filePath,
+          fileSize: file.size,
+          fileUrl: fileUrl,
+          setAsDefault: true,
+          fileBase64: fileBase64
+        })
+      });
+      
+      if (!apiResponse.ok) {
+        const errorData = await apiResponse.json();
+        throw new Error(`API error: ${errorData.error || apiResponse.statusText}`);
+      }
+      
+      const resumeData = await apiResponse.json();
+      
+      if (!resumeData.success) {
+        throw new Error(`Resume creation failed: ${resumeData.error || 'Unknown error'}`);
       }
       
       // Call onSuccess with the resume ID if provided
-      if (onSuccess && resumeData?.id) {
-        onSuccess(resumeData.id);
+      if (onSuccess && resumeData.resume_id) {
+        onSuccess(resumeData.resume_id);
       }
+      
+      // Refresh the user's data
+      router.refresh();
       
       // Close the modal
       onClose();
