@@ -3,45 +3,5 @@
     "app/api/create-scan/route.ts": {
       "maxDuration": 60
     }
-  },
-  "installCommand": "npm install --omit=dev",
-  "buildCommand": "npm run build",
-  "outputDirectory": ".next",
-  "headers": [
-    {
-      "source": "/pdf.worker.min.js",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/javascript"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        },
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        }
-      ]
-    },
-    {
-      "source": "/cmaps/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/standard_fonts/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    }
-  ]
+  }
 }
