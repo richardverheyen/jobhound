@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Job, JobScan } from '@/types';
+import ProgressRing from './ProgressRing';
 
 // Extend Window interface to include our custom function
 declare global {
@@ -184,50 +185,36 @@ export default function JobsList({
     }
   };
 
-  // Progress ring component for match scores
-  const MatchScoreRing = ({ score, date }: { score: number; date: string }) => {
-    const radius = 16;
-    const circumference = 2 * Math.PI * radius;
-    const dashoffset = circumference * (1 - score / 100);
+  // Get the most recent job scans (max 3)
+  const getRecentScans = (job: Job): JobScan[] => {
+    if (!job.job_scans || !Array.isArray(job.job_scans)) {
+      return [];
+    }
     
-    // Determine color based on score
-    const getColor = (score: number) => {
-      if (score >= 80) return 'stroke-green-500';
-      if (score >= 60) return 'stroke-blue-500';
-      return 'stroke-yellow-500';
-    };
-    
-    return (
-      <div className="inline-flex items-center justify-center h-12 w-12 relative mr-1 last:mr-0 group">
-        <svg className="absolute" width="40" height="40">
-          <circle
-            className="text-gray-200 dark:text-gray-700"
-            stroke="currentColor"
-            fill="transparent"
-            strokeWidth="3"
-            r={radius}
-            cx="20"
-            cy="20"
-          />
-          <circle
-            className={getColor(score)}
-            fill="transparent"
-            strokeWidth="3"
-            strokeDasharray={circumference}
-            strokeDashoffset={dashoffset}
-            strokeLinecap="round"
-            r={radius}
-            cx="20"
-            cy="20"
-            transform="rotate(-90 20 20)"
-          />
-        </svg>
-        <span className="text-xs font-medium">{score}%</span>
-        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap">
-          {new Date(date).toLocaleDateString()}
-        </div>
-      </div>
+    // Filter for only completed scans with match scores
+    const validScans = job.job_scans.filter(scan => 
+      scan.status === 'completed' && 
+      scan.match_score !== undefined && 
+      scan.match_score !== null &&
+      scan.created_at
     );
+    
+    // Sort by date (newest first)
+    const sortedScans = validScans.sort((a, b) => {
+      const dateA = new Date(a.created_at || '').getTime();
+      const dateB = new Date(b.created_at || '').getTime();
+      return dateB - dateA;
+    });
+    
+    // Take only the 3 most recent
+    return sortedScans.slice(0, 3);
+  };
+
+  // Determine color based on score
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return '#10b981'; // green
+    if (score >= 60) return '#3b82f6'; // blue
+    return '#f59e0b'; // yellow
   };
 
   return (
@@ -352,26 +339,26 @@ export default function JobsList({
                     
                     {columns.find(col => col.id === 'matchScores')?.visible && (
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          {job.latest_scan?.match_score !== undefined && job.latest_scan?.created_at ? (
-                            <>
-                              <MatchScoreRing 
-                                score={job.latest_scan.match_score} 
-                                date={job.latest_scan.created_at}
-                              />
-                              {job.latest_scan.match_score > 10 && (
-                                <MatchScoreRing 
-                                  score={Math.max(0, job.latest_scan.match_score - 10)} 
-                                  date={new Date(Date.now() - 86400000).toISOString()} // 1 day ago
+                        <div className="flex items-center space-x-3">
+                          {/* Get the 3 most recent scans */}
+                          {getRecentScans(job).length > 0 ? (
+                            getRecentScans(job).map((scan, index) => (
+                              <div key={scan.id} className="group relative">
+                                <ProgressRing
+                                  progress={scan.match_score || 0}
+                                  size={35}
+                                  strokeWidth={3}
+                                  color={getScoreColor(scan.match_score || 0)}
+                                  backgroundColor="rgba(107, 114, 128, 0.2)"
+                                  showPercentage={true}
                                 />
-                              )}
-                              {job.latest_scan.match_score > 20 && (
-                                <MatchScoreRing 
-                                  score={Math.max(0, job.latest_scan.match_score - 20)} 
-                                  date={new Date(Date.now() - 172800000).toISOString()} // 2 days ago
-                                />
-                              )}
-                            </>
+                                
+                                {/* Tooltip with scan date */}
+                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">
+                                  {scan.created_at ? new Date(scan.created_at).toLocaleDateString() : 'Unknown date'}
+                                </div>
+                              </div>
+                            ))
                           ) : (
                             <span className="text-gray-500 dark:text-gray-400">Not scanned</span>
                           )}
