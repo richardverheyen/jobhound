@@ -40,6 +40,14 @@ export default function ProgressRing({
   
   const ringColor = getScoreColor();
   
+  // Determine font size based on ring size
+  const getFontSize = () => {
+    if (size <= 30) return '8px'; 
+    if (size <= 40) return '11px';
+    if (size <= 60) return '14px';
+    return '16px';
+  };
+  
   return (
     <div className={`relative flex items-center justify-center ${className}`} style={{ width: size, height: size }}>
       <svg
@@ -49,7 +57,6 @@ export default function ProgressRing({
       >
         {/* Background circle */}
         <circle
-          className="text-gray-200 dark:text-gray-700"
           stroke={backgroundColor}
           strokeWidth={strokeWidth}
           fill="none"
@@ -73,7 +80,7 @@ export default function ProgressRing({
       </svg>
       {showPercentage && (
         <div className="absolute inset-0 flex items-center justify-center text-center">
-          <span className="text-sm font-medium">
+          <span className="font-medium" style={{ fontSize: getFontSize(), color: "white" }}>
             {Math.round(normalizedProgress)}%
           </span>
         </div>

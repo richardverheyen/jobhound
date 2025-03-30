@@ -133,125 +133,134 @@ export default function JobScanView({ scan }: JobScanViewProps) {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg overflow-hidden">
+    <div className="bg-[#1e2837] text-white overflow-hidden">
       {/* Header with overall score */}
-      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white">Resume Analysis</h2>
-          <div className="flex items-center space-x-4">
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Overall Score</span>
-            <ProgressRing
-              progress={scores.overall}
-              size={60}
-              strokeWidth={6}
-              color={getRingColor(scores.overall)}
-              backgroundColor="#e5e7eb"
-              showPercentage={true}
-            />
-          </div>
+      <div className="p-4 flex items-center justify-between">
+        <h2 className="text-xl font-medium">Resume Analysis</h2>
+        <div className="flex items-center space-x-2">
+          <span className="text-sm text-gray-300">Overall Score</span>
+          <ProgressRing
+            progress={scores.overall}
+            size={40}
+            strokeWidth={3}
+            color={getRingColor(scores.overall)}
+            backgroundColor="rgba(255,255,255,0.1)"
+            showPercentage={true}
+            className="text-white"
+          />
         </div>
       </div>
 
       {/* Main metrics grid */}
-      <div className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Searchability */}
-          <div 
-            className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition"
-            onClick={() => toggleSection('searchability')}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-medium text-gray-800 dark:text-white">Searchability</h3>
+      <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Searchability */}
+        <div 
+          className="bg-[#2a3749] rounded-lg p-4 cursor-pointer hover:bg-[#32404f] transition"
+          onClick={() => toggleSection('searchability')}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-base font-medium">Searchability</h3>
+            <div>
               <ProgressRing
                 progress={scores.searchability}
-                size={50}
-                strokeWidth={5}
+                size={40}
+                strokeWidth={3}
                 color={getRingColor(scores.searchability)}
-                backgroundColor="#e5e7eb"
+                backgroundColor="rgba(255,255,255,0.1)"
                 showPercentage={true}
+                className="text-white"
               />
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-300">ATS compatibility score</p>
           </div>
+          <p className="text-sm text-gray-300">ATS compatibility score</p>
+        </div>
 
-          {/* Best Practices */}
-          <div 
-            className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition"
-            onClick={() => toggleSection('bestPractices')}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-medium text-gray-800 dark:text-white">Best Practices</h3>
+        {/* Best Practices */}
+        <div 
+          className="bg-[#2a3749] rounded-lg p-4 cursor-pointer hover:bg-[#32404f] transition"
+          onClick={() => toggleSection('bestPractices')}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-base font-medium">Best Practices</h3>
+            <div>
               <ProgressRing
                 progress={scores.bestPractices}
-                size={50}
-                strokeWidth={5}
+                size={40}
+                strokeWidth={3}
                 color={getRingColor(scores.bestPractices)}
-                backgroundColor="#e5e7eb"
+                backgroundColor="rgba(255,255,255,0.1)"
                 showPercentage={true}
+                className="text-white"
               />
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-300">Resume format & quality</p>
           </div>
+          <p className="text-sm text-gray-300">Resume format & quality</p>
+        </div>
 
-          {/* Hard Skills */}
-          <div 
-            className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition"
-            onClick={() => toggleSection('hardSkills')}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-medium text-gray-800 dark:text-white">Hard Skills</h3>
+        {/* Hard Skills */}
+        <div 
+          className="bg-[#2a3749] rounded-lg p-4 cursor-pointer hover:bg-[#32404f] transition"
+          onClick={() => toggleSection('hardSkills')}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-base font-medium">Hard Skills</h3>
+            <div>
               <ProgressRing
                 progress={scores.hardSkills}
-                size={50}
-                strokeWidth={5}
+                size={40}
+                strokeWidth={3}
                 color={getRingColor(scores.hardSkills)}
-                backgroundColor="#e5e7eb"
+                backgroundColor="rgba(255,255,255,0.1)"
                 showPercentage={true}
+                className="text-white"
               />
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-300">Technical skills match</p>
           </div>
+          <p className="text-sm text-gray-300">Technical skills match</p>
+        </div>
 
-          {/* Soft Skills */}
-          <div 
-            className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition"
-            onClick={() => toggleSection('softSkills')}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-medium text-gray-800 dark:text-white">Soft Skills</h3>
+        {/* Soft Skills */}
+        <div 
+          className="bg-[#2a3749] rounded-lg p-4 cursor-pointer hover:bg-[#32404f] transition"
+          onClick={() => toggleSection('softSkills')}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-base font-medium">Soft Skills</h3>
+            <div>
               <ProgressRing
                 progress={scores.softSkills}
-                size={50}
-                strokeWidth={5}
+                size={40}
+                strokeWidth={3}
                 color={getRingColor(scores.softSkills)}
-                backgroundColor="#e5e7eb"
+                backgroundColor="rgba(255,255,255,0.1)"
                 showPercentage={true}
+                className="text-white"
               />
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-300">Interpersonal skills match</p>
           </div>
+          <p className="text-sm text-gray-300">Interpersonal skills match</p>
         </div>
       </div>
 
       {/* Expanded sections */}
       {expandedSections.hardSkills && scores.hardSkillsItems.length > 0 && (
-        <div className="p-6 border-t border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Hard Skills Details</h3>
+        <div className="p-4 border-t border-[#3a4658]">
+          <h3 className="text-lg font-medium mb-4">Hard Skills Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {scores.hardSkillsItems.map((skill, index) => (
-              <div key={index} className="flex items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div key={index} className="flex items-center p-3 bg-[#2a3749] rounded-lg">
                 <div className="mr-3">
                   {skill.em || skill.sm || skill.rm ? (
-                    <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   ) : (
-                    <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   )}
                 </div>
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{skill.l}</span>
+                <span className="text-sm">{skill.l}</span>
               </div>
             ))}
           </div>
@@ -259,23 +268,23 @@ export default function JobScanView({ scan }: JobScanViewProps) {
       )}
 
       {expandedSections.softSkills && scores.softSkillsItems.length > 0 && (
-        <div className="p-6 border-t border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Soft Skills Details</h3>
+        <div className="p-4 border-t border-[#3a4658]">
+          <h3 className="text-lg font-medium mb-4">Soft Skills Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {scores.softSkillsItems.map((skill, index) => (
-              <div key={index} className="flex items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div key={index} className="flex items-center p-3 bg-[#2a3749] rounded-lg">
                 <div className="mr-3">
                   {skill.em || skill.sm || skill.rm ? (
-                    <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   ) : (
-                    <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   )}
                 </div>
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{skill.l}</span>
+                <span className="text-sm">{skill.l}</span>
               </div>
             ))}
           </div>
@@ -283,8 +292,8 @@ export default function JobScanView({ scan }: JobScanViewProps) {
       )}
 
       {expandedSections.searchability && (
-        <div className="p-6 border-t border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Searchability Details</h3>
+        <div className="p-4 border-t border-[#3a4658]">
+          <h3 className="text-lg font-medium mb-4">Searchability Details</h3>
           <div className="space-y-3">
             {scan.results && Array.isArray(scan.results) && scan.results
               .filter(item => item.id.startsWith('searchability') || 
@@ -293,23 +302,23 @@ export default function JobScanView({ scan }: JobScanViewProps) {
                  'meetsEducationRequirements', 'isPdfFormat', 'noSpecialCharactersInFilename', 
                  'conciseFilename'].includes(item.id))
               .map((item, index) => (
-                <div key={index} className="flex items-start p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div key={index} className="flex items-start p-3 bg-[#2a3749] rounded-lg">
                   <div className="mr-3 mt-0.5">
                     {item.v ? (
-                      <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     ) : (
-                      <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     )}
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <h4 className="text-sm font-medium">
                       {item.id.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase()).replace('Present', '')}
                     </h4>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{item.e}</p>
+                    <p className="text-xs text-gray-300">{item.e}</p>
                   </div>
                 </div>
               ))}
@@ -318,8 +327,8 @@ export default function JobScanView({ scan }: JobScanViewProps) {
       )}
 
       {expandedSections.bestPractices && (
-        <div className="p-6 border-t border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Best Practices Details</h3>
+        <div className="p-4 border-t border-[#3a4658]">
+          <h3 className="text-lg font-medium mb-4">Best Practices Details</h3>
           <div className="space-y-3">
             {scan.results && Array.isArray(scan.results) && scan.results
               .filter(item => !item.id.startsWith('searchability') && 
@@ -329,23 +338,23 @@ export default function JobScanView({ scan }: JobScanViewProps) {
                  'conciseFilename'].includes(item.id) && 
                 item.p !== 'hardSkills' && item.p !== 'softSkills')
               .map((item, index) => (
-                <div key={index} className="flex items-start p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div key={index} className="flex items-start p-3 bg-[#2a3749] rounded-lg">
                   <div className="mr-3 mt-0.5">
                     {item.v ? (
-                      <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     ) : (
-                      <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     )}
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <h4 className="text-sm font-medium">
                       {item.id.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase())}
                     </h4>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{item.e}</p>
+                    <p className="text-xs text-gray-300">{item.e}</p>
                   </div>
                 </div>
               ))}
