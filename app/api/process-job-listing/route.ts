@@ -99,10 +99,13 @@ Pay special attention to:
 4. Job type (full-time, part-time, contract, etc.)
 5. Salary information (including range, currency, and payment period)
 6. Job description (summarize if very long)
-7. Requirements (extract as an array of clear requirements)
-8. Benefits (extract as an array of benefits offered)
+7. Hard skills - specific technical abilities, tools, programming languages, methodologies, certifications, or technical knowledge areas. Examples include: software development languages (Python, Java), tools (Excel, Photoshop), methodologies (Agile, DevOps), technologies (AWS, microservices), or industry-specific technical knowledge (data analytics, circuit design)
+8. Soft skills - interpersonal and transferable attributes such as communication, leadership, teamwork, problem-solving, adaptability, time management, creativity, and emotional intelligence
+9. Requirements (extract as an array of clear requirements)
+10. Benefits (extract as an array of benefits offered)
 
 Use the following JSON format exactly:
+
 {
   "company": "string",
   "title": "string",
@@ -112,7 +115,9 @@ Use the following JSON format exactly:
   "salary_range_min": number or null,
   "salary_range_max": number or null,
   "salary_currency": "string or null",
-  "salary_period": "string or null",
+  "salary_period": "string or null", // yearly, daily, hourly, etc.
+  "hard_skills": string[], // Hard skills are specific technical abilities, tools, programming languages, methodologies, certifications, or technical knowledge areas
+  "soft_skills": string[], // Soft skills are interpersonal and transferable attributes such as communication, leadership, teamwork, problem-solving, etc.
   "requirements": string[],
   "benefits": string[]
 }

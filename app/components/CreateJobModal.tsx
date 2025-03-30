@@ -24,6 +24,8 @@ interface JobFormData {
   salary_period?: string;
   requirements?: string[];
   benefits?: string[];
+  hard_skills?: string[];
+  soft_skills?: string[];
   raw_job_text?: string;
 }
 
@@ -41,6 +43,8 @@ export default function CreateJobModal({
   const [rawJobText, setRawJobText] = useState('');
   const [newRequirement, setNewRequirement] = useState('');
   const [newBenefit, setNewBenefit] = useState('');
+  const [newHardSkill, setNewHardSkill] = useState('');
+  const [newSoftSkill, setNewSoftSkill] = useState('');
   
   // Full form data for job creation
   const [formData, setFormData] = useState<JobFormData>({
@@ -55,6 +59,8 @@ export default function CreateJobModal({
     salary_period: '',
     requirements: [],
     benefits: [],
+    hard_skills: [],
+    soft_skills: [],
     raw_job_text: '',
   });
 
@@ -73,6 +79,8 @@ export default function CreateJobModal({
         salary_period: '',
         requirements: [],
         benefits: [],
+        hard_skills: [],
+        soft_skills: [],
         raw_job_text: '',
       });
       setRawJobText('');
@@ -184,7 +192,7 @@ export default function CreateJobModal({
 
   // Create a debounced version of the process function
   const debouncedProcessJobListing = useRef(
-    debounce(processJobListing, 1000) // 1 second delay
+    debounce(processJobListing, 100) // 100ms second delay
   ).current;
 
   const handleRawTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -246,6 +254,14 @@ export default function CreateJobModal({
         ? formData.benefits
         : (formData.benefits ? [formData.benefits] : []);
       
+      const hardSkills = Array.isArray(formData.hard_skills)
+        ? formData.hard_skills
+        : (formData.hard_skills ? [formData.hard_skills] : []);
+        
+      const softSkills = Array.isArray(formData.soft_skills)
+        ? formData.soft_skills
+        : (formData.soft_skills ? [formData.soft_skills] : []);
+      
       // Use the updated create_job RPC function with all fields
       const { data, error } = await supabase
         .rpc('create_job', {
@@ -263,6 +279,12 @@ export default function CreateJobModal({
             : null,
           p_benefits: benefits.length > 0 
             ? JSON.stringify(benefits) 
+            : null,
+          p_hard_skills: hardSkills.length > 0
+            ? JSON.stringify(hardSkills)
+            : null,
+          p_soft_skills: softSkills.length > 0
+            ? JSON.stringify(softSkills)
             : null,
           p_raw_job_text: activeTab === 'ai' ? rawJobText : formData.raw_job_text
         });
@@ -339,6 +361,58 @@ export default function CreateJobModal({
       setFormData(prev => ({
         ...prev,
         benefits: updatedBenefits
+      }));
+    }
+  };
+
+  const handleAddHardSkill = () => {
+    if (newHardSkill.trim()) {
+      const updatedHardSkills = Array.isArray(formData.hard_skills) 
+        ? [...formData.hard_skills, newHardSkill.trim()]
+        : [newHardSkill.trim()];
+      
+      setFormData(prev => ({
+        ...prev,
+        hard_skills: updatedHardSkills
+      }));
+      setNewHardSkill('');
+    }
+  };
+
+  const handleRemoveHardSkill = (index: number) => {
+    if (Array.isArray(formData.hard_skills)) {
+      const updatedHardSkills = [...formData.hard_skills];
+      updatedHardSkills.splice(index, 1);
+      
+      setFormData(prev => ({
+        ...prev,
+        hard_skills: updatedHardSkills
+      }));
+    }
+  };
+
+  const handleAddSoftSkill = () => {
+    if (newSoftSkill.trim()) {
+      const updatedSoftSkills = Array.isArray(formData.soft_skills) 
+        ? [...formData.soft_skills, newSoftSkill.trim()]
+        : [newSoftSkill.trim()];
+      
+      setFormData(prev => ({
+        ...prev,
+        soft_skills: updatedSoftSkills
+      }));
+      setNewSoftSkill('');
+    }
+  };
+
+  const handleRemoveSoftSkill = (index: number) => {
+    if (Array.isArray(formData.soft_skills)) {
+      const updatedSoftSkills = [...formData.soft_skills];
+      updatedSoftSkills.splice(index, 1);
+      
+      setFormData(prev => ({
+        ...prev,
+        soft_skills: updatedSoftSkills
       }));
     }
   };
@@ -765,6 +839,110 @@ export default function CreateJobModal({
                           <button
                             type="button"
                             onClick={handleAddBenefit}
+                            className="inline-flex items-center p-1.5 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Hard Skills section */}
+                    <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                        Hard Skills
+                      </h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                        Technical abilities, tools, programming languages, methodologies, certifications, etc.
+                      </p>
+                      <div className="space-y-2">
+                        {Array.isArray(formData.hard_skills) && formData.hard_skills.map((skill, index) => (
+                          <div key={`hard-${index}`} className="flex items-center space-x-2">
+                            <div className="flex-grow p-2 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 text-sm">
+                              {skill}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveHardSkill(index)}
+                              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="text"
+                            placeholder="Add a hard skill"
+                            value={newHardSkill}
+                            onChange={(e) => setNewHardSkill(e.target.value)}
+                            className="flex-grow shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddHardSkill();
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddHardSkill}
+                            className="inline-flex items-center p-1.5 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Soft Skills section */}
+                    <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                        Soft Skills
+                      </h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                        Interpersonal and transferable attributes such as communication, leadership, teamwork, etc.
+                      </p>
+                      <div className="space-y-2">
+                        {Array.isArray(formData.soft_skills) && formData.soft_skills.map((skill, index) => (
+                          <div key={`soft-${index}`} className="flex items-center space-x-2">
+                            <div className="flex-grow p-2 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 text-sm">
+                              {skill}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSoftSkill(index)}
+                              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="text"
+                            placeholder="Add a soft skill"
+                            value={newSoftSkill}
+                            onChange={(e) => setNewSoftSkill(e.target.value)}
+                            className="flex-grow shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddSoftSkill();
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddSoftSkill}
                             className="inline-flex items-center p-1.5 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

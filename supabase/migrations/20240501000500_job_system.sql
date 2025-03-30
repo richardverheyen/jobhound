@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS jobs (
   
   requirements JSONB,               -- Array of requirement strings
   benefits JSONB,                   -- Array of benefit strings
+  hard_skills JSONB,                -- Array of hard skills (technical abilities, tools, languages, etc.)
+  soft_skills JSONB,                -- Array of soft skills (communication, leadership, teamwork, etc.)
   
   -- AI processing metadata
   raw_job_text TEXT,                -- Original pasted job description
@@ -69,6 +71,8 @@ CREATE OR REPLACE FUNCTION create_job(
   p_salary_period TEXT DEFAULT NULL,
   p_requirements JSONB DEFAULT NULL,
   p_benefits JSONB DEFAULT NULL,
+  p_hard_skills JSONB DEFAULT NULL,
+  p_soft_skills JSONB DEFAULT NULL,
   p_raw_job_text TEXT DEFAULT NULL
 )
 RETURNS JSONB AS $$
@@ -131,6 +135,8 @@ BEGIN
       'job_type', 0.8,
       'salary', 0.6,
       'description', 0.9,
+      'hard_skills', 0.8,
+      'soft_skills', 0.7,
       'requirements', 0.7,
       'benefits', 0.6
     );
@@ -153,6 +159,8 @@ BEGIN
     salary_period,
     requirements,
     benefits,
+    hard_skills,
+    soft_skills,
     raw_job_text,
     ai_confidence,
     ai_version,
@@ -173,6 +181,8 @@ BEGIN
     p_salary_period,
     p_requirements,
     p_benefits,
+    p_hard_skills,
+    p_soft_skills,
     p_raw_job_text,
     CASE WHEN p_raw_job_text IS NOT NULL THEN v_ai_confidence ELSE NULL END,
     CASE WHEN p_raw_job_text IS NOT NULL THEN v_ai_version ELSE NULL END,
