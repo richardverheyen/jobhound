@@ -342,7 +342,7 @@ export default function JobScanView({ scan }: JobScanViewProps) {
       </div>
 
       {/* Category scores row */}
-      <div className="flex flex-wrap justify-center md:justify-between p-6 border-b border-[#3a4658] bg-[#1b2532] gap-6">
+      <div className="flex flex-wrap justify-center md:justify-around p-6 border-b border-[#3a4658] bg-[#1b2532] gap-6">
         <div className="flex flex-col items-center">
           <ProgressRing
             progress={scores.searchability}
