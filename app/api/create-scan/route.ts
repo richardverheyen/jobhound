@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
     const [jobResult, resumeResult] = await Promise.all([
       supabase
         .from('jobs')
-        .select('id, title, company, description')
+        .select('id, title, company, description, requirements')
         .eq('id', scanRequest.jobId)
         .eq('user_id', user.id)
         .single(),
@@ -288,7 +288,7 @@ Return a JSON array of response objects:
 `;
       
       // Create the prompt for the AI
-      const userPrompt = `Analyze this resume against the following job posting:\n${jobData.description}\n\nUse these field definitions for your analysis:\n${JSON.stringify(fields, null, 2)}`;
+      const userPrompt = `Analyze this resume against the following job posting:\n${jobData.description}\n\n${jobData.requirements}\n\nUse these field definitions for your analysis:\n${JSON.stringify(fields, null, 2)}`;
       
       // Call the Google AI
       const result = await model.generateContent({
