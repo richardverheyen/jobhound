@@ -336,7 +336,7 @@ Key mapping:
           .update({
             response_payload: analysisResult,
             http_status: 200,
-            updated_at: new Date().toISOString()
+            created_at: new Date().toISOString()
           })
           .eq('id', creditUsageData.data.id);
       }
