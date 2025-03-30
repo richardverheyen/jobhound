@@ -11,6 +11,44 @@ interface JobScanViewProps {
 export default function JobScanView({ scan }: JobScanViewProps) {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   
+  // If the scan isn't completed, don't render the detailed view
+  if (scan.status !== 'completed' || !scan.results) {
+    return (
+      <div className="p-4 text-center">
+        {scan.status === 'pending' && (
+          <div className="flex flex-col items-center justify-center py-6">
+            <svg className="animate-spin h-8 w-8 text-blue-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Analyzing your resume against this job...</p>
+          </div>
+        )}
+        
+        {scan.status === 'processing' && (
+          <div className="flex flex-col items-center justify-center py-6">
+            <svg className="animate-spin h-8 w-8 text-blue-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Processing results...</p>
+          </div>
+        )}
+        
+        {scan.status === 'error' && (
+          <div className="text-center py-6">
+            <svg className="h-8 w-8 text-red-500 mb-3 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-sm text-red-600 dark:text-red-400">
+              {scan.error_message || 'An error occurred during scan processing'}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+  
   // Toggle section expansion
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({
@@ -88,12 +126,6 @@ export default function JobScanView({ scan }: JobScanViewProps) {
   if (!scores) return null;
 
   // Helper function to determine color based on score
-  const getScoreColor = (score: number) => {
-    if (score >= 90) return 'text-green-600 dark:text-green-400';
-    if (score >= 50) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
-  };
-
   const getRingColor = (score: number) => {
     if (score >= 90) return '#10b981'; // green
     if (score >= 50) return '#f59e0b'; // yellow
@@ -101,7 +133,7 @@ export default function JobScanView({ scan }: JobScanViewProps) {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg overflow-hidden">
       {/* Header with overall score */}
       <div className="p-6 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
@@ -202,7 +234,7 @@ export default function JobScanView({ scan }: JobScanViewProps) {
       </div>
 
       {/* Expanded sections */}
-      {expandedSections.hardSkills && (
+      {expandedSections.hardSkills && scores.hardSkillsItems.length > 0 && (
         <div className="p-6 border-t border-gray-200 dark:border-gray-700">
           <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Hard Skills Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -226,7 +258,7 @@ export default function JobScanView({ scan }: JobScanViewProps) {
         </div>
       )}
 
-      {expandedSections.softSkills && (
+      {expandedSections.softSkills && scores.softSkillsItems.length > 0 && (
         <div className="p-6 border-t border-gray-200 dark:border-gray-700">
           <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Soft Skills Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
