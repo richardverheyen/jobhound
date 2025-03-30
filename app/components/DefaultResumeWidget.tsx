@@ -5,6 +5,10 @@ import Link from 'next/link';
 import { Resume, User } from '@/types';
 import { supabase } from '@/supabase/client';
 import DirectResumeUpload from './DirectResumeUpload';
+import PDFViewer from './PDFViewer';
+
+// Change this to true to display two pages side by side
+const SHOW_TWO_PAGES = false;
 
 interface DefaultResumeWidgetProps {
   user: User | null;
@@ -114,43 +118,24 @@ export default function DefaultResumeWidget({
       </div>
 
       {defaultResume ? (
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="flex items-start space-x-4">
-            <div className="flex-shrink-0">
-              <svg className="h-10 w-10 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                {defaultResume.filename}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Uploaded {defaultResume.created_at ? new Date(defaultResume.created_at).toLocaleDateString() : 'Unknown date'}
-              </p>
-            </div>
-            <div>
-              <button
-                onClick={() => onViewResume(defaultResume)}
-                className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
-              >
-                View
-              </button>
-            </div>
-          </div>
-        </div>
+        <PDFViewer 
+          resume={defaultResume} 
+          onView={() => onViewResume(defaultResume)}
+          showTwoPages={SHOW_TWO_PAGES}
+        />
       ) : (
-        <div className="text-center py-6">
-          <svg className="mx-auto h-10 w-10 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="text-center py-8 border border-gray-200 dark:border-gray-700 rounded-lg">
+          <svg className="mx-auto h-12 w-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            Upload a resume to enhance your job matching.
+          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No default resume</h3>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Upload a resume to enhance your job matching experience
           </p>
-          <div className="mt-4">
+          <div className="mt-6">
             <DirectResumeUpload 
               onSuccess={(resumeId) => onCreateResume(resumeId)}
-              className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               buttonText="Upload Resume"
             />
           </div>
