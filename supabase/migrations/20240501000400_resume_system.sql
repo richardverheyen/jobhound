@@ -11,8 +11,6 @@ CREATE TABLE IF NOT EXISTS resumes (
   file_size INT8,
   mime_type TEXT,
   raw_text TEXT,
-  thumbnail_path TEXT,
-  thumbnail_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -78,9 +76,7 @@ CREATE OR REPLACE FUNCTION create_resume(
   p_file_size INT8,
   p_file_url TEXT,
   p_raw_text TEXT DEFAULT NULL,
-  p_set_as_default BOOLEAN DEFAULT FALSE,
-  p_thumbnail_path TEXT DEFAULT NULL,
-  p_thumbnail_url TEXT DEFAULT NULL
+  p_set_as_default BOOLEAN DEFAULT FALSE
 )
 RETURNS JSONB AS $$
 DECLARE
@@ -139,9 +135,7 @@ BEGIN
     file_url,
     file_size,
     mime_type,
-    raw_text,
-    thumbnail_path,
-    thumbnail_url
+    raw_text
   )
   VALUES (
     v_user_id,
@@ -150,9 +144,7 @@ BEGIN
     p_file_url,
     p_file_size,
     'application/pdf',  -- Assuming PDF as per the upload restrictions
-    p_raw_text,
-    p_thumbnail_path,
-    p_thumbnail_url
+    p_raw_text
   )
   RETURNING id INTO v_resume_id;
   
@@ -173,8 +165,6 @@ BEGIN
     'file_size', r.file_size,
     'mime_type', r.mime_type,
     'raw_text', r.raw_text,
-    'thumbnail_path', r.thumbnail_path,
-    'thumbnail_url', r.thumbnail_url,
     'created_at', r.created_at,
     'updated_at', r.updated_at,
     'is_default', (u.default_resume_id = r.id)
@@ -205,7 +195,6 @@ RETURNS BOOLEAN AS $$
 DECLARE
   v_user_id UUID;
   v_file_path TEXT;
-  v_thumbnail_path TEXT;
   v_is_default BOOLEAN;
   v_new_default_id UUID;
 BEGIN
@@ -215,9 +204,8 @@ BEGIN
   -- Check if the resume exists and belongs to the user
   SELECT 
     file_path,
-    thumbnail_path,
     (SELECT default_resume_id = p_resume_id FROM users WHERE id = v_user_id)
-  INTO v_file_path, v_thumbnail_path, v_is_default
+  INTO v_file_path, v_is_default
   FROM resumes
   WHERE id = p_resume_id AND user_id = v_user_id;
   

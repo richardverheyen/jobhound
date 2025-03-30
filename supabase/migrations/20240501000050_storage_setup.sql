@@ -23,18 +23,6 @@ BEGIN
         RAISE NOTICE 'Note: Could not create storage bucket. This is expected in local development or if the bucket already exists.';
     END;
     
-    -- Create the thumbnails bucket if it doesn't exist
-    BEGIN
-      INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-      VALUES ('thumbnails', 'thumbnails', false, 5242880, ARRAY['image/webp']) -- 5MB limit, WebP only
-      ON CONFLICT (id) DO UPDATE 
-      SET file_size_limit = 5242880, 
-          allowed_mime_types = ARRAY['image/webp'];
-    EXCEPTION
-      WHEN OTHERS THEN
-        RAISE NOTICE 'Note: Could not create thumbnails bucket. This is expected in local development or if the bucket already exists.';
-    END;
-    
     -- Create storage RLS policies for authenticated users
     -- Since we can't check if the policies table exists directly (might cause error),
     -- we'll wrap each policy creation in its own exception block
@@ -56,20 +44,6 @@ BEGIN
     END;
     
     BEGIN
-      -- Add policy to allow users to read their own thumbnail files
-      EXECUTE format('
-        DROP POLICY IF EXISTS "Users can read their own thumbnails" ON storage.objects;
-        CREATE POLICY "Users can read their own thumbnails" ON storage.objects
-        FOR SELECT
-        TO authenticated
-        USING (bucket_id = ''thumbnails'' AND auth.uid()::text = storage.foldername(name));
-      ');
-    EXCEPTION
-      WHEN OTHERS THEN
-        RAISE NOTICE 'Error creating thumbnail SELECT policy: %', SQLERRM;
-    END;
-    
-    BEGIN
       -- Add policy to allow users to upload files to their own folders
       EXECUTE format('
         DROP POLICY IF EXISTS "Users can upload to their own folders" ON storage.objects;
@@ -81,20 +55,6 @@ BEGIN
     EXCEPTION
       WHEN OTHERS THEN
         RAISE NOTICE 'Error creating INSERT policy: %', SQLERRM;
-    END;
-    
-    BEGIN
-      -- Add policy to allow users to upload thumbnails to their own folders
-      EXECUTE format('
-        DROP POLICY IF EXISTS "Users can upload thumbnails to their own folders" ON storage.objects;
-        CREATE POLICY "Users can upload thumbnails to their own folders" ON storage.objects
-        FOR INSERT
-        TO authenticated
-        WITH CHECK (bucket_id = ''thumbnails'' AND auth.uid()::text = storage.foldername(name));
-      ');
-    EXCEPTION
-      WHEN OTHERS THEN
-        RAISE NOTICE 'Error creating thumbnail INSERT policy: %', SQLERRM;
     END;
     
     BEGIN
@@ -112,20 +72,6 @@ BEGIN
     END;
     
     BEGIN
-      -- Add policy to allow users to update their own thumbnails
-      EXECUTE format('
-        DROP POLICY IF EXISTS "Users can update their own thumbnails" ON storage.objects;
-        CREATE POLICY "Users can update their own thumbnails" ON storage.objects
-        FOR UPDATE
-        TO authenticated
-        USING (bucket_id = ''thumbnails'' AND auth.uid()::text = storage.foldername(name));
-      ');
-    EXCEPTION
-      WHEN OTHERS THEN
-        RAISE NOTICE 'Error creating thumbnail UPDATE policy: %', SQLERRM;
-    END;
-    
-    BEGIN
       -- Add policy to allow users to delete their own files
       EXECUTE format('
         DROP POLICY IF EXISTS "Users can delete their own files" ON storage.objects;
@@ -137,20 +83,6 @@ BEGIN
     EXCEPTION
       WHEN OTHERS THEN
         RAISE NOTICE 'Error creating DELETE policy: %', SQLERRM;
-    END;
-    
-    BEGIN
-      -- Add policy to allow users to delete their own thumbnails
-      EXECUTE format('
-        DROP POLICY IF EXISTS "Users can delete their own thumbnails" ON storage.objects;
-        CREATE POLICY "Users can delete their own thumbnails" ON storage.objects
-        FOR DELETE
-        TO authenticated
-        USING (bucket_id = ''thumbnails'' AND auth.uid()::text = storage.foldername(name));
-      ');
-    EXCEPTION
-      WHEN OTHERS THEN
-        RAISE NOTICE 'Error creating thumbnail DELETE policy: %', SQLERRM;
     END;
     
     -- Add service_role policies to allow functions with SECURITY DEFINER to access storage
@@ -169,20 +101,6 @@ BEGIN
     END;
     
     BEGIN
-      -- Service role can read any thumbnail files
-      EXECUTE format('
-        DROP POLICY IF EXISTS "Service role can read all thumbnails" ON storage.objects;
-        CREATE POLICY "Service role can read all thumbnails" ON storage.objects
-        FOR SELECT
-        TO service_role
-        USING (bucket_id = ''thumbnails'');
-      ');
-    EXCEPTION
-      WHEN OTHERS THEN
-        RAISE NOTICE 'Error creating service role thumbnail SELECT policy: %', SQLERRM;
-    END;
-    
-    BEGIN
       -- Service role can upload resume files
       EXECUTE format('
         DROP POLICY IF EXISTS "Service role can upload files" ON storage.objects;
@@ -194,20 +112,6 @@ BEGIN
     EXCEPTION
       WHEN OTHERS THEN
         RAISE NOTICE 'Error creating service role INSERT policy: %', SQLERRM;
-    END;
-    
-    BEGIN
-      -- Service role can upload thumbnail files
-      EXECUTE format('
-        DROP POLICY IF EXISTS "Service role can upload thumbnails" ON storage.objects;
-        CREATE POLICY "Service role can upload thumbnails" ON storage.objects
-        FOR INSERT
-        TO service_role
-        WITH CHECK (bucket_id = ''thumbnails'');
-      ');
-    EXCEPTION
-      WHEN OTHERS THEN
-        RAISE NOTICE 'Error creating service role thumbnail INSERT policy: %', SQLERRM;
     END;
     
     BEGIN
@@ -225,20 +129,6 @@ BEGIN
     END;
     
     BEGIN
-      -- Service role can update thumbnail files
-      EXECUTE format('
-        DROP POLICY IF EXISTS "Service role can update thumbnails" ON storage.objects;
-        CREATE POLICY "Service role can update thumbnails" ON storage.objects
-        FOR UPDATE
-        TO service_role
-        USING (bucket_id = ''thumbnails'');
-      ');
-    EXCEPTION
-      WHEN OTHERS THEN
-        RAISE NOTICE 'Error creating service role thumbnail UPDATE policy: %', SQLERRM;
-    END;
-    
-    BEGIN
       -- Service role can delete resume files
       EXECUTE format('
         DROP POLICY IF EXISTS "Service role can delete files" ON storage.objects;
@@ -250,20 +140,6 @@ BEGIN
     EXCEPTION
       WHEN OTHERS THEN
         RAISE NOTICE 'Error creating service role DELETE policy: %', SQLERRM;
-    END;
-    
-    BEGIN
-      -- Service role can delete thumbnail files
-      EXECUTE format('
-        DROP POLICY IF EXISTS "Service role can delete thumbnails" ON storage.objects;
-        CREATE POLICY "Service role can delete thumbnails" ON storage.objects
-        FOR DELETE
-        TO service_role
-        USING (bucket_id = ''thumbnails'');
-      ');
-    EXCEPTION
-      WHEN OTHERS THEN
-        RAISE NOTICE 'Error creating service role thumbnail DELETE policy: %', SQLERRM;
     END;
     
     -- Add anonymous role policies to allow file uploads for new users without needing to be authenticated first
@@ -279,20 +155,6 @@ BEGIN
     EXCEPTION
       WHEN OTHERS THEN
         RAISE NOTICE 'Error creating anonymous INSERT policy: %', SQLERRM;
-    END;
-    
-    BEGIN
-      -- Anonymous users can upload thumbnails
-      EXECUTE format('
-        DROP POLICY IF EXISTS "Anonymous users can upload thumbnails" ON storage.objects;
-        CREATE POLICY "Anonymous users can upload thumbnails" ON storage.objects
-        FOR INSERT
-        TO anon
-        WITH CHECK (bucket_id = ''thumbnails'' AND auth.uid()::text = storage.foldername(name));
-      ');
-    EXCEPTION
-      WHEN OTHERS THEN
-        RAISE NOTICE 'Error creating anonymous thumbnail INSERT policy: %', SQLERRM;
     END;
     
     -- Add direct policies to ensure universal access when needed
@@ -311,22 +173,7 @@ BEGIN
         RAISE NOTICE 'Error creating direct bucket access policy: %', SQLERRM;
     END;
     
-    BEGIN
-      -- Allow authenticated users to access the thumbnails bucket directly
-      EXECUTE format('
-        DROP POLICY IF EXISTS "Authenticated direct access to thumbnails bucket" ON storage.objects;
-        CREATE POLICY "Authenticated direct access to thumbnails bucket" ON storage.objects
-        FOR ALL
-        TO authenticated
-        USING (bucket_id = ''thumbnails'')
-        WITH CHECK (bucket_id = ''thumbnails'');
-      ');
-    EXCEPTION
-      WHEN OTHERS THEN
-        RAISE NOTICE 'Error creating direct thumbnails bucket access policy: %', SQLERRM;
-    END;
-    
-    -- Configure CORS for the storage buckets
+    -- Configure CORS for the storage bucket
     BEGIN
       -- Check if buckets_config table exists (might not in older Supabase versions)
       IF EXISTS (
@@ -360,35 +207,6 @@ BEGIN
           3600
         WHERE NOT EXISTS (
           SELECT 1 FROM storage.buckets_config WHERE bucket_id = 'resumes'
-        );
-        
-        -- Update the CORS configuration for the thumbnails bucket
-        UPDATE storage.buckets_config
-        SET cors_origins = ARRAY['*'], -- Allow any origin for development
-            cors_methods = ARRAY['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-            cors_allowed_headers = ARRAY['*'], 
-            cors_exposed_headers = ARRAY['Content-Range', 'Range', 'Content-Length'],
-            cors_max_age_seconds = 3600
-        WHERE bucket_id = 'thumbnails';
-        
-        -- Insert if not exists
-        INSERT INTO storage.buckets_config (
-          bucket_id, 
-          cors_origins, 
-          cors_methods, 
-          cors_allowed_headers, 
-          cors_exposed_headers, 
-          cors_max_age_seconds
-        )
-        SELECT 
-          'thumbnails',
-          ARRAY['*'], -- Allow any origin for development
-          ARRAY['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-          ARRAY['*'], 
-          ARRAY['Content-Range', 'Range', 'Content-Length'],
-          3600
-        WHERE NOT EXISTS (
-          SELECT 1 FROM storage.buckets_config WHERE bucket_id = 'thumbnails'
         );
       END IF;
     EXCEPTION

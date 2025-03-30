@@ -63,9 +63,6 @@ export interface Resume {
   file_url?: string;
   file_size?: number;
   mime_type?: string;
-  raw_text?: string;
-  thumbnail_path?: string;
-  thumbnail_url?: string;
   created_at?: string;
   updated_at?: string;
   is_default?: boolean;
