@@ -218,7 +218,7 @@ You are an expert resume analyzer. Process each field in the \`fieldDefinitions\
      Generate as many objects as are justified by the content found in the resume.
      Each object should represent a distinct item (like a specific skill) identified from the prompt.
 
-4. Replace any template variables in the response (e.g., \`\${skillNameSlug}\`, \`\${skillName}\`) with appropriate values.
+4. Replace any template variables in the response (e.g., \`$\{skillNameSlug}\`, \`$\{skillName}\`) with appropriate values.
 
 ## Key Abbreviation Dictionary:
 For token efficiency, use these abbreviated keys in your response:
@@ -236,6 +236,54 @@ Key mapping:
 - c: confidence
 - e: explanation
 \`\`\`
+
+## Response Format:
+
+Return a JSON array of response objects:
+\`\`\`json
+[
+  {
+    // Response for a one-to-one field
+    "id": "physicalAddressPresent",
+    "v": true,
+    "c": 0.95,
+    "e": "Rationale for the assessment"
+  },
+  {
+    // First response for a one-to-many field
+    "id": "skill-python",
+    "p": "hardSkills", // Include the original field ID as a reference
+    "l": "Python",
+    "syn": ["Python3", "PyTorch"],
+    "em": true,
+    "sm": false,
+    "rm": true,
+    "c": 0.9,
+    "e": "Python is mentioned 3 times in the resume"
+  },
+  {
+    // Second response for the same one-to-many field
+    "id": "skill-java",
+    "p": "hardSkills",
+    "l": "Java",
+    "syn": ["Java SE", "J2EE"],
+    "em": true,
+    "sm": true,
+    "rm": true,
+    "c": 0.85,
+    "e": "Java appears twice in the resume"
+  }
+  // Additional objects as needed
+]
+\`\`\`
+
+## Important:
+- Always maintain the original structure of each \`fieldResponse\` with the abbreviated keys
+- For one-to-many fields, create as many objects as necessary - don't limit yourself to a fixed number
+- Each response object should include the original field ID as a reference in the "p" property
+- For one-to-many fields, each generated object should have a unique ID derived from the content (like "skill-python")
+- Provide detailed and specific explanations
+- Include all required properties from the corresponding \`fieldResponse\` structure
 `;
       
       // Create the prompt for the AI
