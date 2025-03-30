@@ -7,10 +7,10 @@ import Link from 'next/link'
 import { Navbar } from '@/app/components/Navbar'
 import { Job, Resume, CreditUsage, User, JobScan } from '@/types'
 import ResumeModal from '@/app/components/ResumeModal';
-import CreateResumeModal from '@/app/components/CreateResumeModal';
 import CreateJobModal from '@/app/components/CreateJobModal';
 import JobsList from '@/app/components/JobsList';
 import DefaultResumeWidget from '@/app/components/DefaultResumeWidget';
+import DirectResumeUpload from '@/app/components/DirectResumeUpload';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -23,7 +23,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
   const [resumeModalOpen, setResumeModalOpen] = useState<boolean>(false);
-  const [createResumeModalOpen, setCreateResumeModalOpen] = useState<boolean>(false);
   const [createJobModalOpen, setCreateJobModalOpen] = useState<boolean>(false);
   const [displayName, setDisplayName] = useState<string>('');
   const [user, setUser] = useState<any>(null);
@@ -248,22 +247,8 @@ export default function DashboardPage() {
   };
   
   const closeResumeModal = () => {
-    setSelectedResume(null);
     setResumeModalOpen(false);
-  };
-  
-  // Create resume modal functions
-  const openCreateResumeModal = () => {
-    setCreateResumeModalOpen(true);
-  };
-  
-  const closeCreateResumeModal = () => {
-    setCreateResumeModalOpen(false);
-  };
-  
-  const handleResumeCreated = async (resumeId: string) => {
-    // Refresh data to get the newly created resume
-    refreshData();
+    setSelectedResume(null);
   };
   
   // Create job modal functions
@@ -277,7 +262,11 @@ export default function DashboardPage() {
   
   const handleJobCreated = async (jobId: string) => {
     // Refresh data after a job is created
-    refreshData();
+    await refreshData();
+  };
+
+  const handleResumeCreated = async (resumeId: string) => {
+    await refreshData();
   };
 
   if (loading) {
@@ -350,7 +339,7 @@ export default function DashboardPage() {
               <DefaultResumeWidget
                 user={user}
                 onViewResume={openResumeModal}
-                onCreateResume={openCreateResumeModal}
+                onCreateResume={(resumeId) => resumeId && handleResumeCreated(resumeId)}
               />
 
               {/* Job Search Goal */}
@@ -436,6 +425,18 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Resume Section */}
+              <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mt-8">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-medium text-gray-900 dark:text-white">Your Resumes</h2>
+                  <DirectResumeUpload 
+                    onSuccess={handleResumeCreated} 
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+                    buttonText="Upload Resume"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -445,12 +446,6 @@ export default function DashboardPage() {
         resume={selectedResume}
         isOpen={resumeModalOpen}
         onClose={closeResumeModal}
-      />
-      
-      <CreateResumeModal 
-        isOpen={createResumeModalOpen} 
-        onClose={closeCreateResumeModal} 
-        onSuccess={handleResumeCreated} 
       />
       
       <CreateJobModal 

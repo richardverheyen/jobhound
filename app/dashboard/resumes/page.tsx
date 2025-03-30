@@ -6,7 +6,7 @@ import { Resume } from '@/types';
 import { supabase } from '@/supabase/client';
 import { Navbar } from '@/app/components/Navbar';
 import ResumeModal from '@/app/components/ResumeModal';
-import CreateResumeModal from '@/app/components/CreateResumeModal';
+import DirectResumeUpload from '@/app/components/DirectResumeUpload';
 import { useRouter } from 'next/navigation';
 
 export default function ResumesPage() {
@@ -17,7 +17,6 @@ export default function ResumesPage() {
   const [user, setUser] = useState<any>(null);
   const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [createResumeModalOpen, setCreateResumeModalOpen] = useState(false);
 
   useEffect(() => {
     const getUser = async () => {
@@ -170,14 +169,6 @@ export default function ResumesPage() {
     setSelectedResume(null);
   };
 
-  const openCreateResumeModal = () => {
-    setCreateResumeModalOpen(true);
-  };
-
-  const closeCreateResumeModal = () => {
-    setCreateResumeModalOpen(false);
-  };
-
   const handleResumeCreated = async (resumeId: string) => {
     fetchResumes();
   };
@@ -201,15 +192,7 @@ export default function ResumesPage() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h1 className="text-2xl font-bold">My Resumes</h1>
-              <button
-                onClick={openCreateResumeModal}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                </svg>
-                Upload New Resume
-              </button>
+              <DirectResumeUpload onSuccess={handleResumeCreated} />
             </div>
 
             <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
@@ -232,15 +215,7 @@ export default function ResumesPage() {
                   <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No resumes yet</h3>
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by uploading your resume.</p>
                   <div className="mt-6">
-                    <button
-                      onClick={openCreateResumeModal}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                      </svg>
-                      Upload New Resume
-                    </button>
+                    <DirectResumeUpload onSuccess={handleResumeCreated} />
                   </div>
                 </div>
               ) : (
@@ -346,12 +321,6 @@ export default function ResumesPage() {
         resume={selectedResume}
         isOpen={modalOpen}
         onClose={closeResumeModal}
-      />
-      
-      <CreateResumeModal 
-        isOpen={createResumeModalOpen} 
-        onClose={closeCreateResumeModal} 
-        onSuccess={handleResumeCreated} 
       />
     </div>
   );

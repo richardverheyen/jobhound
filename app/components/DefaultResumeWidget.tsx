@@ -4,12 +4,13 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Resume, User } from '@/types';
 import { supabase } from '@/supabase/client';
+import DirectResumeUpload from './DirectResumeUpload';
 
 interface DefaultResumeWidgetProps {
   user: User | null;
   defaultResumeId?: string;
   onViewResume: (resume: Resume) => void;
-  onCreateResume: () => void;
+  onCreateResume: (resumeId?: string) => void;
 }
 
 export default function DefaultResumeWidget({ 
@@ -147,15 +148,11 @@ export default function DefaultResumeWidget({
             Upload a resume to enhance your job matching.
           </p>
           <div className="mt-4">
-            <button
-              onClick={onCreateResume}
+            <DirectResumeUpload 
+              onSuccess={(resumeId) => onCreateResume(resumeId)}
               className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-blue-600 hover:bg-blue-700"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="-ml-0.5 mr-1.5 h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              Upload Resume
-            </button>
+              buttonText="Upload Resume"
+            />
           </div>
         </div>
       )}
