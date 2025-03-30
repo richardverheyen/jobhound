@@ -9,6 +9,18 @@ interface JobScanViewProps {
   scan: JobScan;
 }
 
+interface CategoryScores {
+  searchability: number;
+  bestPractices: number;
+  hardSkills: number;
+  softSkills: number;
+  overall: number;
+  searchabilityRaw: { passed: number; total: number };
+  bestPracticesRaw: { passed: number; total: number };
+  hardSkillsRaw: { passed: number; total: number };
+  softSkillsRaw: { passed: number; total: number };
+}
+
 // Helper function to group fields by section
 const groupFieldsBySection = (results: any[], fieldDefinitions: any[]) => {
   // Create a map of field definitions for quick lookup
@@ -45,6 +57,16 @@ const groupFieldsBySection = (results: any[], fieldDefinitions: any[]) => {
   });
   
   return categorySections;
+};
+
+// Count passed items in section
+const countPassedItems = (items: any[]) => {
+  return items.filter(item => {
+    if (item.p === 'hardSkills' || item.p === 'softSkills') {
+      return item.em || item.sm || item.rm;
+    }
+    return item.v;
+  }).length;
 };
 
 export default function JobScanView({ scan }: JobScanViewProps) {
@@ -107,8 +129,18 @@ export default function JobScanView({ scan }: JobScanViewProps) {
   };
 
   // Calculate category scores from results
-  const calculateCategoryScores = () => {
-    if (!scan.results) return null;
+  const calculateCategoryScores = (): CategoryScores => {
+    if (!scan.results) return {
+      searchability: 0,
+      bestPractices: 0,
+      hardSkills: 0,
+      softSkills: 0,
+      overall: 0,
+      searchabilityRaw: { passed: 0, total: 0 },
+      bestPracticesRaw: { passed: 0, total: 0 },
+      hardSkillsRaw: { passed: 0, total: 0 },
+      softSkillsRaw: { passed: 0, total: 0 }
+    };
     
     const results = Array.isArray(scan.results) ? scan.results : [];
     
@@ -163,7 +195,23 @@ export default function JobScanView({ scan }: JobScanViewProps) {
       softSkills: categories.softSkills.total > 0 
         ? Math.round((categories.softSkills.score / categories.softSkills.total) * 100) 
         : 0,
-      overall: scan.match_score || 0
+      overall: scan.match_score || 0,
+      searchabilityRaw: {
+        passed: categories.searchability.score,
+        total: categories.searchability.total
+      },
+      bestPracticesRaw: {
+        passed: categories.bestPractices.score,
+        total: categories.bestPractices.total
+      },
+      hardSkillsRaw: {
+        passed: categories.hardSkills.score,
+        total: categories.hardSkills.total
+      },
+      softSkillsRaw: {
+        passed: categories.softSkills.score,
+        total: categories.softSkills.total
+      }
     };
   };
 
@@ -198,22 +246,25 @@ export default function JobScanView({ scan }: JobScanViewProps) {
       >
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-md font-medium">{scan.resume_filename || 'Resume Analysis'}</h3>
+            <h3 className="text-md font-medium">{scan.resume_filename || 'Resume'}</h3>
             <p className="text-xs text-gray-400 mt-1">{formatDate(scan.created_at)}</p>
           </div>
           
-          <div className="flex items-center space-x-2">
-            <ProgressRing
-              progress={scores.overall}
-              size={60}
-              strokeWidth={5}
-              color={getRingColor(scores.overall)}
-              backgroundColor="rgba(255,255,255,0.1)"
-              showPercentage={true}
-              className="text-white"
-            />
+          <div className="flex items-center space-x-4">
+            <div className="flex flex-col items-center">
+              <ProgressRing
+                progress={scores.overall}
+                size={60}
+                strokeWidth={5}
+                color={getRingColor(scores.overall)}
+                backgroundColor="rgba(255,255,255,0.1)"
+                showPercentage={true}
+                className="text-white"
+              />
+              <span className="text-xs text-gray-400 mt-1">Match Score</span>
+            </div>
             
-            <div className="flex space-x-1">
+            <div className="flex space-x-2">
               <ProgressRing
                 progress={scores.searchability}
                 size={30}
@@ -272,7 +323,7 @@ export default function JobScanView({ scan }: JobScanViewProps) {
             </svg>
           </button>
           <div>
-            <h2 className="text-xl font-medium">{scan.resume_filename || 'Resume Analysis'}</h2>
+            <h2 className="text-xl font-medium">{scan.resume_filename || 'Resume'}</h2>
             <p className="text-xs text-gray-400 mt-1">{formatDate(scan.created_at)}</p>
           </div>
         </div>
@@ -357,7 +408,11 @@ export default function JobScanView({ scan }: JobScanViewProps) {
             softSkills: 'Soft Skills'
           }[category] || category.charAt(0).toUpperCase() + category.slice(1);
           
-          const categoryScore = scores[category as keyof typeof scores] || 0;
+          const categoryScore = scores[category as keyof Pick<CategoryScores, 'searchability' | 'bestPractices' | 'hardSkills' | 'softSkills' | 'overall'>];
+          
+          // Get raw score for this category
+          const rawScoreKey = `${category}Raw` as keyof Pick<CategoryScores, 'searchabilityRaw' | 'bestPracticesRaw' | 'hardSkillsRaw' | 'softSkillsRaw'>;
+          const rawScore = scores[rawScoreKey];
           
           return (
             <div key={category} className="mb-8">
@@ -366,10 +421,10 @@ export default function JobScanView({ scan }: JobScanViewProps) {
                 <div className="flex items-center">
                   <div className="mr-3">
                     <ProgressRing
-                      progress={categoryScore}
+                      progress={categoryScore as number}
                       size={50}
                       strokeWidth={4}
-                      color={getRingColor(categoryScore)}
+                      color={getRingColor(categoryScore as number)}
                       backgroundColor="rgba(255,255,255,0.1)"
                       showPercentage={true}
                       className="text-white"
@@ -395,6 +450,45 @@ export default function JobScanView({ scan }: JobScanViewProps) {
                 </div>
               </div>
               
+              {/* Metrics Section */}
+              <div className="mb-6 border-t border-b border-[#3a4658] py-4">
+                <h4 className="text-sm uppercase text-gray-400 mb-4">METRICS</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Passed vs Total */}
+                  <div>
+                    <div className="flex items-center mb-2">
+                      <div className={`w-3 h-3 rounded-full ${(categoryScore as number) >= 90 ? 'bg-green-500' : (categoryScore as number) >= 50 ? 'bg-yellow-500' : 'bg-red-500'} mr-2`}></div>
+                      <span className="text-sm font-medium">Passing Rate</span>
+                    </div>
+                    <div className="text-xl">
+                      {(rawScore as { passed: number, total: number }).passed} <span className="text-gray-400">/ {(rawScore as { passed: number, total: number }).total}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Section Breakdown */}
+                  <div>
+                    <div className="text-sm font-medium mb-2">Section Breakdown</div>
+                    {Object.entries(sections).map(([sectionName, items]) => {
+                      const passedCount = countPassedItems(items);
+                      const totalCount = items.length;
+                      
+                      return (
+                        <div key={sectionName} className="flex justify-between text-sm mb-1">
+                          <span className="text-gray-400">{sectionName}</span>
+                          <span>
+                            {passedCount}/{totalCount} 
+                            <span className="text-gray-400 ml-1">
+                              ({totalCount > 0 ? Math.round((passedCount/totalCount) * 100) : 0}%)
+                            </span>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+              
               {/* Section header */}
               <div className="flex justify-between items-center mb-2 text-sm uppercase text-gray-400 font-medium">
                 <span>DETAILS</span>
@@ -408,8 +502,7 @@ export default function JobScanView({ scan }: JobScanViewProps) {
                   
                   return (
                     <div key={sectionName} className="mb-4">
-                      {/* Section header if needed */}
-                      {/* <h4 className="text-sm uppercase text-gray-400 mb-2">{sectionName}</h4> */}
+                      <h4 className="text-sm uppercase text-gray-400 mb-2">{sectionName}</h4>
                       
                       {items.map((item, index) => {
                         const isSkill = item.p === 'hardSkills' || item.p === 'softSkills';
@@ -449,9 +542,62 @@ export default function JobScanView({ scan }: JobScanViewProps) {
                                 {expandedItems[itemId] && (
                                   <div className="mt-2 space-y-2">
                                     <p className="text-xs text-gray-300">{item.e}</p>
+                                    
                                     {item.c && (
                                       <p className="text-xs text-gray-400">Confidence: {Math.round(item.c * 100)}%</p>
                                     )}
+                                    
+                                    {/* For skills, show specific match types */}
+                                    {isSkill && (
+                                      <div className="space-y-1 mt-2">
+                                        <div className="text-xs font-medium">Match Types:</div>
+                                        <div className="flex items-center text-xs">
+                                          <div className="mr-2">
+                                            {item.em ? (
+                                              <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                              </svg>
+                                            ) : (
+                                              <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                              </svg>
+                                            )}
+                                          </div>
+                                          <span>Exact Match</span>
+                                        </div>
+                                        
+                                        <div className="flex items-center text-xs">
+                                          <div className="mr-2">
+                                            {item.sm ? (
+                                              <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                              </svg>
+                                            ) : (
+                                              <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                              </svg>
+                                            )}
+                                          </div>
+                                          <span>Synonym Match</span>
+                                        </div>
+                                        
+                                        <div className="flex items-center text-xs">
+                                          <div className="mr-2">
+                                            {item.rm ? (
+                                              <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                              </svg>
+                                            ) : (
+                                              <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                              </svg>
+                                            )}
+                                          </div>
+                                          <span>Related Term Match</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                    
                                     {isSkill && item.syn && item.syn.length > 0 && (
                                       <p className="text-xs text-gray-400">
                                         Synonyms: {item.syn.join(', ')}
