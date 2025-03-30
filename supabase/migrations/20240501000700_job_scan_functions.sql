@@ -2,7 +2,8 @@
 CREATE OR REPLACE FUNCTION create_job_scan(
   p_user_id UUID,
   p_job_id UUID,
-  p_resume_id UUID
+  p_resume_id UUID,
+  p_resume_filename TEXT
 )
 RETURNS UUID AS $$
 DECLARE
@@ -35,6 +36,7 @@ BEGIN
     user_id,
     job_id,
     resume_id,
+    resume_filename,
     credit_purchase_id,
     status,
     created_at
@@ -43,6 +45,7 @@ BEGIN
     p_user_id,
     p_job_id,
     p_resume_id,
+    p_resume_filename,
     v_purchase_id,
     'pending',
     NOW()

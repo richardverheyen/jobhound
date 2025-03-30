@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS job_scans (
   user_id UUID REFERENCES users(id) NOT NULL,
   job_id UUID REFERENCES jobs(id) NOT NULL,
   resume_id UUID REFERENCES resumes(id) NOT NULL,
+  resume_filename TEXT,
   credit_purchase_id UUID REFERENCES credit_purchases(id),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   status TEXT NOT NULL DEFAULT 'pending',

@@ -133,7 +133,8 @@ export async function POST(req: NextRequest) {
           {
             p_user_id: user.id,
             p_job_id: scanRequest.jobId,
-            p_resume_id: scanRequest.resumeId
+            p_resume_id: scanRequest.resumeId,
+            p_resume_filename: resumeData.filename
           }
         );
         
