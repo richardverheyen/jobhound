@@ -1,15 +1,62 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { JobScan } from '@/types';
 import ProgressRing from './ProgressRing';
+import { fields } from '@/app/api/create-scan/v1-fields';
 
 interface JobScanViewProps {
   scan: JobScan;
 }
 
+// Helper function to group fields by section
+const groupFieldsBySection = (results: any[], fieldDefinitions: any[]) => {
+  // Create a map of field definitions for quick lookup
+  const fieldDefinitionsMap = fieldDefinitions.reduce((acc, field) => {
+    acc[field.id] = field;
+    return acc;
+  }, {} as Record<string, any>);
+
+  // Group results by category and section
+  const categorySections: Record<string, Record<string, any[]>> = {};
+  
+  results.forEach(result => {
+    // Get the parent field ID - either directly from p or from the result's id
+    const fieldId = result.p || result.id;
+    const fieldDef = fieldDefinitionsMap[fieldId];
+    
+    if (!fieldDef) return;
+    
+    const { category, section } = fieldDef.fieldContext;
+    
+    // Initialize category and section if they don't exist
+    if (!categorySections[category]) {
+      categorySections[category] = {};
+    }
+    if (!categorySections[category][section]) {
+      categorySections[category][section] = [];
+    }
+    
+    // Add the result with its field context
+    categorySections[category][section].push({
+      ...result,
+      fieldContext: fieldDef.fieldContext
+    });
+  });
+  
+  return categorySections;
+};
+
 export default function JobScanView({ scan }: JobScanViewProps) {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+  const [groupedFields, setGroupedFields] = useState<any>(null);
+  
+  useEffect(() => {
+    if (scan.status === 'completed' && scan.results && Array.isArray(scan.results)) {
+      setGroupedFields(groupFieldsBySection(scan.results, fields));
+    }
+  }, [scan]);
   
   // If the scan isn't completed, don't render the detailed view
   if (scan.status !== 'completed' || !scan.results) {
@@ -49,11 +96,21 @@ export default function JobScanView({ scan }: JobScanViewProps) {
     );
   }
   
+  if (!groupedFields) return null;
+  
   // Toggle section expansion
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section]
+    }));
+  };
+  
+  // Toggle item expansion
+  const toggleItem = (itemId: string) => {
+    setExpandedItems(prev => ({
+      ...prev,
+      [itemId]: !prev[itemId]
     }));
   };
 
@@ -67,8 +124,8 @@ export default function JobScanView({ scan }: JobScanViewProps) {
     const categories = {
       searchability: { score: 0, total: 0 },
       bestPractices: { score: 0, total: 0 },
-      hardSkills: { score: 0, total: 0, items: [] as any[] },
-      softSkills: { score: 0, total: 0, items: [] as any[] }
+      hardSkills: { score: 0, total: 0 },
+      softSkills: { score: 0, total: 0 }
     };
 
     // Process each result item
@@ -78,14 +135,12 @@ export default function JobScanView({ scan }: JobScanViewProps) {
         if (item.em || item.sm || item.rm) {
           categories.hardSkills.score++;
         }
-        categories.hardSkills.items.push(item);
       } 
       else if (item.p === 'softSkills') {
         categories.softSkills.total++;
         if (item.em || item.sm || item.rm) {
           categories.softSkills.score++;
         }
-        categories.softSkills.items.push(item);
       }
       else if (item.id.startsWith('searchability') || 
                ['emailPresent', 'phonePresent', 'physicalAddressPresent', 'educationSectionPresent', 
@@ -116,9 +171,7 @@ export default function JobScanView({ scan }: JobScanViewProps) {
       softSkills: categories.softSkills.total > 0 
         ? Math.round((categories.softSkills.score / categories.softSkills.total) * 100) 
         : 0,
-      overall: scan.match_score || 0,
-      hardSkillsItems: categories.hardSkills.items,
-      softSkillsItems: categories.softSkills.items
+      overall: scan.match_score || 0
     };
   };
 
@@ -131,6 +184,27 @@ export default function JobScanView({ scan }: JobScanViewProps) {
     if (score >= 50) return '#f59e0b'; // yellow
     return '#ef4444'; // red
   };
+
+  const renderCategoryCard = (category: string, title: string, description: string, score: number) => (
+    <div 
+      className="bg-[#2a3749] rounded-lg p-4 cursor-pointer hover:bg-[#32404f] transition"
+      onClick={() => toggleSection(category)}
+    >
+      <div className="flex flex-col items-center mb-2">
+        <ProgressRing
+          progress={score}
+          size={60}
+          strokeWidth={5}
+          color={getRingColor(score)}
+          backgroundColor="rgba(255,255,255,0.1)"
+          showPercentage={true}
+          className="text-white mb-2"
+        />
+        <h3 className="text-base font-medium">{title}</h3>
+      </div>
+      <p className="text-sm text-gray-300 text-center">{description}</p>
+    </div>
+  );
 
   return (
     <div className="bg-[#1e2837] text-white overflow-hidden">
@@ -153,213 +227,83 @@ export default function JobScanView({ scan }: JobScanViewProps) {
 
       {/* Main metrics grid */}
       <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Searchability */}
-        <div 
-          className="bg-[#2a3749] rounded-lg p-4 cursor-pointer hover:bg-[#32404f] transition"
-          onClick={() => toggleSection('searchability')}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-base font-medium">Searchability</h3>
-            <div>
-              <ProgressRing
-                progress={scores.searchability}
-                size={40}
-                strokeWidth={3}
-                color={getRingColor(scores.searchability)}
-                backgroundColor="rgba(255,255,255,0.1)"
-                showPercentage={true}
-                className="text-white"
-              />
-            </div>
-          </div>
-          <p className="text-sm text-gray-300">ATS compatibility score</p>
-        </div>
-
-        {/* Best Practices */}
-        <div 
-          className="bg-[#2a3749] rounded-lg p-4 cursor-pointer hover:bg-[#32404f] transition"
-          onClick={() => toggleSection('bestPractices')}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-base font-medium">Best Practices</h3>
-            <div>
-              <ProgressRing
-                progress={scores.bestPractices}
-                size={40}
-                strokeWidth={3}
-                color={getRingColor(scores.bestPractices)}
-                backgroundColor="rgba(255,255,255,0.1)"
-                showPercentage={true}
-                className="text-white"
-              />
-            </div>
-          </div>
-          <p className="text-sm text-gray-300">Resume format & quality</p>
-        </div>
-
-        {/* Hard Skills */}
-        <div 
-          className="bg-[#2a3749] rounded-lg p-4 cursor-pointer hover:bg-[#32404f] transition"
-          onClick={() => toggleSection('hardSkills')}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-base font-medium">Hard Skills</h3>
-            <div>
-              <ProgressRing
-                progress={scores.hardSkills}
-                size={40}
-                strokeWidth={3}
-                color={getRingColor(scores.hardSkills)}
-                backgroundColor="rgba(255,255,255,0.1)"
-                showPercentage={true}
-                className="text-white"
-              />
-            </div>
-          </div>
-          <p className="text-sm text-gray-300">Technical skills match</p>
-        </div>
-
-        {/* Soft Skills */}
-        <div 
-          className="bg-[#2a3749] rounded-lg p-4 cursor-pointer hover:bg-[#32404f] transition"
-          onClick={() => toggleSection('softSkills')}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-base font-medium">Soft Skills</h3>
-            <div>
-              <ProgressRing
-                progress={scores.softSkills}
-                size={40}
-                strokeWidth={3}
-                color={getRingColor(scores.softSkills)}
-                backgroundColor="rgba(255,255,255,0.1)"
-                showPercentage={true}
-                className="text-white"
-              />
-            </div>
-          </div>
-          <p className="text-sm text-gray-300">Interpersonal skills match</p>
-        </div>
+        {renderCategoryCard('searchability', 'Searchability', 'ATS compatibility score', scores.searchability)}
+        {renderCategoryCard('bestPractices', 'Best Practices', 'Resume format & quality', scores.bestPractices)}
+        {renderCategoryCard('hardSkills', 'Hard Skills', 'Technical skills match', scores.hardSkills)}
+        {renderCategoryCard('softSkills', 'Soft Skills', 'Interpersonal skills match', scores.softSkills)}
       </div>
 
       {/* Expanded sections */}
-      {expandedSections.hardSkills && scores.hardSkillsItems.length > 0 && (
-        <div className="p-4 border-t border-[#3a4658]">
-          <h3 className="text-lg font-medium mb-4">Hard Skills Details</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {scores.hardSkillsItems.map((skill, index) => (
-              <div key={index} className="flex items-center p-3 bg-[#2a3749] rounded-lg">
-                <div className="mr-3">
-                  {skill.em || skill.sm || skill.rm ? (
-                    <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  )}
+      {Object.entries(groupedFields).map(([category, sections]) => 
+        expandedSections[category] && (
+          <div key={category} className="p-4 border-t border-[#3a4658]">
+            <h3 className="text-lg font-medium mb-4">{category.charAt(0).toUpperCase() + category.slice(1)} Details</h3>
+            
+            {/* Sections */}
+            {Object.entries(sections).map(([sectionName, items]) => (
+              <div key={sectionName} className="mb-6">
+                <h4 className="text-sm font-medium uppercase text-gray-400 mb-2">{sectionName}</h4>
+                
+                <div className="space-y-3">
+                  {/* Items */}
+                  {Array.isArray(items) && items.map((item, index) => {
+                    const isSkill = item.p === 'hardSkills' || item.p === 'softSkills';
+                    const passed = isSkill ? (item.em || item.sm || item.rm) : item.v;
+                    const itemId = `${category}-${sectionName}-${index}`;
+                    
+                    return (
+                      <div 
+                        key={itemId} 
+                        className="cursor-pointer"
+                        onClick={() => toggleItem(itemId)}
+                      >
+                        <div className="flex items-start p-3 bg-[#2a3749] rounded-lg">
+                          <div className="mr-3 mt-0.5">
+                            {passed ? (
+                              <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            ) : (
+                              <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="text-sm font-medium flex items-center justify-between">
+                              <span>
+                                {isSkill 
+                                  ? item.l 
+                                  : item.fieldContext?.label || item.id.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase())}
+                              </span>
+                              <svg className={`w-4 h-4 transition-transform ${expandedItems[itemId] ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </h4>
+                            
+                            {expandedItems[itemId] && (
+                              <div className="mt-2 space-y-2">
+                                <p className="text-xs text-gray-300">{item.e}</p>
+                                {item.c && (
+                                  <p className="text-xs text-gray-400">Confidence: {Math.round(item.c * 100)}%</p>
+                                )}
+                                {isSkill && item.syn && item.syn.length > 0 && (
+                                  <p className="text-xs text-gray-400">
+                                    Synonyms: {item.syn.join(', ')}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <span className="text-sm">{skill.l}</span>
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {expandedSections.softSkills && scores.softSkillsItems.length > 0 && (
-        <div className="p-4 border-t border-[#3a4658]">
-          <h3 className="text-lg font-medium mb-4">Soft Skills Details</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {scores.softSkillsItems.map((skill, index) => (
-              <div key={index} className="flex items-center p-3 bg-[#2a3749] rounded-lg">
-                <div className="mr-3">
-                  {skill.em || skill.sm || skill.rm ? (
-                    <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  )}
-                </div>
-                <span className="text-sm">{skill.l}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {expandedSections.searchability && (
-        <div className="p-4 border-t border-[#3a4658]">
-          <h3 className="text-lg font-medium mb-4">Searchability Details</h3>
-          <div className="space-y-3">
-            {scan.results && Array.isArray(scan.results) && scan.results
-              .filter(item => item.id.startsWith('searchability') || 
-                ['emailPresent', 'phonePresent', 'physicalAddressPresent', 'educationSectionPresent', 
-                 'workExperienceSectionPresent', 'jobTitleIncluded', 'correctDateFormat', 
-                 'meetsEducationRequirements', 'isPdfFormat', 'noSpecialCharactersInFilename', 
-                 'conciseFilename'].includes(item.id))
-              .map((item, index) => (
-                <div key={index} className="flex items-start p-3 bg-[#2a3749] rounded-lg">
-                  <div className="mr-3 mt-0.5">
-                    {item.v ? (
-                      <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    )}
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-medium">
-                      {item.id.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase()).replace('Present', '')}
-                    </h4>
-                    <p className="text-xs text-gray-300">{item.e}</p>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {expandedSections.bestPractices && (
-        <div className="p-4 border-t border-[#3a4658]">
-          <h3 className="text-lg font-medium mb-4">Best Practices Details</h3>
-          <div className="space-y-3">
-            {scan.results && Array.isArray(scan.results) && scan.results
-              .filter(item => !item.id.startsWith('searchability') && 
-                !['emailPresent', 'phonePresent', 'physicalAddressPresent', 'educationSectionPresent', 
-                 'workExperienceSectionPresent', 'jobTitleIncluded', 'correctDateFormat', 
-                 'meetsEducationRequirements', 'isPdfFormat', 'noSpecialCharactersInFilename', 
-                 'conciseFilename'].includes(item.id) && 
-                item.p !== 'hardSkills' && item.p !== 'softSkills')
-              .map((item, index) => (
-                <div key={index} className="flex items-start p-3 bg-[#2a3749] rounded-lg">
-                  <div className="mr-3 mt-0.5">
-                    {item.v ? (
-                      <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    )}
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-medium">
-                      {item.id.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase())}
-                    </h4>
-                    <p className="text-xs text-gray-300">{item.e}</p>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
+        )
       )}
     </div>
   );
