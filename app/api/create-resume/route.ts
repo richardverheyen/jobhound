@@ -6,6 +6,9 @@ import fs from 'fs';
 import os from 'os';
 import sharp from 'sharp';
 
+// Helper function to add delay for storage operations to complete
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 // Define structure for request
 interface CreateResumeRequest {
   filename: string;
@@ -88,43 +91,57 @@ export async function POST(req: NextRequest) {
     }
 
     // The thumbnail will be generated asynchronously, so we'll start with empty thumbnail fields
-    let thumbnailPath = null;
-    let thumbnailUrl = null;
+    let thumbnailPath: string | null = null;
+    let thumbnailUrl: string | null = null;
 
     // Create resume immediately with empty raw_text
-    // Call the create_resume function to store the resume initially
-    const { data: resumeData, error: resumeError } = await supabase.rpc(
-      'create_resume',
-      {
-        p_filename: requestData.filename,
-        p_name: requestData.name,
-        p_file_path: requestData.filePath,
-        p_file_size: requestData.fileSize,
-        p_file_url: requestData.fileUrl,
-        p_raw_text: 'Extracting text...',
-        p_set_as_default: requestData.setAsDefault || false,
-        p_thumbnail_path: thumbnailPath,
-        p_thumbnail_url: thumbnailUrl
-      }
-    );
+    const { data: resume, error: resumeError } = await supabase
+      .from('resumes')
+      .insert({
+        user_id: user.id,
+        name: requestData.name,
+        file_name: requestData.filename,
+        file_path: requestData.filePath,
+        file_size: requestData.fileSize,
+        file_url: requestData.fileUrl,
+        raw_text: null, // Will be updated asynchronously
+        created_at: new Date().toISOString(),
+        thumbnail_path: null,
+        thumbnail_url: null
+      })
+      .select()
+      .single();
 
     if (resumeError) {
-      console.error('Resume creation error:', resumeError);
+      console.error('Error creating resume record:', resumeError);
       return NextResponse.json(
-        { error: `Error creating resume: ${resumeError.message || resumeError.details || 'Unknown database error'}` },
+        { error: 'Failed to create resume record', details: resumeError.message },
         { status: 500 }
       );
     }
 
-    if (!resumeData || resumeData.success === false) {
-      console.error('Resume function returned error:', resumeData);
-      return NextResponse.json(
-        { error: `Database error: ${resumeData?.error || 'Unknown function error'}` },
-        { status: 500 }
-      );
+    // Get the ID of the created resume
+    const resumeId = resume.id;
+
+    // If setAsDefault is true, update the user's default_resume_id
+    if (requestData.setAsDefault) {
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ default_resume_id: resumeId })
+        .eq('id', user.id);
+      
+      if (updateError) {
+        console.error('Error setting default resume:', updateError);
+        // Non-critical error, don't return an error response
+      }
     }
 
-    const resumeId = resumeData.resume_id;
+    // Return success response with resume ID
+    const response = {
+      success: true,
+      resumeId: resumeId,
+      message: 'Resume created successfully. Text extraction in progress.',
+    };
 
     // Process text extraction asynchronously
     // We don't await this promise, allowing the response to return immediately
@@ -137,6 +154,14 @@ export async function POST(req: NextRequest) {
         if (!fileBase64Data) {
           try {
             console.log(`Downloading PDF file from storage: ${requestData.filePath}`);
+            // Verify we have valid service role credentials before proceeding
+            console.log('Verifying Supabase service role credentials...');
+            if (!supabaseServiceRole || supabaseServiceRole.length < 20) {
+              console.error('Invalid Supabase service role key - operations may fail');
+            } else {
+              console.log('Service role key appears valid');
+            }
+            
             // Download file from storage
             const { data: fileData, error: fileError } = await adminSupabase
               .storage
@@ -173,6 +198,31 @@ export async function POST(req: NextRequest) {
           if (pdfBuffer) {
             console.log('Starting thumbnail generation process...');
             
+            // First, test if we can write to the thumbnails bucket with a small test file
+            const testBuffer = Buffer.from('test file for permissions check');
+            const testPath = `permission_test_${Date.now()}.txt`;
+            
+            console.log('Testing storage permissions with a small test file...');
+            const { data: testData, error: testError } = await adminSupabase
+              .storage
+              .from('thumbnails')
+              .upload(testPath, testBuffer, { upsert: true });
+              
+            if (testError) {
+              console.error('Permission test failed. Cannot write to thumbnails bucket:', testError);
+              console.log('Will attempt to create bucket and proceed anyway...');
+            } else {
+              console.log('Permission test successful. We can write to the thumbnails bucket.');
+              
+              // Clean up test file
+              try {
+                await adminSupabase.storage.from('thumbnails').remove([testPath]);
+                console.log('Test file removed.');
+              } catch (e) {
+                console.log('Could not remove test file, but this is not critical.');
+              }
+            }
+            
             // Create a unique temporary directory
             const tempDir = path.join(os.tmpdir(), `resume_thumb_${Date.now()}`);
             fs.mkdirSync(tempDir, { recursive: true });
@@ -207,6 +257,7 @@ export async function POST(req: NextRequest) {
                   
                 if (createError) {
                   console.error('Error creating thumbnails bucket:', createError);
+                  throw new Error(`Could not create thumbnails bucket: ${createError.message}`);
                 } else {
                   console.log('Thumbnails bucket created successfully:', createData);
                 }
@@ -214,64 +265,88 @@ export async function POST(req: NextRequest) {
                 console.log('Thumbnails bucket exists:', bucketInfo);
               }
               
-              // Create file path for thumbnail
-              const userId = user.id;
+              // Create file path for thumbnail - use a simpler path to avoid errors
+              const timestamp = Date.now();
               const fileNameWithoutExt = path.basename(requestData.filename, path.extname(requestData.filename));
-              thumbnailPath = `${userId}/${fileNameWithoutExt}_thumbnail_${Date.now()}.webp`;
+              thumbnailPath = `thumbnail_${fileNameWithoutExt}_${timestamp}.webp`;
               
               console.log(`Attempting to upload thumbnail to: ${thumbnailPath}`);
               
-              try {
-                // Try direct upload to test bucket access
-                const { data: uploadData, error: uploadError } = await adminSupabase
+              // Try upload with simple path first
+              const { data: uploadData, error: uploadError } = await adminSupabase
+                .storage
+                .from('thumbnails')
+                .upload(thumbnailPath, thumbnailImageBuffer, {
+                  contentType: 'image/webp',
+                  cacheControl: '3600',
+                  upsert: true // Overwrite if exists
+                });
+              
+              // Wait for storage to process the upload
+              await sleep(2000);  // 2 second delay for consistency
+              console.log('Waiting for storage consistency after upload...');
+
+              // Handle upload result
+              if (uploadError) {
+                console.error('Thumbnail upload error:', uploadError);
+                console.error('Error message:', uploadError.message);
+                console.error('Error details:', JSON.stringify(uploadError, null, 2));
+                throw new Error(`Thumbnail upload failed: ${uploadError.message}`);
+              } else {
+                console.log('Thumbnail uploaded successfully:', uploadData);
+                
+                // Verify the file exists in storage after upload
+                const { data: fileList, error: listError } = await adminSupabase
                   .storage
                   .from('thumbnails')
-                  .upload(thumbnailPath, thumbnailImageBuffer, {
-                    contentType: 'image/webp',
-                    cacheControl: '3600',
-                    upsert: true // Overwrite if exists
-                  });
-                
-                if (uploadError) {
-                  console.error('Thumbnail upload error:', uploadError);
+                  .list('', { limit: 100 });
                   
-                  // Try a simpler path as fallback
-                  const simpleFileName = `resume_${Date.now()}.webp`;
-                  console.log(`Trying simpler path: ${simpleFileName}`);
-                  
-                  const { data: simpleUploadData, error: simpleUploadError } = await adminSupabase
-                    .storage
-                    .from('thumbnails')
-                    .upload(simpleFileName, thumbnailImageBuffer, {
-                      contentType: 'image/webp',
-                      upsert: true
-                    });
-                    
-                  if (simpleUploadError) {
-                    console.error('Simple path upload also failed:', simpleUploadError);
-                    throw new Error(`Thumbnail upload failed: ${simpleUploadError.message}`);
-                  } else {
-                    thumbnailPath = simpleFileName;
-                    console.log('Upload succeeded with simple path');
-                  }
+                if (listError) {
+                  console.error('Error listing thumbnails after upload:', listError);
                 } else {
-                  console.log('Thumbnail uploaded successfully:', uploadData);
+                  console.log('Files in thumbnails bucket:', fileList.map(f => f.name));
+                  
+                  // Check if our file is in the list
+                  const fileExists = fileList.some(f => f.name === thumbnailPath);
+                  console.log(`Thumbnail file exists in storage: ${fileExists}`);
+                  
+                  if (!fileExists) {
+                    console.error('Thumbnail appears to be missing after upload!');
+                    throw new Error('File upload appeared to succeed but file is not in storage');
+                  }
                 }
                 
                 // Generate signed URL for the thumbnail
                 console.log(`Generating signed URL for: ${thumbnailPath}`);
+                // Wait a bit more to ensure the file is properly available
+                await sleep(1000);
+                console.log('Waiting for file to be fully available...');
+                
                 const { data: urlData, error: urlError } = await adminSupabase
                   .storage
                   .from('thumbnails')
-                  .createSignedUrl(thumbnailPath, 3600 * 24); // 24 hour expiry for better caching
+                  .createSignedUrl(thumbnailPath, 3600 * 24); // 24 hour expiry
                   
                 if (urlError) {
                   console.error('Error creating thumbnail signed URL:', urlError);
+                  throw new Error(`Could not create signed URL: ${urlError.message}`);
                 } else {
                   thumbnailUrl = urlData.signedUrl;
                   console.log(`Thumbnail signed URL created: ${thumbnailUrl}`);
                   
+                  // Wait for URL to become fully available
+                  await sleep(1000);
+                  console.log('Ensuring URL is fully available...');
+                  
                   // Update the resume record with the thumbnail path and URL
+                  console.log(`Updating resume ${resumeId} with thumbnail information`);
+
+                  // Verify resumeId is valid
+                  if (!resumeId) {
+                    console.error('Invalid resumeId, cannot update resume with thumbnail info');
+                    throw new Error('Missing resumeId for thumbnail update');
+                  }
+
                   const { error: updateError } = await adminSupabase
                     .from('resumes')
                     .update({
@@ -284,10 +359,21 @@ export async function POST(req: NextRequest) {
                     console.error('Error updating resume with thumbnail info:', updateError);
                   } else {
                     console.log('Resume record updated with thumbnail information');
+                    
+                    // Double-check that the update was successful
+                    const { data: checkData, error: checkError } = await adminSupabase
+                      .from('resumes')
+                      .select('thumbnail_path, thumbnail_url')
+                      .eq('id', resumeId)
+                      .single();
+                      
+                    if (checkError) {
+                      console.error('Error verifying resume update:', checkError);
+                    } else {
+                      console.log('Verified resume thumbnail data:', checkData);
+                    }
                   }
                 }
-              } catch (storageError) {
-                console.error('Storage operation error:', storageError);
               }
             } else {
               console.error('Failed to generate thumbnail image buffer');
@@ -362,12 +448,7 @@ export async function POST(req: NextRequest) {
     })();
 
     // Return the resume data immediately
-    return NextResponse.json({
-      success: true,
-      resume_id: resumeData.resume_id,
-      resume: resumeData.resume,
-      message: "Resume created. Text extraction and thumbnail generation in progress."
-    }, { status: 200 });
+    return NextResponse.json(response, { status: 200 });
 
   } catch (error: any) {
     console.error('Unhandled error:', error);
@@ -519,21 +600,29 @@ async function updateResumeWithText(
   }
 }
 
-// Helper function to update the resume with an error message
+/**
+ * Update a resume record with an error message
+ */
 async function updateResumeWithError(
   resumeId: string, 
-  errorMessage: string, 
-  supabaseUrl: string, 
+  errorMessage: string,
+  supabaseUrl: string,
   supabaseServiceRole: string
-) {
+): Promise<void> {
   try {
-    // Create admin client for background operations
+    // Create admin client for updating the resume
     const adminSupabase = createClient(supabaseUrl, supabaseServiceRole);
     
-    // Update the resume with the error message
+    // Update resume with error message and reset any thumbnail data
+    // that might be in an inconsistent state
     const { error } = await adminSupabase
       .from('resumes')
-      .update({ raw_text: errorMessage })
+      .update({
+        raw_text: `Error: ${errorMessage}`,
+        processing_status: 'error',
+        thumbnail_path: null,  // Reset thumbnail data
+        thumbnail_url: null
+      })
       .eq('id', resumeId);
     
     if (error) {
