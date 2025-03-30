@@ -29,6 +29,17 @@ export default function ProgressRing({
   const circumference = radius * 2 * Math.PI;
   const strokeDashoffset = circumference - (normalizedProgress / 100) * circumference;
   
+  // Determine color based on score if not explicitly provided
+  const getScoreColor = () => {
+    if (color !== 'currentColor') return color;
+    
+    if (normalizedProgress >= 90) return '#10b981'; // green
+    if (normalizedProgress >= 50) return '#f59e0b'; // yellow
+    return '#ef4444'; // red
+  };
+  
+  const ringColor = getScoreColor();
+  
   return (
     <div className={`relative flex items-center justify-center ${className}`} style={{ width: size, height: size }}>
       <svg
@@ -48,8 +59,8 @@ export default function ProgressRing({
         />
         {/* Progress circle */}
         <circle
-          className="text-blue-600 dark:text-blue-400 transition-all duration-300 ease-in-out"
-          stroke={color}
+          className="transition-all duration-300 ease-in-out"
+          stroke={ringColor}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
