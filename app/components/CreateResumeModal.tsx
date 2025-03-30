@@ -212,6 +212,19 @@ export default function CreateResumeModal({ isOpen, onClose, onSuccess }: Create
         onSuccess(resumeData.resume_id);
       }
       
+      // Show toast or notification about background processing
+      if (resumeData.message && resumeData.message.includes('in progress')) {
+        // Optional: If you have a toast notification system
+        // toast({
+        //   title: 'Resume uploaded successfully',
+        //   description: 'Text extraction is happening in the background',
+        //   status: 'success',
+        //   duration: 5000,
+        //   isClosable: true,
+        // });
+        console.info('Background process:', resumeData.message);
+      }
+      
       // Refresh the user's data
       router.refresh();
       
