@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { fromPath } from 'pdf2pic';
+import { fromBuffer } from 'pdf2pic';
+import path from 'path';
+import fs from 'fs';
+import os from 'os';
 
 // Define structure for request
 interface CreateResumeRequest {
@@ -70,6 +75,13 @@ export async function POST(req: NextRequest) {
     // Store base64 data for async processing
     const fileBase64 = requestData.fileBase64;
 
+    // Create admin client for thumbnail generation
+    const adminSupabase = createClient(supabaseUrl, supabaseServiceRole);
+    
+    // The thumbnail will be generated asynchronously, so we'll start with empty thumbnail fields
+    let thumbnailPath = null;
+    let thumbnailUrl = null;
+
     // Create resume immediately with empty raw_text
     // Call the create_resume function to store the resume initially
     const { data: resumeData, error: resumeError } = await supabase.rpc(
@@ -81,7 +93,9 @@ export async function POST(req: NextRequest) {
         p_file_size: requestData.fileSize,
         p_file_url: requestData.fileUrl,
         p_raw_text: 'Extracting text...',
-        p_set_as_default: requestData.setAsDefault || false
+        p_set_as_default: requestData.setAsDefault || false,
+        p_thumbnail_path: thumbnailPath,
+        p_thumbnail_url: thumbnailUrl
       }
     );
 
@@ -109,11 +123,10 @@ export async function POST(req: NextRequest) {
       try {
         // If no fileBase64 is provided, we need to download the file from Supabase storage
         let fileBase64Data = fileBase64;
+        let pdfBuffer: Buffer | null = null;
+        
         if (!fileBase64Data) {
           try {
-            // Create admin client for background operations
-            const adminSupabase = createClient(supabaseUrl, supabaseServiceRole);
-            
             // Download file from storage
             const { data: fileData, error: fileError } = await adminSupabase
               .storage
@@ -125,9 +138,9 @@ export async function POST(req: NextRequest) {
               throw new Error('Failed to download file from storage');
             }
 
-            // Convert to base64
-            const arrayBuffer = await fileData.arrayBuffer();
-            fileBase64Data = Buffer.from(arrayBuffer).toString('base64');
+            // Convert to buffer and base64
+            pdfBuffer = Buffer.from(await fileData.arrayBuffer());
+            fileBase64Data = pdfBuffer.toString('base64');
           } catch (downloadError) {
             console.error('Error in background file download:', downloadError);
             await updateResumeWithError(
@@ -138,6 +151,91 @@ export async function POST(req: NextRequest) {
             );
             return;
           }
+        } else {
+          // Convert base64 to buffer for thumbnail generation
+          pdfBuffer = Buffer.from(fileBase64Data, 'base64');
+        }
+
+        // Generate thumbnail image
+        let thumbnailBuffer: Buffer | null = null;
+        try {
+          if (pdfBuffer) {
+            // Create a temporary filename
+            const tempDir = os.tmpdir();
+            const tempPdfPath = path.join(tempDir, `${Date.now()}_temp.pdf`);
+            
+            // Write buffer to temp file
+            fs.writeFileSync(tempPdfPath, pdfBuffer);
+            
+            // Define options for pdf2pic
+            // The 16:9 ratio means for width=1000, height should be ~562
+            const options = {
+              density: 300,
+              quality: 90,
+              format: 'webp',
+              width: 1000,
+              height: 562, // For 16:9 aspect ratio
+              saveFilename: `thumbnail_${Date.now()}`,
+              savePath: tempDir,
+            };
+            
+            // Convert first page of PDF to image
+            const convert = fromPath(tempPdfPath, options);
+            const result = await convert(1, { responseType: 'buffer' });
+            
+            // Check that we got a result
+            if (result && result.buffer) {
+              thumbnailBuffer = result.buffer;
+              
+              // Clean up temp file
+              fs.unlinkSync(tempPdfPath);
+            }
+          }
+          
+          // Upload thumbnail to storage if generated
+          if (thumbnailBuffer) {
+            // Create file path for thumbnail
+            const userId = user.id;
+            const fileNameWithoutExt = path.basename(requestData.filename, path.extname(requestData.filename));
+            thumbnailPath = `${userId}/${fileNameWithoutExt}_thumbnail.webp`;
+            
+            // Upload to thumbnails bucket
+            const { data: uploadData, error: uploadError } = await adminSupabase
+              .storage
+              .from('thumbnails')
+              .upload(thumbnailPath, thumbnailBuffer, {
+                contentType: 'image/webp',
+                cacheControl: '3600'
+              });
+              
+            if (uploadError) {
+              console.error('Error uploading thumbnail:', uploadError);
+            } else {
+              // Create signed URL for the thumbnail
+              const { data: urlData, error: urlError } = await adminSupabase
+                .storage
+                .from('thumbnails')
+                .createSignedUrl(thumbnailPath, 3600); // 1 hour expiry
+                
+              if (urlError) {
+                console.error('Error creating thumbnail signed URL:', urlError);
+              } else {
+                thumbnailUrl = urlData.signedUrl;
+                
+                // Update the resume record with the thumbnail path and URL
+                await adminSupabase
+                  .from('resumes')
+                  .update({
+                    thumbnail_path: thumbnailPath,
+                    thumbnail_url: thumbnailUrl
+                  })
+                  .eq('id', resumeId);
+              }
+            }
+          }
+        } catch (thumbnailError) {
+          console.error('Error generating thumbnail:', thumbnailError);
+          // Continue with text extraction even if thumbnail generation fails
         }
 
         // Initialize the Google GenAI client for text extraction
@@ -177,7 +275,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Update the resume with the extracted text
-        await updateResumeWithText(resumeId, rawText, supabaseUrl, supabaseServiceRole);
+        await updateResumeWithText(resumeId, rawText, thumbnailPath, thumbnailUrl, supabaseUrl, supabaseServiceRole);
         
       } catch (asyncError) {
         console.error('Error in background text extraction:', asyncError);
@@ -195,7 +293,7 @@ export async function POST(req: NextRequest) {
       success: true,
       resume_id: resumeData.resume_id,
       resume: resumeData.resume,
-      message: "Resume created. Text extraction in progress."
+      message: "Resume created. Text extraction and thumbnail generation in progress."
     }, { status: 200 });
 
   } catch (error: any) {
@@ -210,7 +308,9 @@ export async function POST(req: NextRequest) {
 // Helper function to update the resume with extracted text
 async function updateResumeWithText(
   resumeId: string, 
-  rawText: string, 
+  rawText: string,
+  thumbnailPath: string | null, 
+  thumbnailUrl: string | null,
   supabaseUrl: string, 
   supabaseServiceRole: string
 ) {
@@ -218,10 +318,16 @@ async function updateResumeWithText(
     // Create admin client for background operations
     const adminSupabase = createClient(supabaseUrl, supabaseServiceRole);
     
-    // Update the resume with the extracted text
+    // Update the resume with the extracted text and thumbnail info
+    const updateData: Record<string, any> = { raw_text: rawText };
+    
+    // Only include thumbnail fields if they have values
+    if (thumbnailPath) updateData.thumbnail_path = thumbnailPath;
+    if (thumbnailUrl) updateData.thumbnail_url = thumbnailUrl;
+    
     const { error } = await adminSupabase
       .from('resumes')
-      .update({ raw_text: rawText })
+      .update(updateData)
       .eq('id', resumeId);
     
     if (error) {
