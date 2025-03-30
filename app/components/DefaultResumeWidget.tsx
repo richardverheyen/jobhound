@@ -137,6 +137,7 @@ export default function DefaultResumeWidget({
                 src={defaultResume.thumbnail_url} 
                 alt={defaultResume.filename} 
                 fill 
+                priority
                 className="object-contain"
                 sizes="(max-width: 768px) 100vw, 600px"
               />

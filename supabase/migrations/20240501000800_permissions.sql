@@ -48,7 +48,7 @@ BEGIN
   
   -- Grant function execution privileges to anon and authenticated users
   -- For resume creation and management
-  EXECUTE format('GRANT EXECUTE ON FUNCTION create_resume(TEXT, TEXT, TEXT, INT8, TEXT, TEXT, BOOLEAN) TO anon, authenticated');
+  EXECUTE format('GRANT EXECUTE ON FUNCTION create_resume(TEXT, TEXT, TEXT, INT8, TEXT, TEXT, BOOLEAN, TEXT, TEXT) TO anon, authenticated');
   EXECUTE format('GRANT EXECUTE ON FUNCTION set_default_resume(UUID, UUID) TO authenticated');
   EXECUTE format('GRANT EXECUTE ON FUNCTION delete_resume(UUID) TO authenticated');
   
