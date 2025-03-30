@@ -429,7 +429,7 @@ const fields: FieldDefinition[] = [
             section: "hardSkills",
             type: "one-to-many", // Generate multiple response objects, each with a unique ID and hardSkills as parentFieldId
             label: "Hard skills enable you to perform job-specific duties and responsibilities. You can learn hard skills in the classroom, training courses, and on the job. These skills are typically focused on teachable tasks and measurable abilities such as the use of tools, equipment, or software. Hard skills have a high impact on your match score.",
-            prompt: "For each hard skill in the list you identified in step 0, create a separate response object with the following properties: 1) Generate a slug-style ID from the skill name (lowercase, hyphens for spaces). 2) Set 'label' to the full skill name. 3) Populate 'synonyms' array with common alternative terms for this skill (e.g., for 'JavaScript', include ['JS', 'ECMAScript']). 4) Set 'exactMatchInResume' to true if the exact skill name appears in the resume. 5) Set 'synonymMatchInResume' to true if any synonym appears. 6) Set 'relatedTermMatchInResume' to true if closely related terminology is found (e.g., 'React.js' could be a related term for 'JavaScript'). 7) Set confidence level (0-1) based on frequency and prominence of matches. 8) Provide a detailed explanation describing where and how the skill appears in the resume, or why it's considered missing, with specific examples from the text.",
+            prompt: "For each hard skill in the list identified in step 0: 1) Create a response object with a slug-style ID. 2) Set 'label' to the skill name as it appears in the job description. 3) For 'synonyms', ONLY include variations of this skill that actually appear in the resume (e.g., if the job requires 'JavaScript' and the resume mentions 'JS' or 'ECMAScript', list these as synonyms; if no variations appear, leave empty). 4) Set 'exactMatchInResume' to true only if the exact skill name appears in the resume. 5) Set 'synonymMatchInResume' to true only if any identified synonym appears. 6) For 'relatedTermMatchInResume', set to true if the resume contains technologies, tools, or methodologies that strongly imply knowledge of the required skill (e.g., if 'AWS' is required and resume mentions 'EC2' or 'S3'). 7) Set confidence based on specificity and prominence of matches. 8) In the explanation, cite specific examples from the resume with locations or context where the skill or related terms appear.",
             weightInCategory: 5
         },
 
@@ -437,10 +437,12 @@ const fields: FieldDefinition[] = [
             id: "${skillNameSlug}", // Generate a unique ID for each skill
             parentFieldId: "hardSkills", // Include this field's ID as the parentFieldId
             label: "${skillName}",
-            synonyms: [],
             exactMatchInResume: false,
             synonymMatchInResume: false,
             relatedTermMatchInResume: false,
+            exactMatchCount: 0,
+            synonyms: [],
+            relatedTerms: [],
             confidence: 0,
             explanation: "",
         }
@@ -453,7 +455,7 @@ const fields: FieldDefinition[] = [
             section: "softSkills",
             type: "one-to-many", // Generate multiple response objects, each with a unique ID and softSkills as parentFieldId
             label: "Soft skills are your traits and abilities that are not unique to any job. Your soft skills are part of your personality, and can be learned also. These skills are the traits that typically make you a good employee for any company such as time management and communication. Soft skills have a medium impact on your match score.",
-            prompt: "For each soft skill in the list you identified in step 0, create a separate response object with the following properties: 1) Generate a slug-style ID from the skill name (lowercase, hyphens for spaces). 2) Set 'label' to the full skill name. 3) Populate 'synonyms' array with common alternative terms for this skill (e.g., for 'Leadership', include ['Team Leadership', 'Management Skills']). 4) Set 'exactMatchInResume' to true if the exact skill name appears in the resume. 5) Set 'synonymMatchInResume' to true if any synonym appears. 6) Set 'relatedTermMatchInResume' to true if the skill is implied through accomplishments or responsibilities (e.g., 'coordinated team of 5' implies 'Team Coordination'). 7) Set confidence level (0-1) based on both explicit mentions and implicit demonstrations of the skill. 8) Provide a detailed explanation describing where and how the skill appears in the resume, including both explicit mentions and behavioral examples that demonstrate the skill, or why it's considered missing, with specific examples from the text.",
+            prompt: "For each soft skill in the list identified in step 0: 1) Create a response object with a slug-style ID. 2) Set 'label' to the skill name as it appears in the job description. 3) For 'synonyms', ONLY include alternative terms for this skill that actually appear in the resume (e.g., if 'Leadership' is required and 'Team Management' appears in the resume, list it as a synonym; if no variations appear, leave empty). 4) Set 'exactMatchInResume' to true only if the exact skill name appears in the resume. 5) Set 'synonymMatchInResume' to true only if any identified synonym appears. 6) For 'relatedTermMatchInResume', set to true if the resume contains clear behavioral examples or accomplishments that demonstrate this skill without naming it explicitly (e.g., 'Led cross-functional team' demonstrates leadership). 7) Set confidence based on how clearly the skill is demonstrated. 8) In the explanation, quote specific language from the resume that shows the skill, whether explicitly mentioned or implied through described accomplishments.",
             weightInCategory: 5
         },
 
@@ -461,10 +463,12 @@ const fields: FieldDefinition[] = [
             id: "${skillNameSlug}", // Generate a unique ID for each skill
             parentFieldId: "softSkills", // Include this field's ID as the parentFieldId
             label: "${skillName}",
-            synonyms: [],
             exactMatchInResume: false,
             synonymMatchInResume: false,
             relatedTermMatchInResume: false,
+            exactMatchCount: 0,
+            synonyms: [],
+            relatedTerms: [],
             confidence: 0,
             explanation: "",
         }

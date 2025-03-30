@@ -1,15 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { JobScan, Resume } from '@/types';
+import { JobScan } from '@/types';
 import JobScanView from './JobScanView';
 
 interface JobScansListProps {
   scans: JobScan[];
-  resumes: Resume[];
 }
 
-export default function JobScansList({ scans, resumes }: JobScansListProps) {
+export default function JobScansList({ scans }: JobScansListProps) {
   // Render empty state if no scans
   if (scans.length === 0) {
     return (

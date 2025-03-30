@@ -564,6 +564,9 @@ export default function JobScanView({ scan }: JobScanViewProps) {
                                             )}
                                           </div>
                                           <span>Exact Match</span>
+                                          {item.em && item.emc > 0 && (
+                                            <span className="ml-1 text-xs text-green-400">({item.emc} {item.emc === 1 ? 'occurrence' : 'occurrences'})</span>
+                                          )}
                                         </div>
                                         
                                         <div className="flex items-center text-xs">
@@ -601,6 +604,12 @@ export default function JobScanView({ scan }: JobScanViewProps) {
                                     {isSkill && item.syn && item.syn.length > 0 && (
                                       <p className="text-xs text-gray-400">
                                         Synonyms: {item.syn.join(', ')}
+                                      </p>
+                                    )}
+
+                                    {isSkill && item.rt && item.rt.length > 0 && (
+                                      <p className="text-xs text-gray-400">
+                                        Related Terms: {item.rt.join(', ')}
                                       </p>
                                     )}
                                   </div>

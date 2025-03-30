@@ -15,9 +15,11 @@ export interface SkillFieldResponse extends BaseFieldResponse {
   p: string;        // Parent field ID (e.g., "hardSkills" or "softSkills")
   l: string;        // Label/name of the skill
   syn: string[];    // Array of synonyms for the skill
+  rt: string[];     // Array of related terms for the skill
   em: boolean;      // Whether there's an exact match in the resume
   sm: boolean;      // Whether there's a synonym match in the resume
   rm: boolean;      // Whether there's a related term match in the resume
+  emc: number;      // Count of exact matches in the resume
 }
 
 // Union type for all possible field responses
@@ -123,9 +125,11 @@ export const validateResponse = (response: ResumeAnalysisResponse) => {
       return typeof item.p === 'string' &&
              typeof item.l === 'string' &&
              Array.isArray(item.syn) &&
+             Array.isArray(item.rt) &&
              typeof item.em === 'boolean' &&
              typeof item.sm === 'boolean' &&
-             typeof item.rm === 'boolean';
+             typeof item.rm === 'boolean' &&
+             typeof item.emc === 'number';
     }
     
     // Otherwise it should be a one-to-one response

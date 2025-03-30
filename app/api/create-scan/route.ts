@@ -233,9 +233,11 @@ Key mapping:
 - l: label
 - v: value
 - syn: synonyms
+- rt: relatedTerms
 - em: exactMatchInResume
 - sm: synonymMatchInResume
 - rm: relatedTermMatchInResume
+- emc: exactMatchCount
 - c: confidence
 - e: explanation
 \`\`\`
@@ -258,9 +260,11 @@ Return a JSON array of response objects:
     "p": "hardSkills", // Include the original field ID as a reference
     "l": "Python",
     "syn": ["Python3", "PyTorch"],
+    "rt": ["Django", "Flask", "NumPy"],
     "em": true,
     "sm": false,
     "rm": true,
+    "emc": 3,
     "c": 0.9,
     "e": "Python is mentioned 3 times in the resume"
   },
@@ -270,9 +274,11 @@ Return a JSON array of response objects:
     "p": "hardSkills",
     "l": "Java",
     "syn": ["Java SE", "J2EE"],
+    "rt": ["Spring", "Hibernate", "Maven"],
     "em": true,
     "sm": true,
     "rm": true,
+    "emc": 2,
     "c": 0.85,
     "e": "Java appears twice in the resume"
   }
