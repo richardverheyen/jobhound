@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
       // Initialize the Google GenAI client for text extraction
       const genAI = new GoogleGenerativeAI(googleApiKey);
       // Use appropriate model for PDF extraction
-      const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
 
       // Extract text from PDF
       const prompt = "Extract all text content from this PDF file. Include all paragraphs, bullet points, headers, and any visible text. Maintain the original formatting as much as possible. This is a resume document, so pay special attention to skills, work experience, education, and contact information. Return nothing but the text from the file.";
