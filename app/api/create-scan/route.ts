@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    console.log("supabase initialised")
     // Parse request - simplified approach for JSON only
     let scanRequest: ScanRequest;
     let scanId: string | null = null;
@@ -102,6 +103,9 @@ export async function POST(req: NextRequest) {
         .eq('user_id', user.id)
         .single()
     ]);
+
+    console.log("jobResult", jobResult)
+    console.log("resumeResult", resumeResult)
 
     // Handle job data errors
     if (jobResult.error || !jobResult.data) {

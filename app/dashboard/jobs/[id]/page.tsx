@@ -95,10 +95,54 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
           }
         }
         
+        // Parse hard skills
+        let hardSkills = [];
+        if (jobData.hard_skills) {
+          try {
+            // Handle if the data is a JSON string
+            if (typeof jobData.hard_skills === 'string') {
+              hardSkills = JSON.parse(jobData.hard_skills);
+            } 
+            // Handle if the data is already an array
+            else if (Array.isArray(jobData.hard_skills)) {
+              hardSkills = jobData.hard_skills;
+            } 
+            // Handle if the data is a JSONB object already parsed
+            else if (typeof jobData.hard_skills === 'object') {
+              hardSkills = Object.values(jobData.hard_skills);
+            }
+          } catch (e) {
+            console.error('Error parsing hard skills:', e);
+          }
+        }
+        
+        // Parse soft skills
+        let softSkills = [];
+        if (jobData.soft_skills) {
+          try {
+            // Handle if the data is a JSON string
+            if (typeof jobData.soft_skills === 'string') {
+              softSkills = JSON.parse(jobData.soft_skills);
+            } 
+            // Handle if the data is already an array
+            else if (Array.isArray(jobData.soft_skills)) {
+              softSkills = jobData.soft_skills;
+            } 
+            // Handle if the data is a JSONB object already parsed
+            else if (typeof jobData.soft_skills === 'object') {
+              softSkills = Object.values(jobData.soft_skills);
+            }
+          } catch (e) {
+            console.error('Error parsing soft skills:', e);
+          }
+        }
+        
         setJob({
           ...jobData,
           requirements,
-          benefits
+          benefits,
+          hard_skills: hardSkills,
+          soft_skills: softSkills
         });
       }
       
@@ -238,6 +282,38 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                         : null
                       }
                     </ul>
+                  </div>
+                )}
+
+                {job.hard_skills && job.hard_skills.length > 0 && (
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Hard Skills</h3>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {Array.isArray(job.hard_skills) ? 
+                        job.hard_skills.map((skill, index) => (
+                          <span key={index} className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-full">
+                            {skill}
+                          </span>
+                        ))
+                        : null
+                      }
+                    </div>
+                  </div>
+                )}
+
+                {job.soft_skills && job.soft_skills.length > 0 && (
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Soft Skills</h3>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {Array.isArray(job.soft_skills) ? 
+                        job.soft_skills.map((skill, index) => (
+                          <span key={index} className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-full">
+                            {skill}
+                          </span>
+                        ))
+                        : null
+                      }
+                    </div>
                   </div>
                 )}
               </div>

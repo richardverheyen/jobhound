@@ -1,13 +1,14 @@
 'use client';
 
-import { JobScan } from '@/types';
+import { JobScan, Resume } from '@/types';
 import JobScanView from './JobScanView';
 
 interface JobScansListProps {
   scans: JobScan[];
+  resumes?: Resume[];
 }
 
-export default function JobScansList({ scans }: JobScansListProps) {
+export default function JobScansList({ scans, resumes }: JobScansListProps) {
   // Render empty state if no scans
   if (scans.length === 0) {
     return (

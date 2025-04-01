@@ -27,6 +27,8 @@ export interface Job {
   
   requirements?: string[];              // Array of requirement strings
   benefits?: string[];                  // Array of benefit strings
+  hard_skills?: string[];               // Array of hard skills (technical abilities, tools, languages, etc.)
+  soft_skills?: string[];               // Array of soft skills (communication, leadership, teamwork, etc.)
   
   // AI processing metadata
   raw_job_text?: string;                // Original pasted job description
@@ -84,8 +86,8 @@ export interface JobScan {
   
   // Additional structured data extracted from results JSONB
   overall_match?: string;
-  hard_skills?: string;
-  soft_skills?: string;
+  hard_skills?: string[];
+  soft_skills?: string[];
   experience_match?: string;
   qualifications?: string;
   missing_keywords?: string;

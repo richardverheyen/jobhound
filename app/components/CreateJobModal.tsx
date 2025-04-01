@@ -275,16 +275,16 @@ export default function CreateJobModal({
           p_salary_currency: formData.salary_currency,
           p_salary_period: formData.salary_period,
           p_requirements: requirements.length > 0 
-            ? JSON.stringify(requirements) 
+            ? requirements 
             : null,
           p_benefits: benefits.length > 0 
-            ? JSON.stringify(benefits) 
+            ? benefits 
             : null,
           p_hard_skills: hardSkills.length > 0
-            ? JSON.stringify(hardSkills)
+            ? hardSkills
             : null,
           p_soft_skills: softSkills.length > 0
-            ? JSON.stringify(softSkills)
+            ? softSkills
             : null,
           p_raw_job_text: activeTab === 'ai' ? rawJobText : formData.raw_job_text
         });
