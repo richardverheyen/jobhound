@@ -1,13 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { createClient } from '@supabase/supabase-js';
 import { fields } from './v1-fields';
 import { ResumeAnalysisResponse, calculateMatchScore } from './types';
+import { 
+  fileToBase64, 
+  initGoogleAI, 
+  initSupabase, 
+  combineResults,
+  extractTextFromPdf
+} from './utils';
+import {
+  analyzeSearchability,
+  analyzeBestPractices,
+  analyzeHardSkills,
+  analyzeSoftSkills
+} from './services';
 
 // Define structure for request
 interface ScanRequest {
   jobId: string;
   resumeId: string;
+}
+
+// Define job data interface
+interface JobData {
+  id: string;
+  title: string;
+  company: string;
+  description: string;
+  requirements: any;
+  raw_job_text: string;
+  hard_skills: string[] | null;
+  soft_skills: string[] | null;
 }
 
 export async function POST(req: NextRequest) {
@@ -32,9 +55,7 @@ export async function POST(req: NextRequest) {
     const token = authHeader.replace('Bearer ', '');
     
     // Create user-based client with auth header
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const supabase = initSupabase(supabaseUrl, supabaseAnonKey, authHeader);
     
     // Verify authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
@@ -69,14 +90,14 @@ export async function POST(req: NextRequest) {
     const [jobResult, resumeResult] = await Promise.all([
       supabase
         .from('jobs')
-        .select('id, title, company, description, requirements, raw_job_text')
+        .select('id, title, company, description, requirements, raw_job_text, hard_skills, soft_skills')
         .eq('id', scanRequest.jobId)
         .eq('user_id', user.id)
         .single(),
       
       supabase
         .from('resumes')
-        .select('id, filename, file_url, file_path')
+        .select('id, filename, file_url, file_path, raw_text')
         .eq('id', scanRequest.resumeId)
         .eq('user_id', user.id)
         .single()
@@ -100,7 +121,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const jobData = jobResult.data;
+    const jobData: JobData = jobResult.data;
     const resumeData = resumeResult.data;
 
     // Download resume file from storage
@@ -190,174 +211,49 @@ export async function POST(req: NextRequest) {
         .eq('id', scanId);
         
       // Initialize the Google GenAI client
-      const genAI = new GoogleGenerativeAI(googleApiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+      const model = initGoogleAI(googleApiKey);
       
       // Convert the resume file to base64 for the Google API
-      const arrayBuffer = await resumeFile.arrayBuffer();
-      const base64Data = Buffer.from(arrayBuffer).toString('base64');
+      const resumeBase64 = await fileToBase64(resumeFile);
       
-      // Get the system prompt from v1-prompt.md
-      const systemPrompt = `
-# System Instructions for Resume Analysis
-
-You are an expert resume analyzer. Process each field in the \`fieldDefinitions\` array according to its prompt and context.
-
-## Processing Instructions:
-
-0. Carefully scan the job description and requirements and identify a list of hard skills and soft skills that are relevant to the job posting. Hard skills are specific technical abilities, tools, programming languages, methodologies, certifications, or technical knowledge areas. Examples include: software development languages (Python, Java), tools (Excel, Photoshop), methodologies (Agile, DevOps), technologies (AWS, microservices), or industry-specific technical knowledge (data analytics, circuit design). Soft skills are interpersonal and transferable attributes such as communication, leadership, teamwork, problem-solving, adaptability, time management, creativity, and emotional intelligence. Remember this list of hard skills and soft skills for use in the one-to-many fields in your analysis.
-
-1. Iterate through each field in the \`fieldDefinitions\` array.
-
-2. For each field, carefully analyze the resume according to the prompt in the field's \`fieldContext.prompt\`.
-
-3. Generate responses based on the field's \`type\`:
-
-   - For fields with \`type: "one-to-one"\`: 
-     Create a SINGLE response object matching the structure in \`fieldResponse\`.
-   
-   - For fields with \`type: "one-to-many"\`: 
-     Create MULTIPLE response objects in an array, with each object following the structure in \`fieldResponse\`.
-     Generate as many objects as are justified by the content found in the job description and requirements.
-     Each object should represent a distinct item (like a specific skill) identified from the prompt, and use the fieldContext.prompt to generate a response comparing the Job Description and Requirements to the resume.
-
-4. Replace any template variables in the response (e.g., \`$\{skillNameSlug}\`, \`$\{skillName}\`) with appropriate values.
-
-## Key Abbreviation Dictionary:
-For token efficiency, use these abbreviated keys in your response:
-
-\`\`\`
-Key mapping:
-- id: id (unchanged)
-- p: parentFieldId
-- l: label
-- v: value
-- syn: synonyms
-- rt: relatedTerms
-- em: exactMatchInResume
-- sm: synonymMatchInResume
-- rm: relatedTermMatchInResume
-- emc: exactMatchCount
-- c: confidence
-- e: explanation
-\`\`\`
-
-## Response Format:
-
-Return a JSON array of response objects:
-\`\`\`json
-[
-  {
-    // Response for a one-to-one field
-    "id": "physicalAddressPresent",
-    "v": true,
-    "c": 0.95,
-    "e": "Rationale for the assessment"
-  },
-  {
-    // First response for a one-to-many field
-    "id": "skill-python",
-    "p": "hardSkills", // Include the original field ID as a reference
-    "l": "Python",
-    "syn": ["Python3", "PyTorch"],
-    "rt": ["Django", "Flask", "NumPy"],
-    "em": true,
-    "sm": false,
-    "rm": true,
-    "emc": 3,
-    "c": 0.9,
-    "e": "Python is mentioned 3 times in the resume"
-  },
-  {
-    // Second response for the same one-to-many field
-    "id": "skill-java",
-    "p": "hardSkills",
-    "l": "Java",
-    "syn": ["Java SE", "J2EE"],
-    "rt": ["Spring", "Hibernate", "Maven"],
-    "em": true,
-    "sm": true,
-    "rm": true,
-    "emc": 2,
-    "c": 0.85,
-    "e": "Java appears twice in the resume"
-  }
-  // Additional objects as needed
-]
-\`\`\`
-
-## Important:
-- Always maintain the original structure of each \`fieldResponse\` with the abbreviated keys
-- For one-to-many fields, create as many objects as necessary - don't limit yourself to a fixed number
-- Each response object should include the original field ID as a reference in the "p" property
-- For one-to-many fields, each generated object should have a unique ID derived from the content (like "skill-python")
-- Provide detailed and specific explanations
-- Include all required properties from the corresponding \`fieldResponse\` structure
-`;
-      
-      // Create the prompt for the AI
-      const userPrompt = `Analyze this resume against the following job posting:\n${jobData.raw_job_text}\n\nUse these field definitions for your analysis:\n${JSON.stringify(fields, null, 2)}`;
-      
-      // Call the Google AI
-      const result = await model.generateContent({
-        contents: [
-          { 
-            role: "user", 
-            parts: [
-              { text: `${systemPrompt}\n\n${userPrompt}` },
-              { 
-                inlineData: {
-                  mimeType: "application/pdf",
-                  data: base64Data
-                }
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.3,
-          topP: 0.8,
-          topK: 40,
-          maxOutputTokens: 50000,
-          responseMimeType: "application/json",
-        },
-      });
-
-      // Parse the response
-      const responseText = result.response.text();
-      let analysisResult: ResumeAnalysisResponse;
-      let matchScore: number = 0;
-      
-      try {
-        // Extract JSON from the response if needed
-        const jsonMatches = responseText.match(/```json\n([\s\S]*?)\n```/) || 
-                          responseText.match(/```([\s\S]*?)```/) ||
-                          [null, responseText];
+      // Get resume text - either from database or extract it if needed
+      let resumeText = resumeData.raw_text;
+      if (!resumeText) {
+        // Extract text from PDF
+        resumeText = await extractTextFromPdf(resumeFile);
         
-        const cleanJson = jsonMatches[1] || responseText;
-        analysisResult = JSON.parse(cleanJson);
-        
-        // Calculate match score but don't save it to the database yet
-        matchScore = calculateMatchScore(analysisResult);
-        
-      } catch (error) {
-        console.error('Error parsing AI response:', error, 'Response:', responseText);
-        
-        // Update the scan record with error status
+        // Update resume record with extracted text for future use
         await supabase
-          .from('job_scans')
-          .update({
-            status: 'error',
-            error_message: 'Failed to parse AI response'
-          })
-          .eq('id', scanId);
-          
-        return NextResponse.json(
-          { error: 'Failed to parse AI response', scanId },
-          { status: 500 }
-        );
+          .from('resumes')
+          .update({ raw_text: resumeText })
+          .eq('id', resumeData.id)
+          .eq('user_id', user.id);
       }
+      
+      // Process each category in parallel
+      const [
+        searchabilityResults,
+        bestPracticesResults,
+        hardSkillsResults,
+        softSkillsResults
+      ] = await Promise.all([
+        analyzeSearchability(model, fields, resumeText, jobData),
+        analyzeBestPractices(model, fields, resumeBase64, jobData),
+        analyzeHardSkills(model, fields, resumeText, jobData),
+        analyzeSoftSkills(model, fields, resumeText, jobData)
+      ]);
 
+      // Combine results from all categories
+      const analysisResult = combineResults(
+        searchabilityResults,
+        bestPracticesResults,
+        hardSkillsResults,
+        softSkillsResults
+      );
+      
+      // Calculate match score
+      const matchScore = calculateMatchScore(analysisResult);
+      
       // Update database with scan results and credit usage in parallel
       const [scanUpdateResult, creditUsageData] = await Promise.all([
         // Update the scan record with the analysis results
