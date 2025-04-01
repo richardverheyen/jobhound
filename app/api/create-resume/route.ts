@@ -67,11 +67,84 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Store base64 data for async processing
-    const fileBase64 = requestData.fileBase64;
+    // Get or download file content
+    let fileBase64Data = requestData.fileBase64;
+    if (!fileBase64Data) {
+      try {
+        console.log('Downloading file from storage:', requestData.filePath);
+        // Download file from storage
+        const { data: fileData, error: fileError } = await supabase
+          .storage
+          .from('resumes')
+          .download(requestData.filePath);
 
-    // Create resume immediately with empty raw_text
-    // Call the create_resume function to store the resume initially
+        if (fileError || !fileData) {
+          console.error('Error downloading file:', fileError);
+          return NextResponse.json(
+            { error: 'Failed to download file from storage' },
+            { status: 500 }
+          );
+        }
+
+        // Convert to base64
+        const arrayBuffer = await fileData.arrayBuffer();
+        fileBase64Data = Buffer.from(arrayBuffer).toString('base64');
+      } catch (downloadError) {
+        console.error('Error in file download:', downloadError);
+        return NextResponse.json(
+          { error: 'Error downloading file for text extraction' },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Extract text from PDF using Google GenAI
+    let rawText: string;
+    try {
+      // Initialize the Google GenAI client for text extraction
+      const genAI = new GoogleGenerativeAI(googleApiKey);
+      // Use appropriate model for PDF extraction
+      const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
+
+      // Extract text from PDF
+      const prompt = "Extract all text content from this PDF file. Include all paragraphs, bullet points, headers, and any visible text. Maintain the original formatting as much as possible. This is a resume document, so pay special attention to skills, work experience, education, and contact information. Return nothing but the text from the file.";
+      
+      const result = await model.generateContent({
+        contents: [
+          { 
+            role: "user", 
+            parts: [
+              { text: prompt },
+              { inlineData: { 
+                  mimeType: "application/pdf",
+                  data: fileBase64Data
+                }
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 8192,
+        },
+      });
+
+      rawText = result.response.text();
+      
+      // Simple validation of extracted text
+      if (!rawText || rawText.trim().length < 50) {
+        console.warn('Text extraction yielded unusually short text:', rawText);
+        rawText = rawText || `Failed to extract meaningful text from resume (${requestData.filename})`;
+      }
+    } catch (aiError) {
+      console.error('Error in text extraction:', aiError);
+      return NextResponse.json(
+        { error: `Error extracting text: ${aiError instanceof Error ? aiError.message : 'Unknown error'}` },
+        { status: 500 }
+      );
+    }
+
+    // Create resume with the extracted text
     const { data: resumeData, error: resumeError } = await supabase.rpc(
       'create_resume',
       {
@@ -80,7 +153,7 @@ export async function POST(req: NextRequest) {
         p_file_path: requestData.filePath,
         p_file_size: requestData.fileSize,
         p_file_url: requestData.fileUrl,
-        p_raw_text: 'Extracting text...',
+        p_raw_text: rawText,
         p_set_as_default: requestData.setAsDefault || false
       }
     );
@@ -101,101 +174,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const resumeId = resumeData.resume_id;
-
-    // Process text extraction asynchronously
-    // We don't await this promise, allowing the response to return immediately
-    (async () => {
-      try {
-        // If no fileBase64 is provided, we need to download the file from Supabase storage
-        let fileBase64Data = fileBase64;
-        if (!fileBase64Data) {
-          try {
-            // Create admin client for background operations
-            const adminSupabase = createClient(supabaseUrl, supabaseServiceRole);
-            
-            // Download file from storage
-            const { data: fileData, error: fileError } = await adminSupabase
-              .storage
-              .from('resumes')
-              .download(requestData.filePath);
-
-            if (fileError || !fileData) {
-              console.error('Error downloading file in background process:', fileError);
-              throw new Error('Failed to download file from storage');
-            }
-
-            // Convert to base64
-            const arrayBuffer = await fileData.arrayBuffer();
-            fileBase64Data = Buffer.from(arrayBuffer).toString('base64');
-          } catch (downloadError) {
-            console.error('Error in background file download:', downloadError);
-            await updateResumeWithError(
-              resumeId, 
-              'Error downloading file for text extraction', 
-              supabaseUrl, 
-              supabaseServiceRole
-            );
-            return;
-          }
-        }
-
-        // Initialize the Google GenAI client for text extraction
-        const genAI = new GoogleGenerativeAI(googleApiKey);
-        // Use appropriate model for PDF extraction
-        const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
-
-        // Extract text from PDF
-        const prompt = "Extract all text content from this PDF file. Include all paragraphs, bullet points, headers, and any visible text. Maintain the original formatting as much as possible. This is a resume document, so pay special attention to skills, work experience, education, and contact information. Return nothing but the text from the file.";
-        
-        const result = await model.generateContent({
-          contents: [
-            { 
-              role: "user", 
-              parts: [
-                { text: prompt },
-                { inlineData: { 
-                    mimeType: "application/pdf",
-                    data: fileBase64Data
-                  }
-                }
-              ]
-            }
-          ],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 8192,
-          },
-        });
-
-        let rawText = result.response.text();
-        
-        // Simple validation of extracted text
-        if (!rawText || rawText.trim().length < 50) {
-          console.warn('Text extraction yielded unusually short text:', rawText);
-          rawText = rawText || `Failed to extract meaningful text from resume (${requestData.filename})`;
-        }
-
-        // Update the resume with the extracted text
-        await updateResumeWithText(resumeId, rawText, supabaseUrl, supabaseServiceRole);
-        
-      } catch (asyncError) {
-        console.error('Error in background text extraction:', asyncError);
-        await updateResumeWithError(
-          resumeId, 
-          `Error extracting text: ${asyncError instanceof Error ? asyncError.message : 'Unknown error'}`, 
-          supabaseUrl, 
-          supabaseServiceRole
-        );
-      }
-    })();
-
-    // Return the resume data immediately
+    // Return success response
     return NextResponse.json({
       success: true,
       resume_id: resumeData.resume_id,
       resume: resumeData.resume,
-      message: "Resume created. Text extraction in progress."
+      message: "Resume created successfully with extracted text."
     }, { status: 200 });
 
   } catch (error: any) {
@@ -204,55 +188,5 @@ export async function POST(req: NextRequest) {
       { error: 'An unhandled error occurred', details: error?.message },
       { status: 500 }
     );
-  }
-}
-
-// Helper function to update the resume with extracted text
-async function updateResumeWithText(
-  resumeId: string, 
-  rawText: string, 
-  supabaseUrl: string, 
-  supabaseServiceRole: string
-) {
-  try {
-    // Create admin client for background operations
-    const adminSupabase = createClient(supabaseUrl, supabaseServiceRole);
-    
-    // Update the resume with the extracted text
-    const { error } = await adminSupabase
-      .from('resumes')
-      .update({ raw_text: rawText })
-      .eq('id', resumeId);
-    
-    if (error) {
-      console.error('Error updating resume with extracted text:', error);
-    }
-  } catch (error) {
-    console.error('Error in updateResumeWithText:', error);
-  }
-}
-
-// Helper function to update the resume with an error message
-async function updateResumeWithError(
-  resumeId: string, 
-  errorMessage: string, 
-  supabaseUrl: string, 
-  supabaseServiceRole: string
-) {
-  try {
-    // Create admin client for background operations
-    const adminSupabase = createClient(supabaseUrl, supabaseServiceRole);
-    
-    // Update the resume with the error message
-    const { error } = await adminSupabase
-      .from('resumes')
-      .update({ raw_text: errorMessage })
-      .eq('id', resumeId);
-    
-    if (error) {
-      console.error('Error updating resume with error message:', error);
-    }
-  } catch (error) {
-    console.error('Error in updateResumeWithError:', error);
   }
 } 
