@@ -2,6 +2,18 @@
 
 import { Resume } from '@/types';
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
+
+// Dynamically import PDF viewer components to ensure they only run on client
+const FullPDFViewer = dynamic(() => import('./FullPDFViewer'), { 
+  ssr: false,
+  loading: () => (
+    <div className="flex flex-col items-center justify-center h-full">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-2"></div>
+      <p className="text-sm text-gray-600 dark:text-gray-400">Loading PDF viewer...</p>
+    </div>
+  ) 
+});
 
 interface ResumeModalProps {
   resume: Resume | null;
@@ -15,7 +27,7 @@ export default function ResumeModal({ resume, isOpen, onClose }: ResumeModalProp
   useEffect(() => {
     if (isOpen) {
       setLoading(true);
-      // Small delay to ensure the iframe has time to load
+      // Small delay to ensure the viewer has time to load
       const timer = setTimeout(() => {
         setLoading(false);
       }, 1000);
@@ -79,19 +91,8 @@ export default function ResumeModal({ resume, isOpen, onClose }: ResumeModalProp
                     </div>
                   )}
                   
-                  {resume.file_url && (
-                    <object 
-                      data={resume.file_url}
-                      type="application/pdf"
-                      className="w-full h-full"
-                      style={{ display: loading ? 'none' : 'block' }}
-                    >
-                      <div className="flex justify-center items-center h-full">
-                        <p className="text-gray-500 dark:text-gray-400">
-                          Unable to display PDF. <a href={resume.file_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Click here</a> to download.
-                        </p>
-                      </div>
-                    </object>
+                  {resume.file_url && !loading && (
+                    <FullPDFViewer fileUrl={resume.file_url} />
                   )}
 
                   {!resume.file_url && !loading && (

@@ -126,29 +126,12 @@ export default function DefaultResumeWidget({
       </div>
 
       {defaultResume && defaultResume.file_url ? (
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 overflow-hidden">
-          <div className="flex flex-col">
-            <div className="mb-2">
-              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                {defaultResume.filename}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Uploaded {defaultResume.created_at ? new Date(defaultResume.created_at).toLocaleDateString() : 'Unknown date'}
-              </p>
-            </div>
-            
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white h-[400px]">
-              <PDFViewer fileUrl={defaultResume.file_url} />
-            </div>
-            
-            <div className="mt-3 flex justify-end">
-              <button
-                onClick={() => onViewResume(defaultResume)}
-                className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
-              >
-                View Full Resume
-              </button>
-            </div>
+        <div className="flex justify-center">
+          <div className="shadow-lg bg-white">
+            <PDFViewer 
+              fileUrl={defaultResume.file_url} 
+              onClick={() => onViewResume(defaultResume)}
+            />
           </div>
         </div>
       ) : (

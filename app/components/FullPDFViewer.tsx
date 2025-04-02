@@ -2,39 +2,33 @@
 
 import React from 'react';
 import { Viewer, Worker } from '@react-pdf-viewer/core';
+import { defaultLayoutPlugin } from '@react-pdf-viewer/default-layout';
 
-// Import only the core styles
+// Import styles
 import '@react-pdf-viewer/core/lib/styles/index.css';
+import '@react-pdf-viewer/default-layout/lib/styles/index.css';
 
-interface PDFViewerProps {
+interface FullPDFViewerProps {
   fileUrl: string;
-  onClick?: () => void;
-  isFullViewer?: boolean;
 }
 
-const PDFViewer: React.FC<PDFViewerProps> = ({ fileUrl, onClick, isFullViewer = false }) => {
-  // A4 paper aspect ratio is roughly 1:1.414 (width:height)
-  const a4ContainerStyle: React.CSSProperties = {
-    width: '100%',
-    height: 'auto',
-    aspectRatio: '0.707/1', // 1/1.414 for A4 paper
-    cursor: onClick ? 'pointer' : 'default',
-  };
+const FullPDFViewer: React.FC<FullPDFViewerProps> = ({ fileUrl }) => {
+  // Create the default layout plugin instance
+  const defaultLayoutPluginInstance = defaultLayoutPlugin();
 
   return (
-    <div style={a4ContainerStyle} onClick={onClick}>
+    <div className="h-full w-full">
       <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
         <Viewer 
           fileUrl={fileUrl} 
-          defaultScale={1.0}
-          // Disable scrolling and zooming for the preview
+          plugins={[defaultLayoutPluginInstance]} 
           renderError={(error) => (
             <div className="flex flex-col items-center justify-center h-full p-4 text-center">
               <svg className="h-10 w-10 text-red-500 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
               <p className="text-sm text-gray-700 dark:text-gray-300">
-                Unable to load the resume preview. 
+                Unable to load the resume. 
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 {error.message}
@@ -55,4 +49,4 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ fileUrl, onClick, isFullViewer = 
   );
 };
 
-export default PDFViewer; 
+export default FullPDFViewer; 
