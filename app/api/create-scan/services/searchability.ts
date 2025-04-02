@@ -70,6 +70,9 @@ ${JSON.stringify(searchabilityFields, null, 2)}`;
     },
   });
 
+  console.log("searchability systemPrompt", systemPrompt)
+  console.log("searchability userPrompt", userPrompt)
+
   // Parse the response
   const responseText = result.response.text();
   return processAIResponse(responseText);

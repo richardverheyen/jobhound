@@ -144,6 +144,9 @@ ${JSON.stringify(hardSkillsTemplate.fieldResponse, null, 2)}`;
     },
   });
 
+  console.log("hardSkills systemPrompt", systemPrompt)
+  console.log("hardSkills userPrompt", userPrompt)
+
   // Parse the response
   const responseText = result.response.text();
   return processAIResponse(responseText);

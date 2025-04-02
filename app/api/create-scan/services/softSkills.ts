@@ -142,8 +142,10 @@ ${JSON.stringify(softSkillsTemplate.fieldResponse, null, 2)}`;
       maxOutputTokens: 8000,
       responseMimeType: "application/json",
     },
-  });
+  })
 
+  console.log("softSkills systemPrompt", systemPrompt)
+  console.log("softSkills userPrompt", userPrompt)
   // Parse the response
   const responseText = result.response.text();
   return processAIResponse(responseText);

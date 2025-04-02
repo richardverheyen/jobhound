@@ -59,6 +59,9 @@ ${JSON.stringify(bestPracticesFields, null, 2)}`;
     },
   });
 
+  console.log("bestPractices systemPrompt", systemPrompt)
+  console.log("bestPractices userPrompt", userPrompt)
+
   // Parse the response
   const responseText = result.response.text();
   return processAIResponse(responseText);
