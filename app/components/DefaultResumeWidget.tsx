@@ -117,7 +117,7 @@ export default function DefaultResumeWidget({
   }
 
   return (
-    <div className="">
+    <div className="overflow-scroll">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-medium text-gray-900 dark:text-white">Default Resume</h2>
         <Link href="/dashboard/resumes" className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400">
@@ -126,12 +126,10 @@ export default function DefaultResumeWidget({
       </div>
 
       {defaultResume && defaultResume.file_url ? (
-        <div className="w-full h-[400px]">
-          <PDFViewer 
-            fileUrl={defaultResume.file_url} 
-            onClick={() => onViewResume(defaultResume)}
-          />
-        </div>
+        <PDFViewer 
+          fileUrl={defaultResume.file_url} 
+          onClick={() => onViewResume(defaultResume)}
+        />
       ) : (
         <div className="text-center py-6">
           <svg className="mx-auto h-10 w-10 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
