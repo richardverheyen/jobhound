@@ -8,7 +8,13 @@ import { createSystemPrompt, filterFieldsByCategory, processAIResponse } from '.
 export async function analyzeSearchability(
   model: GenerativeModel,
   fields: FieldDefinition[],
-  resumeText: string,
+  resumeData: {
+    id: any;
+    filename: any;
+    file_url: any;
+    file_path: any;
+    raw_text: any;
+  }, 
   jobData: {
     title: string;
     company: string;
@@ -31,8 +37,16 @@ Title: ${jobData.title}
 Company: ${jobData.company}
 Description: ${jobData.raw_job_text}
 
+JOB_METADATA:
+${JSON.stringify(jobData, null, 2)}
+
+RESUME_METADATA:
+filename : ${resumeData.filename}
+file_url : ${resumeData.file_url}
+file_path : ${resumeData.file_path}
+
 RESUME TEXT:
-${resumeText}
+${resumeData.raw_text}
 
 Use these field definitions for your analysis:
 ${JSON.stringify(searchabilityFields, null, 2)}`;

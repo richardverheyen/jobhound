@@ -241,7 +241,7 @@ export async function POST(req: NextRequest) {
         hardSkillsResults,
         softSkillsResults
       ] = await Promise.all([
-        analyzeSearchability(model, fields, resumeText, jobData),
+        analyzeSearchability(model, fields, resumeData, jobData),
         analyzeBestPractices(model, fields, resumeBase64, jobData),
         analyzeHardSkills(model, fields, resumeText, jobData),
         analyzeSoftSkills(model, fields, resumeText, jobData)
