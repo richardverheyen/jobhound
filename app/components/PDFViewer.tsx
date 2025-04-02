@@ -2,27 +2,19 @@
 
 import React from 'react';
 import { Viewer, Worker } from '@react-pdf-viewer/core';
-import { defaultLayoutPlugin } from '@react-pdf-viewer/default-layout';
 
-// Import styles
+// Import only the core styles
 import '@react-pdf-viewer/core/lib/styles/index.css';
-import '@react-pdf-viewer/default-layout/lib/styles/index.css';
 
 interface PDFViewerProps {
   fileUrl: string;
 }
 
 const PDFViewer: React.FC<PDFViewerProps> = ({ fileUrl }) => {
-  // Create the default layout plugin instance
-  const defaultLayoutPluginInstance = defaultLayoutPlugin({
-    sidebarTabs: (defaultTabs) => [defaultTabs[0]], // Only show the thumbnail tab
-  });
-
   return (
     <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
       <Viewer 
         fileUrl={fileUrl} 
-        plugins={[defaultLayoutPluginInstance]} 
         defaultScale={0.75}
         renderError={(error) => (
           <div className="flex flex-col items-center justify-center h-full p-4 text-center">
