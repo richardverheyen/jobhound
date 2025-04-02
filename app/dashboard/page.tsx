@@ -16,10 +16,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [profileData, setProfileData] = useState<any>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [defaultResume, setDefaultResume] = useState<Resume | null>(null);
-  const [creditUsage, setCreditUsage] = useState<CreditUsage[]>([]);
   const [creditSummary, setCreditSummary] = useState<any>(null);
-  const [totalCredits, setTotalCredits] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
   const [resumeModalOpen, setResumeModalOpen] = useState<boolean>(false);
@@ -335,12 +332,6 @@ export default function DashboardPage() {
 
             {/* Right Column: Resume and Job Goal */}
             <div className="space-y-6">
-              {/* Default Resume */}
-              <DefaultResumeWidget
-                user={user}
-                onViewResume={openResumeModal}
-                onCreateResume={(resumeId) => resumeId && handleResumeCreated(resumeId)}
-              />
 
               {/* Job Search Goal */}
               <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
@@ -380,6 +371,13 @@ export default function DashboardPage() {
                   Setting daily job search goals helps you stay organized and motivated. We recommend applying to 5-10 quality jobs per day.
                 </p>
               </div>
+
+              {/* Default Resume */}
+              <DefaultResumeWidget
+                user={user}
+                onViewResume={openResumeModal}
+                onCreateResume={(resumeId) => resumeId && handleResumeCreated(resumeId)}
+              />
 
               {/* Credit Usage */}
               <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6" data-testid="credit-section">
