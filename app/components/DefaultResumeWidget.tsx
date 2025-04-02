@@ -117,7 +117,7 @@ export default function DefaultResumeWidget({
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+    <div className="">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-medium text-gray-900 dark:text-white">Default Resume</h2>
         <Link href="/dashboard/resumes" className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400">
@@ -126,13 +126,11 @@ export default function DefaultResumeWidget({
       </div>
 
       {defaultResume && defaultResume.file_url ? (
-        <div className="flex justify-center">
-          <div className="shadow-lg bg-white">
-            <PDFViewer 
-              fileUrl={defaultResume.file_url} 
-              onClick={() => onViewResume(defaultResume)}
-            />
-          </div>
+        <div className="w-full h-[400px]">
+          <PDFViewer 
+            fileUrl={defaultResume.file_url} 
+            onClick={() => onViewResume(defaultResume)}
+          />
         </div>
       ) : (
         <div className="text-center py-6">
