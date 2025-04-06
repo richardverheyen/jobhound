@@ -99,39 +99,7 @@ export default function DashboardPage() {
       }) || [];
       
       setJobs(processedJobs);
-      
-      // Get default resume if set
-      if (user.default_resume_id) {
-        const { data: resumeData } = await supabase
-          .from('resumes')
-          .select('*')
-          .eq('id', user.default_resume_id)
-          .single();
-        
-        // If resume has a file_path, get the URL
-        if (resumeData && resumeData.file_path) {
-          const { data: fileData } = await supabase
-            .storage
-            .from('resumes')
-            .createSignedUrl(resumeData.file_path, 60 * 60); // 1 hour expiry
-            
-          if (fileData) {
-            resumeData.file_url = fileData.signedUrl;
-          }
-        }
-        
-        setDefaultResume(resumeData);
-      }
-      
-      // Get credit usage data
-      const { data: usageData } = await supabase
-        .from('credit_usage')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      
-      setCreditUsage(usageData || []);
-      
+    
       // Calculate total credits
       const { data: creditData } = await supabase
         .rpc('get_user_credit_summary', {
@@ -139,8 +107,6 @@ export default function DashboardPage() {
         });
       
       setCreditSummary(creditData);
-      setTotalCredits(creditData?.available_credits || 0);
-      
       setLoading(false);
     }
 
@@ -207,26 +173,6 @@ export default function DashboardPage() {
     
     setJobs(processedJobs);
     
-    // Get default resume if set
-    if (user.default_resume_id) {
-      const { data: resumeData } = await supabase
-        .from('resumes')
-        .select('*')
-        .eq('id', user.default_resume_id)
-        .single();
-      
-      setDefaultResume(resumeData);
-    }
-    
-    // Get credit usage data
-    const { data: usageData } = await supabase
-      .from('credit_usage')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    
-    setCreditUsage(usageData || []);
-    
     // Calculate total credits
     const { data: creditData } = await supabase
       .rpc('get_user_credit_summary', {
@@ -234,7 +180,6 @@ export default function DashboardPage() {
       });
     
     setCreditSummary(creditData);
-    setTotalCredits(creditData?.available_credits || 0);
   };
 
   // Resume view modal functions
