@@ -189,6 +189,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
       
       <main className="flex-grow px-4 py-8">
         <div className="space-y-6">
+
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">{job.title} at {job.company}</h1>
             <div className="flex space-x-2">
@@ -320,7 +321,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
             </div>
 
             {/* Right column: Resume Analysis */}
-            <div className="md:col-span-2 space-y-6">
+            <div className="md:col-span-1 space-y-6">
               {/* Resume Analysis Component */}
               <CompareResumeToJob 
                 job={job}
