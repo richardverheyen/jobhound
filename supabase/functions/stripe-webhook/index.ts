@@ -16,59 +16,6 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 // Set default credit validity period (1 year in days)
 const DEFAULT_VALIDITY_DAYS = 365;
 
-serve(async (req: Request) => {
-  // Parse the webhook payload and verify its signature
-  const signature = req.headers.get("stripe-signature");
-  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
-  const body = await req.text();
-
-  // Ensure that we have all necessary env variables
-  if (!webhookSecret || !supabaseUrl || !supabaseServiceKey) {
-    console.error("Missing required environment variables");
-    return new Response(
-      JSON.stringify({
-        error: "Configuration error - missing environment variables",
-      }),
-      { status: 500 }
-    );
-  }
-
-  let event;
-  try {
-    // Verify the webhook signature
-    event = stripe.webhooks.constructEvent(body, signature!, webhookSecret);
-  } catch (err) {
-    console.error(`Webhook signature verification failed: ${err}`);
-    return new Response(
-      JSON.stringify({
-        error: `Webhook signature verification failed: ${err}`,
-      }),
-      { status: 400 }
-    );
-  }
-
-  console.log(`Received webhook event: ${event.type}`);
-
-  // Handle specific events
-  if (event.type === "checkout.session.completed") {
-    try {
-      await handleCompletedCheckout(event.data.object);
-      return new Response(JSON.stringify({ received: true }), { status: 200 });
-    } catch (error) {
-      console.error(`Error processing checkout: ${error}`);
-      return new Response(
-        JSON.stringify({
-          error: `Error processing checkout: ${error}`,
-        }),
-        { status: 500 }
-      );
-    }
-  }
-
-  // Acknowledge receipt of the event for unhandled types
-  return new Response(JSON.stringify({ received: true }), { status: 200 });
-});
-
 /**
  * Handle a completed checkout session by adding credits to the user's account
  */
@@ -142,4 +89,72 @@ async function handleCompletedCheckout(session: any) {
 
   console.log(`Added ${totalCredits} credits to user ${userId}`);
   return { success: true, credits: totalCredits };
-} 
+}
+
+// Main request handler
+serve(async (req) => {
+  try {
+    // Parse the webhook payload and verify its signature
+    const signature = req.headers.get("stripe-signature");
+    const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+    const body = await req.text();
+
+    // Ensure that we have all necessary env variables
+    if (!webhookSecret || !supabaseUrl || !supabaseServiceKey) {
+      console.error("Missing required environment variables");
+      return new Response(
+        JSON.stringify({
+          error: "Configuration error - missing environment variables",
+        }),
+        { status: 500 }
+      );
+    }
+
+    // Verify the webhook signature
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(body, signature!, webhookSecret);
+    } catch (err) {
+      console.error(`Webhook signature verification failed: ${err}`);
+      return new Response(
+        JSON.stringify({
+          error: `Webhook signature verification failed: ${err}`,
+        }),
+        { status: 400 }
+      );
+    }
+
+    console.log(`Received webhook event: ${event.type}`);
+
+    // Handle the checkout.session.completed event
+    if (event.type === "checkout.session.completed") {
+      try {
+        const result = await handleCompletedCheckout(event.data.object);
+        return new Response(JSON.stringify(result), { status: 200 });
+      } catch (error) {
+        console.error(`Error processing checkout: ${error}`);
+        return new Response(
+          JSON.stringify({
+            error: `Error processing checkout: ${error}`,
+          }),
+          { status: 500 }
+        );
+      }
+    }
+
+    // Return 200 for unhandled event types
+    return new Response(
+      JSON.stringify({ received: true, type: event.type }),
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Unhandled error:", error);
+    return new Response(
+      JSON.stringify({
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : String(error),
+      }),
+      { status: 500 }
+    );
+  }
+}); 

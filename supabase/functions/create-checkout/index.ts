@@ -23,234 +23,156 @@ interface RequestBody {
   mode?: 'credit-selection' | 'direct';
 }
 
-serve(async (req: Request) => {
+async function createCreditSelectionSession(
+  userId: string,
+  returnUrl: string,
+  customerEmail?: string
+) {
+  // Fetch available prices for API credits
+  const { data: prices } = await stripe.prices.list({
+    active: true,
+    expand: ['data.product'],
+    limit: 10,
+  });
+  
+  // Filter prices for API credits product
+  const creditPrices = prices.filter((price: any) => {
+    if (!price.product) return false;
+    const product = typeof price.product === 'string' 
+      ? { active: true, metadata: {} }
+      : price.product;
+    return product.active && product.metadata?.credit_product === 'true';
+  });
+  
+  if (creditPrices.length === 0) {
+    throw new Error("No active credit prices found");
+  }
+  
+  // Create a session with a price selection
+  return await stripe.checkout.sessions.create({
+    payment_method_types: ["card"],
+    billing_address_collection: 'auto',
+    line_items: creditPrices.map((price: any) => ({
+      price: price.id,
+      quantity: 1,
+    })),
+    mode: "payment",
+    success_url: `${returnUrl}?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${returnUrl}?canceled=true`,
+    ...(customerEmail ? { customer_email: customerEmail } : {}),
+    metadata: {
+      userId,
+    },
+  });
+}
+
+async function createDirectCheckoutSession(
+  userId: string,
+  returnUrl: string,
+  priceId: string,
+  customerEmail?: string
+) {
+  return await stripe.checkout.sessions.create({
+    payment_method_types: ["card"],
+    line_items: [
+      {
+        price: priceId,
+        quantity: 1,
+      },
+    ],
+    mode: "payment",
+    success_url: `${returnUrl}?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${returnUrl}?canceled=true`,
+    ...(customerEmail ? { customer_email: customerEmail } : {}),
+    metadata: {
+      userId,
+    },
+  });
+}
+
+// Main request handler
+serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log("Starting create-checkout function");
-
     // Check if Stripe API key is configured
     if (!Deno.env.get("STRIPE_SECRET_KEY")) {
-      console.error("STRIPE_SECRET_KEY is not configured");
-      return new Response(
-        JSON.stringify({
-          error: "Stripe API key is not configured",
-          code: "stripe_key_missing",
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      throw new Error("Stripe API key is not configured");
     }
 
     // Parse request body
-    let requestBody: RequestBody;
-    try {
-      requestBody = await req.json();
-    } catch (error) {
-      console.error("Error parsing request body:", error);
-      return new Response(
-        JSON.stringify({
-          error: "Invalid request body",
-          code: "invalid_request",
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
+    const requestBody: RequestBody = await req.json();
     const { user_id, return_url, email, priceId, mode } = requestBody;
-    console.log("Request parameters:", { user_id, return_url, email, priceId, mode });
 
     if (!user_id || !return_url) {
-      console.error("Missing required parameters");
-      return new Response(
-        JSON.stringify({
-          error: "Missing required parameters",
-          code: "missing_parameters",
-          details: {
-            has_user_id: !!user_id,
-            has_return_url: !!return_url,
-          },
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      throw new Error("Missing required parameters: user_id and return_url are required");
     }
 
     // Get customer email from headers or body
     const customerEmail = req.headers.get("X-Customer-Email") || email || "";
-    console.log("Customer email:", customerEmail);
+    let session;
 
-    try {
-      // Determine which mode to use
-      if (mode === 'credit-selection') {
-        // Create checkout session with credit package options
-        console.log("Creating checkout with credit selection");
-        
-        // Fetch available prices for API credits
-        const { data: prices } = await stripe.prices.list({
-          active: true,
-          expand: ['data.product'],
-          limit: 10,
-        });
-        
-        // Filter prices for API credits product
-        const creditPrices = prices.filter((price: any) => {
-          if (!price.product) return false;
-          // Instead of using as Stripe.Product which causes type errors
-          const product = typeof price.product === 'string' 
-            ? { active: true, metadata: {} } // Default if product is just an ID
-            : price.product; // Use the actual product object
-          return product.active && product.metadata?.credit_product === 'true';
-        });
-        
-        if (creditPrices.length === 0) {
-          throw new Error("No active credit prices found");
-        }
-        
-        console.log(`Found ${creditPrices.length} credit pricing options`);
-        
-        // Create a session with a price selection
-        const session = await stripe.checkout.sessions.create({
-          payment_method_types: ["card"],
-          billing_address_collection: 'auto',
-          line_items: creditPrices.map((price: any) => ({
-            price: price.id,
-            quantity: 1,
-          })),
-          mode: "payment",
-          success_url: `${return_url}?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${return_url}?canceled=true`,
-          ...(customerEmail ? { customer_email: customerEmail } : {}),
-          metadata: {
-            userId: user_id,
-          },
-        });
-        
-        console.log("Credit selection session created:", session.id);
-        
-        return new Response(
-          JSON.stringify({
-            sessionId: session.id,
-            url: session.url,
-          }),
-          {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      } 
-      else if (priceId) {
-        // Direct checkout with specific price ID
-        console.log(`Creating direct checkout with price ID: ${priceId}`);
-        
-        const session = await stripe.checkout.sessions.create({
-          payment_method_types: ["card"],
-          line_items: [
-            {
-              price: priceId,
-              quantity: 1,
-            },
-          ],
-          mode: "payment",
-          success_url: `${return_url}?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${return_url}?canceled=true`,
-          ...(customerEmail ? { customer_email: customerEmail } : {}),
-          metadata: {
-            userId: user_id,
-          },
-        });
-        
-        console.log("Direct checkout session created:", session.id);
-        
-        return new Response(
-          JSON.stringify({
-            sessionId: session.id,
-            url: session.url,
-          }),
-          {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      } 
-      else {
-        // Default behavior - show all prices
-        // First, try to list prices to verify Stripe connection
-        console.log("Listing prices to verify Stripe connection");
-        const { data: prices } = await stripe.prices.list({
-          active: true,
-          limit: 10,
-        });
-        console.log(`Found ${prices.length} active prices`);
+    // Create appropriate checkout session based on mode
+    if (mode === 'credit-selection') {
+      session = await createCreditSelectionSession(user_id, return_url, customerEmail);
+    } else if (priceId) {
+      session = await createDirectCheckoutSession(user_id, return_url, priceId, customerEmail);
+    } else {
+      // Default behavior - show all prices
+      const { data: prices } = await stripe.prices.list({
+        active: true,
+        limit: 10,
+      });
 
-        if (prices.length === 0) {
-          throw new Error("No active prices found in Stripe");
-        }
-
-        // Create a session with all available prices for selection
-        const session = await stripe.checkout.sessions.create({
-          payment_method_types: ["card"],
-          line_items: prices.map((price: any) => ({
-            price: price.id,
-            quantity: 1,
-          })),
-          mode: "payment",
-          success_url: `${return_url}?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${return_url}?canceled=true`,
-          ...(customerEmail ? { customer_email: customerEmail } : {}),
-          metadata: {
-            userId: user_id,
-          },
-        });
-
-        console.log("Default checkout session created:", session.id);
-        
-        return new Response(
-          JSON.stringify({
-            sessionId: session.id,
-            url: session.url,
-          }),
-          {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+      if (prices.length === 0) {
+        throw new Error("No active prices found in Stripe");
       }
-    } catch (stripeError) {
-      console.error("Stripe API error:", stripeError);
-      return new Response(
-        JSON.stringify({
-          error: "Stripe API error",
-          details:
-            stripeError instanceof Error
-              ? stripeError.message
-              : String(stripeError),
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+
+      session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: prices.map((price: any) => ({
+          price: price.id,
+          quantity: 1,
+        })),
+        mode: "payment",
+        success_url: `${return_url}?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${return_url}?canceled=true`,
+        ...(customerEmail ? { customer_email: customerEmail } : {}),
+        metadata: {
+          userId: user_id,
+        },
+      });
     }
-  } catch (error) {
-    console.error("Unhandled error:", error);
+
     return new Response(
       JSON.stringify({
-        error: "Failed to create checkout session",
-        details: error instanceof Error ? error.message : String(error),
+        sessionId: session.id,
+        url: session.url,
       }),
       {
-        status: 500,
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+
+  } catch (error) {
+    console.error("Error:", error);
+    
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const status = errorMessage.includes("API key") ? 500 
+      : errorMessage.includes("required parameters") ? 400 
+      : 500;
+
+    return new Response(
+      JSON.stringify({
+        error: errorMessage,
+        code: status === 500 ? "server_error" : "invalid_request",
+      }),
+      {
+        status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
