@@ -116,8 +116,8 @@ Use the following JSON format exactly:
   "salary_range_max": number or null,
   "salary_currency": "string or null",
   "salary_period": "string or null", // yearly, daily, hourly, etc.
-  "hard_skills": string[], // Hard skills are specific technical abilities, tools, programming languages, methodologies, certifications, or technical knowledge areas
-  "soft_skills": string[], // Soft skills are interpersonal and transferable attributes such as communication, leadership, teamwork, problem-solving, etc.
+  "hard_skills": string[], // Hard skills are specific technical abilities, tools, programming languages, methodologies, certifications, or technical knowledge areas. Examples include: software development languages (Python, Java), tools (Excel, Photoshop), methodologies (Agile, DevOps), technologies (AWS, microservices), or industry-specific technical knowledge (data analytics, circuit design) Return an array of strings values for each soft skill identified in the job description which fits into this category. 
+  "soft_skills": string[], // Soft skills are interpersonal and transferable attributes such as communication, leadership, teamwork, problem-solving, adaptability, time management, creativity, and emotional intelligence. Return an array of strings values for each soft skill identified in the job description which fits into this category. 
   "requirements": string[],
   "benefits": string[]
 }

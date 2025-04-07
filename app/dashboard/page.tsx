@@ -368,18 +368,6 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
-
-              {/* Resume Section */}
-              <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mt-8">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg font-medium text-gray-900 dark:text-white">Your Resumes</h2>
-                  <DirectResumeUpload 
-                    onSuccess={handleResumeCreated} 
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-blue-600 hover:bg-blue-700"
-                    buttonText="Upload Resume"
-                  />
-                </div>
-              </div>
             </div>
           </div>
         </div>
