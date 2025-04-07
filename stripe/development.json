@@ -2,8 +2,8 @@
     "products": [
       {
         "id": "prod_api_credits",
-        "name": "API Call Credits",
-        "description": "Credits for making API calls",
+        "name": "30 API Credits",
+        "description": "Credits for analyzing resumes against job listings",
         "active": true,
         "metadata": {
           "validity_days": "365",
@@ -12,18 +12,6 @@
       }
     ],
     "prices": [
-      {
-        "id": "price_10_credits",
-        "product": "prod_api_credits",
-        "nickname": "10 API Credits",
-        "unit_amount": 200,
-        "currency": "usd",
-        "active": true,
-        "metadata": {
-          "credits_per_unit": "10",
-          "credit_product": "true"
-        }
-      },
       {
         "id": "price_30_credits",
         "product": "prod_api_credits",
@@ -42,6 +30,7 @@
         "url": "{SUPABASE_PROJECT_URL}/functions/v1/stripe-webhook",
         "enabled_events": [
           "checkout.session.completed",
+          "charge.succeeded",
           "payment_intent.succeeded",
           "invoice.paid"
         ],

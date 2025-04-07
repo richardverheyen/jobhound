@@ -34,37 +34,10 @@ async function handleCompletedCheckout(session: any) {
     throw new Error("No line items found in checkout session");
   }
 
-  // Get price details for each line item
-  let totalCredits = 0;
-  for (const item of lineItems.data) {
-    if (!item.price) continue;
-
-    // Get the price object to access the metadata with credit amount
-    const price = await stripe.prices.retrieve(item.price.id);
-    
-    // Get the credit amount from price metadata
-    const creditsPerUnit = parseInt(price.metadata?.credits_per_unit || "0", 10);
-    
-    if (creditsPerUnit > 0) {
-      totalCredits += creditsPerUnit * (item.quantity || 1);
-    }
-  }
-
-  // If no credits were determined, log an error
-  if (totalCredits <= 0) {
-    throw new Error("Failed to determine credit amount from purchased items");
-  }
-
-  // Get product metadata to determine validity period
-  let validityDays = DEFAULT_VALIDITY_DAYS;
-  if (lineItems.data[0]?.price?.product) {
-    const productId = typeof lineItems.data[0].price.product === 'string'
-      ? lineItems.data[0].price.product
-      : lineItems.data[0].price.product.id;
-    
-    const product = await stripe.products.retrieve(productId);
-    validityDays = parseInt(product.metadata?.validity_days || DEFAULT_VALIDITY_DAYS.toString(), 10);
-  }
+  // Since we're only using one product with fixed credits (30),
+  // we can simplify the credit calculation
+  const totalCredits = 30;
+  const validityDays = DEFAULT_VALIDITY_DAYS;
 
   // Calculate expiration date
   const expiresAt = new Date();
@@ -93,34 +66,67 @@ async function handleCompletedCheckout(session: any) {
 
 // Main request handler
 serve(async (req) => {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS"
+  };
+  
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+  
   try {
     // Parse the webhook payload and verify its signature
     const signature = req.headers.get("stripe-signature");
     const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
     const body = await req.text();
 
-    // Ensure that we have all necessary env variables
-    if (!webhookSecret || !supabaseUrl || !supabaseServiceKey) {
-      console.error("Missing required environment variables");
+    // Check all environment variables
+    if (!webhookSecret) {
+      console.error("Missing STRIPE_WEBHOOK_SECRET environment variable");
       return new Response(
         JSON.stringify({
-          error: "Configuration error - missing environment variables",
+          error: "Configuration error - missing STRIPE_WEBHOOK_SECRET",
         }),
-        { status: 500 }
+        { 
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("Missing Supabase environment variables");
+      return new Response(
+        JSON.stringify({
+          error: "Configuration error - missing Supabase environment variables",
+        }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
       );
     }
 
     // Verify the webhook signature
     let event;
     try {
-      event = stripe.webhooks.constructEvent(body, signature!, webhookSecret);
+      if (!signature) {
+        throw new Error("Missing stripe-signature header");
+      }
+      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
     } catch (err) {
       console.error(`Webhook signature verification failed: ${err}`);
       return new Response(
         JSON.stringify({
           error: `Webhook signature verification failed: ${err}`,
         }),
-        { status: 400 }
+        { 
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
       );
     }
 
@@ -130,14 +136,94 @@ serve(async (req) => {
     if (event.type === "checkout.session.completed") {
       try {
         const result = await handleCompletedCheckout(event.data.object);
-        return new Response(JSON.stringify(result), { status: 200 });
+        return new Response(
+          JSON.stringify(result), 
+          { 
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          }
+        );
       } catch (error) {
         console.error(`Error processing checkout: ${error}`);
         return new Response(
           JSON.stringify({
             error: `Error processing checkout: ${error}`,
           }),
-          { status: 500 }
+          { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          }
+        );
+      }
+    }
+    
+    // Also handle the charge.succeeded event
+    if (event.type === "charge.succeeded") {
+      // For charge.succeeded, we need to find the associated checkout session
+      const charge = event.data.object;
+      console.log(`Processing charge.succeeded for payment intent: ${charge.payment_intent}`);
+      
+      try {
+        // We'll try to find the checkout session using the metadata
+        // Check if we can extract the user ID from the metadata
+        const userId = charge.metadata?.userId;
+        
+        if (userId) {
+          console.log(`Found userId ${userId} in charge metadata`);
+          // Add credits directly using the fixed amount
+          const totalCredits = 30;
+          const validityDays = DEFAULT_VALIDITY_DAYS;
+          
+          // Calculate expiration date
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + validityDays);
+          
+          // Create a new credit purchase record
+          const { data, error } = await supabase
+            .from("credit_purchases")
+            .insert({
+              user_id: userId,
+              credit_amount: totalCredits,
+              remaining_credits: totalCredits,
+              stripe_charge_id: charge.id,
+              purchase_date: new Date().toISOString(),
+              expires_at: expiresAt.toISOString(),
+            });
+            
+          if (error) {
+            console.error("Error creating credit purchase:", error);
+            throw new Error(`Failed to create credit purchase: ${error.message}`);
+          }
+          
+          console.log(`Added ${totalCredits} credits to user ${userId} from charge`);
+          return new Response(
+            JSON.stringify({ success: true, credits: totalCredits }), 
+            { 
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" }
+            }
+          );
+        } else {
+          console.log("Charge succeeded but no user ID found in metadata");
+          return new Response(
+            JSON.stringify({ received: true, type: event.type, warning: "No user ID in charge metadata" }),
+            { 
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" }
+            }
+          );
+        }
+      } catch (error) {
+        console.error("Error processing charge:", error);
+        return new Response(
+          JSON.stringify({
+            error: "Error processing charge",
+            details: error instanceof Error ? error.message : String(error),
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          }
         );
       }
     }
@@ -145,7 +231,10 @@ serve(async (req) => {
     // Return 200 for unhandled event types
     return new Response(
       JSON.stringify({ received: true, type: event.type }),
-      { status: 200 }
+      { 
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      }
     );
   } catch (error) {
     console.error("Unhandled error:", error);
@@ -154,7 +243,10 @@ serve(async (req) => {
         error: "Internal server error",
         details: error instanceof Error ? error.message : String(error),
       }),
-      { status: 500 }
+      { 
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      }
     );
   }
 }); 
