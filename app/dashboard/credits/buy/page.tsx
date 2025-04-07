@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { supabase } from '@/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Navbar } from '@/app/components/Navbar';
@@ -12,25 +12,32 @@ const CREDIT_PACKAGES = [
   { id: '30-credits', name: '30 Credits', price: '$5.00', credits: 30, description: 'Best value for regular job hunting', popular: true }
 ];
 
-export default function BuyCreditsPage() {
-  const router = useRouter();
+// Component to handle search params within a suspense boundary
+function CheckoutStatus({ onStatusChange }: { onStatusChange: (status: 'idle' | 'success' | 'canceled') => void }) {
   const searchParams = useSearchParams();
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedPackage, setSelectedPackage] = useState<string>(CREDIT_PACKAGES[1].id); // Default to the best value package
-  const [checkoutStatus, setCheckoutStatus] = useState<'idle' | 'success' | 'canceled'>('idle');
   
-  // Check for Stripe session status from URL parameters
   useEffect(() => {
     const sessionId = searchParams.get('session_id');
     const canceled = searchParams.get('canceled');
     
     if (sessionId) {
-      setCheckoutStatus('success');
+      onStatusChange('success');
     } else if (canceled) {
-      setCheckoutStatus('canceled');
+      onStatusChange('canceled');
+    } else {
+      onStatusChange('idle');
     }
-  }, [searchParams]);
+  }, [searchParams, onStatusChange]);
+  
+  return null;
+}
+
+export default function BuyCreditsPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedPackage, setSelectedPackage] = useState<string>(CREDIT_PACKAGES[1].id); // Default to the best value package
+  const [checkoutStatus, setCheckoutStatus] = useState<'idle' | 'success' | 'canceled'>('idle');
   
   // Fetch the current user
   useEffect(() => {
@@ -138,6 +145,11 @@ export default function BuyCreditsPage() {
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
       <Navbar user={user} />
       
+      {/* Suspense boundary for useSearchParams */}
+      <Suspense fallback={null}>
+        <CheckoutStatus onStatusChange={setCheckoutStatus} />
+      </Suspense>
+      
       <main className="flex-grow px-4 py-8">
         <div className="max-w-5xl mx-auto">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
@@ -191,8 +203,8 @@ export default function BuyCreditsPage() {
                         {pkg.credits} Credits
                       </span>
                       
-                      <div className="h-5 w-5 rounded-full border-2 flex items-center justify-center
-                        ${selectedPackage === pkg.id ? 'border-blue-500' : 'border-gray-300 dark:border-gray-600'}"
+                      <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center
+                        ${selectedPackage === pkg.id ? 'border-blue-500' : 'border-gray-300 dark:border-gray-600'}`}
                       >
                         {selectedPackage === pkg.id && (
                           <div className="h-3 w-3 rounded-full bg-blue-500"></div>
