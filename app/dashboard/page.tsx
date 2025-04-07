@@ -10,6 +10,7 @@ import ResumeModal from '@/app/components/ResumeModal';
 import CreateJobModal from '@/app/components/CreateJobModal';
 import JobsList from '@/app/components/JobsList';
 import DefaultResumeWidget from '@/app/components/DefaultResumeWidget';
+import BuyCreditsButton from '@/app/components/BuyCreditsButton';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -368,13 +369,12 @@ export default function DashboardPage() {
                   </div>
                   
                   <div className="mt-3">
-                    <Link 
-                      href="/dashboard/credits/buy"
-                      className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
-                      data-testid="buy-credits-button"
-                    >
-                      Buy Credits
-                    </Link>
+                    <BuyCreditsButton
+                      userId={user?.id}
+                      variant="default"
+                      className="w-full"
+                      returnUrl="/dashboard"
+                    />
                   </div>
                 </div>
               </div>

@@ -1,0 +1,47 @@
+{
+    "products": [
+      {
+        "id": "prod_api_credits",
+        "name": "API Call Credits",
+        "description": "Credits for making API calls",
+        "active": true,
+        "metadata": {
+          "validity_days": "365",
+          "credit_product": "true"
+        }
+      }
+    ],
+    "prices": [
+      {
+        "product": "prod_api_credits",
+        "nickname": "10 API Credits",
+        "unit_amount": 200,
+        "currency": "usd",
+        "recurring": null,
+        "metadata": {
+          "credits_per_unit": "10"
+        }
+      },
+      {
+        "product": "prod_api_credits",
+        "nickname": "30 API Credits",
+        "unit_amount": 500,
+        "currency": "usd",
+        "recurring": null,
+        "metadata": {
+          "credits_per_unit": "30"
+        }
+      }
+    ],
+    "webhooks": [
+      {
+        "url": "https://your-project.supabase.co/functions/v1/stripe-webhook",
+        "enabled_events": [
+          "checkout.session.completed",
+          "payment_intent.succeeded",
+          "invoice.paid"
+        ],
+        "description": "API Credits webhook endpoint"
+      }
+    ]
+  }
