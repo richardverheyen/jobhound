@@ -457,7 +457,7 @@ export default function NewScanPage() {
                               <div className="flex justify-between">
                                 <div>
                                   <h3 className="font-medium text-gray-900 dark:text-white">
-                                    {job.title || job.position}
+                                    {job.title}
                                   </h3>
                                   <p className="text-sm text-gray-500 dark:text-gray-400">
                                     {job.company}
@@ -843,7 +843,7 @@ export default function NewScanPage() {
                           </svg>
                         </div>
                         <div className="ml-4">
-                          <h4 className="font-medium text-gray-900 dark:text-white">{selectedJob.title || selectedJob.position}</h4>
+                          <h4 className="font-medium text-gray-900 dark:text-white">{selectedJob.title}</h4>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
                             {selectedJob.company}
                             {selectedJob.location ? ` • ${selectedJob.location}` : ''}

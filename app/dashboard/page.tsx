@@ -10,7 +10,6 @@ import ResumeModal from '@/app/components/ResumeModal';
 import CreateJobModal from '@/app/components/CreateJobModal';
 import JobsList from '@/app/components/JobsList';
 import DefaultResumeWidget from '@/app/components/DefaultResumeWidget';
-import DirectResumeUpload from '@/app/components/DirectResumeUpload';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -68,33 +67,44 @@ export default function DashboardPage() {
       setDisplayName(user.user_metadata?.full_name || user.email);
       
       console.log("querying jobs, user id: ", user.id);
-      // Get job listings with their latest scan results
+
+      // Fetch jobs with their latest scan
       const { data: jobsData } = await supabase
         .from('jobs')
         .select(`
           *,
           job_scans(
-            id, 
-            match_score, 
+            id,
+            match_score,
             created_at,
-            resume_id
+            status
           )
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       
-      // Process and sort job scans by date
+      // Process the job data similar to the server component
       const processedJobs = jobsData?.map((job: any) => {
-        const sortedScans = job.job_scans.sort((a: JobScan, b: JobScan) => {
+        const sortedScans = job.job_scans?.sort((a: JobScan, b: JobScan) => {
           const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
           const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
           return dateB - dateA;
         });
         
+        // Clean up currency data if it contains '$' or other invalid currency codes
+        let cleanedJob = { ...job };
+        if (cleanedJob.salary_currency === '$') {
+          cleanedJob.salary_currency = 'USD';
+        } else if (cleanedJob.salary_currency === '£') {
+          cleanedJob.salary_currency = 'GBP';
+        } else if (cleanedJob.salary_currency === '€') {
+          cleanedJob.salary_currency = 'EUR';
+        }
+        
         return {
-          ...job,
-          job_scans: sortedScans,
-          latest_scan: sortedScans[0] || null
+          ...cleanedJob,
+          scans: sortedScans || [],
+          latest_scan: sortedScans?.[0] || null
         };
       }) || [];
       
