@@ -2,6 +2,9 @@
   "functions": {
     "app/api/create-scan/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/create-resume/route.ts": {
+      "maxDuration": 60
     }
   }
 }
