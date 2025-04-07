@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@13.6.0?target=deno";
 
+// Import type reference to fix TypeScript errors
+/// <reference path="../types.d.ts" />
+
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2023-10-16",
   httpClient: Stripe.createFetchHttpClient(),
@@ -11,6 +14,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-customer-email",
 };
+
+interface RequestBody {
+  user_id: string;
+  return_url: string;
+  email?: string;
+  priceId?: string;
+  mode?: 'credit-selection' | 'direct';
+}
 
 serve(async (req: Request) => {
   // Handle CORS preflight requests
@@ -37,7 +48,7 @@ serve(async (req: Request) => {
     }
 
     // Parse request body
-    let requestBody;
+    let requestBody: RequestBody;
     try {
       requestBody = await req.json();
     } catch (error) {
@@ -93,8 +104,12 @@ serve(async (req: Request) => {
         });
         
         // Filter prices for API credits product
-        const creditPrices = prices.filter(price => {
-          const product = price.product as Stripe.Product;
+        const creditPrices = prices.filter((price: any) => {
+          if (!price.product) return false;
+          // Instead of using as Stripe.Product which causes type errors
+          const product = typeof price.product === 'string' 
+            ? { active: true, metadata: {} } // Default if product is just an ID
+            : price.product; // Use the actual product object
           return product.active && product.metadata?.credit_product === 'true';
         });
         
@@ -108,7 +123,7 @@ serve(async (req: Request) => {
         const session = await stripe.checkout.sessions.create({
           payment_method_types: ["card"],
           billing_address_collection: 'auto',
-          line_items: creditPrices.map(price => ({
+          line_items: creditPrices.map((price: any) => ({
             price: price.id,
             quantity: 1,
           })),
@@ -185,7 +200,7 @@ serve(async (req: Request) => {
         // Create a session with all available prices for selection
         const session = await stripe.checkout.sessions.create({
           payment_method_types: ["card"],
-          line_items: prices.map(price => ({
+          line_items: prices.map((price: any) => ({
             price: price.id,
             quantity: 1,
           })),
