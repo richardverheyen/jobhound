@@ -21,7 +21,7 @@ export default function BuyCreditsButton({
   size = 'medium',
   className = '',
   label = 'Buy Credits',
-  returnUrl = '/dashboard',
+  returnUrl = '/dashboard/credits/buy',
   onSuccess
 }: BuyCreditsButtonProps) {
   const router = useRouter();

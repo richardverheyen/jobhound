@@ -13,29 +13,33 @@
     ],
     "prices": [
       {
+        "id": "price_10_credits",
         "product": "prod_api_credits",
         "nickname": "10 API Credits",
         "unit_amount": 200,
         "currency": "usd",
-        "recurring": null,
+        "active": true,
         "metadata": {
-          "credits_per_unit": "10"
+          "credits_per_unit": "10",
+          "credit_product": "true"
         }
       },
       {
+        "id": "price_30_credits",
         "product": "prod_api_credits",
         "nickname": "30 API Credits",
         "unit_amount": 500,
         "currency": "usd",
-        "recurring": null,
+        "active": true,
         "metadata": {
-          "credits_per_unit": "30"
+          "credits_per_unit": "30",
+          "credit_product": "true"
         }
       }
     ],
     "webhooks": [
       {
-        "url": "https://your-project.supabase.co/functions/v1/stripe-webhook",
+        "url": "{SUPABASE_PROJECT_URL}/functions/v1/stripe-webhook",
         "enabled_events": [
           "checkout.session.completed",
           "payment_intent.succeeded",

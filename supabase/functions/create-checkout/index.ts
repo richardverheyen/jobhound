@@ -28,6 +28,7 @@ async function createCreditSelectionSession(
   returnUrl: string,
   customerEmail?: string
 ) {
+  console.log("Fetching prices for credit selection...");
   // Fetch available prices for API credits
   const { data: prices } = await stripe.prices.list({
     active: true,
@@ -35,20 +36,38 @@ async function createCreditSelectionSession(
     limit: 10,
   });
   
+  console.log("Found prices:", JSON.stringify(prices));
+  
   // Filter prices for API credits product
   const creditPrices = prices.filter((price: any) => {
-    if (!price.product) return false;
+    if (!price.product) {
+      console.log("Price has no product:", price.id);
+      return false;
+    }
     const product = typeof price.product === 'string' 
       ? { active: true, metadata: {} }
       : price.product;
-    return product.active && product.metadata?.credit_product === 'true';
+    console.log("Checking product:", JSON.stringify(product));
+    
+    // Check for either credit_product=true OR credits metadata OR product name contains "API Credits"
+    const isCredit = product.metadata?.credit_product === 'true' ||
+                    product.metadata?.credits !== undefined ||
+                    product.name?.toLowerCase().includes('api credits');
+    
+    // Only include prices that match our package amounts ($2 and $5)
+    const isValidAmount = price.unit_amount === 200 || price.unit_amount === 500;
+    
+    return product.active && isCredit && isValidAmount;
   });
   
+  console.log("Filtered credit prices:", JSON.stringify(creditPrices));
+  
   if (creditPrices.length === 0) {
-    throw new Error("No active credit prices found");
+    throw new Error("No active credit prices found. Please ensure prices are configured with credit_product=true in metadata");
   }
   
   // Create a session with a price selection
+  console.log("Creating checkout session...");
   return await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
     billing_address_collection: 'auto',
@@ -63,6 +82,7 @@ async function createCreditSelectionSession(
     metadata: {
       userId,
     },
+    allow_promotion_codes: true,
   });
 }
 
@@ -72,6 +92,7 @@ async function createDirectCheckoutSession(
   priceId: string,
   customerEmail?: string
 ) {
+  console.log("Creating direct checkout session with priceId:", priceId);
   return await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
     line_items: [
@@ -99,12 +120,20 @@ serve(async (req) => {
 
   try {
     // Check if Stripe API key is configured
-    if (!Deno.env.get("STRIPE_SECRET_KEY")) {
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) {
       throw new Error("Stripe API key is not configured");
     }
+    console.log("Stripe API key found (length):", stripeKey.length);
 
     // Parse request body
     const requestBody: RequestBody = await req.json();
+    console.log("Request body:", JSON.stringify({
+      ...requestBody,
+      user_id: requestBody.user_id ? "REDACTED" : undefined,
+      email: requestBody.email ? "REDACTED" : undefined,
+    }));
+    
     const { user_id, return_url, email, priceId, mode } = requestBody;
 
     if (!user_id || !return_url) {
@@ -116,16 +145,20 @@ serve(async (req) => {
     let session;
 
     // Create appropriate checkout session based on mode
+    console.log("Creating checkout session with mode:", mode);
     if (mode === 'credit-selection') {
       session = await createCreditSelectionSession(user_id, return_url, customerEmail);
     } else if (priceId) {
       session = await createDirectCheckoutSession(user_id, return_url, priceId, customerEmail);
     } else {
       // Default behavior - show all prices
+      console.log("Using default behavior - fetching all prices");
       const { data: prices } = await stripe.prices.list({
         active: true,
         limit: 10,
       });
+
+      console.log("Found prices:", JSON.stringify(prices));
 
       if (prices.length === 0) {
         throw new Error("No active prices found in Stripe");
@@ -147,6 +180,7 @@ serve(async (req) => {
       });
     }
 
+    console.log("Checkout session created successfully");
     return new Response(
       JSON.stringify({
         sessionId: session.id,
@@ -159,7 +193,12 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Detailed error:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+      cause: error instanceof Error ? error.cause : undefined,
+    });
     
     const errorMessage = error instanceof Error ? error.message : String(error);
     const status = errorMessage.includes("API key") ? 500 
@@ -170,6 +209,7 @@ serve(async (req) => {
       JSON.stringify({
         error: errorMessage,
         code: status === 500 ? "server_error" : "invalid_request",
+        details: error instanceof Error ? error.stack : undefined,
       }),
       {
         status,
