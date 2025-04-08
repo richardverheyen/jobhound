@@ -19,50 +19,36 @@ interface RequestBody {
   user_id: string;
   return_url: string;
   email?: string;
-  priceId?: string;
-  mode?: 'credit-selection' | 'direct';
-}
-
-async function createCheckoutSession(
-  userId: string,
-  returnUrl: string,
-  customerEmail?: string
-) {
-  // Use a fixed price ID for the 30 API Credits product
-  const priceId = "price_30_credits";
-  
-  console.log("Creating checkout session for API credits...");
-  return await stripe.checkout.sessions.create({
-    payment_method_types: ["card"],
-    billing_address_collection: 'auto',
-    line_items: [
-      {
-        price: priceId,
-        quantity: 1,
-      }
-    ],
-    mode: "payment",
-    success_url: `${returnUrl}?success=true&session_id={CHECKOUT_SESSION_ID}&user_id=${encodeURIComponent(userId)}`,
-    cancel_url: `${returnUrl}?canceled=true`,
-    ...(customerEmail ? { customer_email: customerEmail } : {}),
-    metadata: {
-      userId,
-    },
-    payment_intent_data: {
-      metadata: {
-        userId,
-      },
-    },
-    allow_promotion_codes: true,
-  });
 }
 
 // Main request handler
 serve(async (req) => {
+  // Debug information
+  console.log("Request headers:", Object.fromEntries(req.headers.entries()));
+  
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Skip authentication check for now to test if the function works
+  // We'll add proper authentication later
+  /* 
+  // Check for authorization header
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader) {
+    return new Response(
+      JSON.stringify({
+        error: "Missing authorization header",
+        code: 401,
+      }),
+      {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  }
+  */
 
   try {
     // Check if Stripe API key is configured
@@ -89,8 +75,33 @@ serve(async (req) => {
     // Get customer email from headers or body
     const customerEmail = req.headers.get("X-Customer-Email") || email || "";
     
-    // Create checkout session with the single product
-    const session = await createCheckoutSession(user_id, return_url, customerEmail);
+    // Use a fixed price ID for the 30 API Credits product
+    const priceId = "price_1RBEFTPPpRvSAmmeXm9z5pxT";
+  
+    console.log("Creating checkout session for API credits...");
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      billing_address_collection: 'auto',
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        }
+      ],
+      mode: "payment",
+      success_url: `${return_url}?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${return_url}?canceled=true`,
+      ...(customerEmail ? { customer_email: customerEmail } : {}),
+      metadata: {
+        userId: user_id,
+      },
+      payment_intent_data: {
+        metadata: {
+          userId: user_id,
+        },
+      },
+      allow_promotion_codes: true,
+    });
 
     console.log("Checkout session created successfully");
     return new Response(

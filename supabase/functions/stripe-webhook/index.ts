@@ -8,13 +8,20 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-// Initialize Supabase client
+// Initialize Supabase client with service role key (bypasses RLS)
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Set default credit validity period (1 year in days)
 const DEFAULT_VALIDITY_DAYS = 365;
+
+// CORS headers for all responses
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
+  "Access-Control-Allow-Methods": "POST, OPTIONS"
+};
 
 /**
  * Handle a completed checkout session by adding credits to the user's account
@@ -25,17 +32,13 @@ async function handleCompletedCheckout(session: any) {
   // Get the user ID from the session metadata
   const userId = session.metadata?.userId;
   if (!userId) {
+    console.error("User ID not found in session metadata", session.metadata);
     throw new Error("User ID not found in session metadata");
   }
 
-  // Get line items to determine the purchased credits
-  const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
-  if (!lineItems.data.length) {
-    throw new Error("No line items found in checkout session");
-  }
-
-  // Since we're only using one product with fixed credits (30),
-  // we can simplify the credit calculation
+  console.log(`Found userId ${userId} in session metadata`);
+  
+  // For simplicity, we're using a fixed credit amount of 30
   const totalCredits = 30;
   const validityDays = DEFAULT_VALIDITY_DAYS;
 
@@ -61,34 +64,41 @@ async function handleCompletedCheckout(session: any) {
   }
 
   console.log(`Added ${totalCredits} credits to user ${userId}`);
-  return { success: true, credits: totalCredits };
+  return { success: true, credits: totalCredits, userId };
 }
 
 // Main request handler
+// This is a webhook that doesn't require authentication - it uses the Stripe signature to verify
 serve(async (req) => {
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS"
-  };
+  // Debug info about the request
+  console.log("Request headers:", Object.fromEntries(req.headers.entries()));
   
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: corsHeaders 
+    });
   }
   
   try {
-    // Parse the webhook payload and verify its signature
-    const signature = req.headers.get("stripe-signature");
-    const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+    // Parse the webhook payload
     const body = await req.text();
-
-    // Check all environment variables
+    console.log("Received webhook body:", body.substring(0, 200) + "...");
+    
+    // Get the Stripe signature
+    const signature = req.headers.get("stripe-signature");
+    console.log("Stripe signature:", signature ? "present" : "missing");
+    
+    // Get webhook secret
+    const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+    console.log("Webhook secret:", webhookSecret ? "configured" : "missing");
+    
+    // Check required environment variables
     if (!webhookSecret) {
       console.error("Missing STRIPE_WEBHOOK_SECRET environment variable");
       return new Response(
         JSON.stringify({
-          error: "Configuration error - missing STRIPE_WEBHOOK_SECRET",
+          error: "Configuration error - missing STRIPE_WEBHOOK_SECRET"
         }),
         { 
           status: 500,
@@ -101,7 +111,7 @@ serve(async (req) => {
       console.error("Missing Supabase environment variables");
       return new Response(
         JSON.stringify({
-          error: "Configuration error - missing Supabase environment variables",
+          error: "Configuration error - missing Supabase environment variables"
         }),
         { 
           status: 500,
@@ -110,18 +120,29 @@ serve(async (req) => {
       );
     }
 
-    // Verify the webhook signature
+    // Construct and verify the event
     let event;
+    if (!signature) {
+      console.error("Missing stripe-signature header");
+      return new Response(
+        JSON.stringify({
+          error: "Missing stripe-signature header"
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
+    
     try {
-      if (!signature) {
-        throw new Error("Missing stripe-signature header");
-      }
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+      // Use constructEventAsync instead of constructEvent for async environments
+      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
     } catch (err) {
       console.error(`Webhook signature verification failed: ${err}`);
       return new Response(
         JSON.stringify({
-          error: `Webhook signature verification failed: ${err}`,
+          error: `Webhook signature verification failed: ${err}`
         }),
         { 
           status: 400,
@@ -130,11 +151,12 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Received webhook event: ${event.type}`);
+    console.log(`Received webhook event: ${event.type}`, event.data.object.id);
 
     // Handle the checkout.session.completed event
     if (event.type === "checkout.session.completed") {
       try {
+        console.log("Processing checkout.session.completed event");
         const result = await handleCompletedCheckout(event.data.object);
         return new Response(
           JSON.stringify(result), 
@@ -147,7 +169,7 @@ serve(async (req) => {
         console.error(`Error processing checkout: ${error}`);
         return new Response(
           JSON.stringify({
-            error: `Error processing checkout: ${error}`,
+            error: `Error processing checkout: ${error}`
           }),
           { 
             status: 500,
@@ -157,19 +179,15 @@ serve(async (req) => {
       }
     }
     
-    // Also handle the charge.succeeded event
-    if (event.type === "charge.succeeded") {
-      // For charge.succeeded, we need to find the associated checkout session
-      const charge = event.data.object;
-      console.log(`Processing charge.succeeded for payment intent: ${charge.payment_intent}`);
-      
+    // Also handle the payment_intent.succeeded event
+    if (event.type === "payment_intent.succeeded") {
       try {
-        // We'll try to find the checkout session using the metadata
-        // Check if we can extract the user ID from the metadata
-        const userId = charge.metadata?.userId;
+        // For payment_intent.succeeded, check if it has the user ID in the metadata
+        const paymentIntent = event.data.object;
+        const userId = paymentIntent.metadata?.userId;
         
         if (userId) {
-          console.log(`Found userId ${userId} in charge metadata`);
+          console.log(`Found userId ${userId} in payment intent metadata`);
           // Add credits directly using the fixed amount
           const totalCredits = 30;
           const validityDays = DEFAULT_VALIDITY_DAYS;
@@ -185,7 +203,7 @@ serve(async (req) => {
               user_id: userId,
               credit_amount: totalCredits,
               remaining_credits: totalCredits,
-              stripe_charge_id: charge.id,
+              stripe_payment_intent_id: paymentIntent.id,
               purchase_date: new Date().toISOString(),
               expires_at: expiresAt.toISOString(),
             });
@@ -195,18 +213,26 @@ serve(async (req) => {
             throw new Error(`Failed to create credit purchase: ${error.message}`);
           }
           
-          console.log(`Added ${totalCredits} credits to user ${userId} from charge`);
+          console.log(`Added ${totalCredits} credits to user ${userId} from payment intent`);
           return new Response(
-            JSON.stringify({ success: true, credits: totalCredits }), 
+            JSON.stringify({ 
+              success: true, 
+              credits: totalCredits, 
+              userId 
+            }), 
             { 
               status: 200,
               headers: { ...corsHeaders, "Content-Type": "application/json" }
             }
           );
         } else {
-          console.log("Charge succeeded but no user ID found in metadata");
+          console.log("Payment intent succeeded but no user ID found in metadata");
           return new Response(
-            JSON.stringify({ received: true, type: event.type, warning: "No user ID in charge metadata" }),
+            JSON.stringify({ 
+              received: true, 
+              type: event.type, 
+              warning: "No user ID in payment intent metadata" 
+            }),
             { 
               status: 200,
               headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -214,10 +240,10 @@ serve(async (req) => {
           );
         }
       } catch (error) {
-        console.error("Error processing charge:", error);
+        console.error("Error processing payment intent:", error);
         return new Response(
           JSON.stringify({
-            error: "Error processing charge",
+            error: "Error processing payment intent",
             details: error instanceof Error ? error.message : String(error),
           }),
           { 
@@ -230,7 +256,10 @@ serve(async (req) => {
 
     // Return 200 for unhandled event types
     return new Response(
-      JSON.stringify({ received: true, type: event.type }),
+      JSON.stringify({ 
+        received: true, 
+        type: event.type 
+      }),
       { 
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }

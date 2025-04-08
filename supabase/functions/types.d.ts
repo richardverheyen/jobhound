@@ -37,6 +37,7 @@ declare module "https://esm.sh/stripe@13.6.0?target=deno" {
     constructor(apiKey: string, config?: StripeConstructorOptions);
     webhooks: {
       constructEvent(payload: string, signature: string, secret: string): any;
+      constructEventAsync(payload: string, signature: string, secret: string): Promise<any>;
     };
     checkout: {
       sessions: {

@@ -1,7 +1,7 @@
 {
     "products": [
       {
-        "id": "prod_api_credits",
+        "id": "prod_S5P3GIumYGX3Dn",
         "name": "30 API Credits",
         "description": "Credits for analyzing resumes against job listings",
         "active": true,
@@ -13,8 +13,8 @@
     ],
     "prices": [
       {
-        "id": "price_30_credits",
-        "product": "prod_api_credits",
+        "id": "price_1RBEFTPPpRvSAmmeXm9z5pxT",
+        "product": "prod_S5P3GIumYGX3Dn",
         "nickname": "30 API Credits",
         "unit_amount": 500,
         "currency": "usd",
