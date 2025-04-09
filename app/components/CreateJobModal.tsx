@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/supabase/client';
-import { JobFormContent, JobFormData, useJobForm } from './JobFormContent';
+import { JobFormContent, useJobForm } from '@/app/components/JobFormContent';
 
 interface CreateJobModalProps {
   isOpen: boolean;
