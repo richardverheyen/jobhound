@@ -48,8 +48,8 @@ export default function DefaultResumeWidget({
           resumeId = user.default_resume_id;
         }
         
-        console.log('DefaultResumeWidget fetching resume with ID:', resumeId);
-        console.log('User data:', user);
+        // console.log('DefaultResumeWidget fetching resume with ID:', resumeId);
+        // console.log('User data:', user);
         
         // If we have a resume ID, fetch the resume
         if (resumeId) {
@@ -68,7 +68,7 @@ export default function DefaultResumeWidget({
           }
           
           // Add some logging for debugging
-          console.log('Resume data fetched:', resumeData);
+          // console.log('Resume data fetched:', resumeData);
           
           // If resume has a file_path, get the signed URL
           if (resumeData && resumeData.file_path) {
