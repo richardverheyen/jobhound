@@ -8,6 +8,7 @@ import { Navbar } from '@/app/components/Navbar';
 import { Job, Resume } from '@/types';
 import { createScan } from '@/app/lib/scanService';
 import { useCreateScan } from "./createScan";
+import { JobFormContent, useJobForm } from '@/app/components/JobFormContent';
 
 export default function NewScanPage() {
   const router = useRouter();
@@ -30,6 +31,9 @@ export default function NewScanPage() {
     location: '',
     description: ''
   });
+
+  // Use our shared job form hook for the advanced job creation
+  const jobForm = useJobForm();
 
   // New resume form state
   const [showResumeForm, setShowResumeForm] = useState<boolean>(false);
@@ -115,6 +119,14 @@ export default function NewScanPage() {
 
   const handleJobSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    
+    // If we're using the advanced form, use that data
+    if (showJobForm && jobForm.activeTab === 'manual') {
+      await handleAdvancedJobSubmit(e);
+      return;
+    }
+    
+    // Otherwise use the simple form data
     setError(null);
     
     try {
@@ -153,6 +165,109 @@ export default function NewScanPage() {
     } catch (error: any) {
       console.error('Error creating job:', error);
       setError(error.message || 'Failed to create job. Please try again.');
+    }
+  };
+
+  // Advanced job submission handler using the shared component
+  const handleAdvancedJobSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    
+    // Validate form
+    const validationErrors = jobForm.validateForm();
+    if (validationErrors.length > 0) {
+      jobForm.setError(validationErrors.join(". "));
+      return;
+    }
+    
+    jobForm.setIsSubmitting(true);
+    jobForm.setError(null);
+    
+    try {
+      if (!user) {
+        throw new Error('You must be logged in to create a job');
+      }
+      
+      // Ensure requirements and benefits are arrays
+      const requirements = Array.isArray(jobForm.formData.requirements) 
+        ? jobForm.formData.requirements 
+        : (jobForm.formData.requirements ? [jobForm.formData.requirements] : []);
+        
+      const benefits = Array.isArray(jobForm.formData.benefits)
+        ? jobForm.formData.benefits
+        : (jobForm.formData.benefits ? [jobForm.formData.benefits] : []);
+      
+      const hardSkills = Array.isArray(jobForm.formData.hard_skills)
+        ? jobForm.formData.hard_skills
+        : (jobForm.formData.hard_skills ? [jobForm.formData.hard_skills] : []);
+        
+      const softSkills = Array.isArray(jobForm.formData.soft_skills)
+        ? jobForm.formData.soft_skills
+        : (jobForm.formData.soft_skills ? [jobForm.formData.soft_skills] : []);
+      
+      // Use the create_job RPC function with all fields
+      const { data, error } = await supabase
+        .rpc('create_job', {
+          p_company: jobForm.formData.company,
+          p_title: jobForm.formData.title,
+          p_location: jobForm.formData.location,
+          p_description: jobForm.formData.description,
+          p_job_type: jobForm.formData.job_type,
+          p_salary_range_min: jobForm.formData.salary_range_min,
+          p_salary_range_max: jobForm.formData.salary_range_max,
+          p_salary_currency: jobForm.formData.salary_currency,
+          p_salary_period: jobForm.formData.salary_period,
+          p_requirements: requirements.length > 0 
+            ? requirements 
+            : null,
+          p_benefits: benefits.length > 0 
+            ? benefits 
+            : null,
+          p_hard_skills: hardSkills.length > 0
+            ? hardSkills
+            : null,
+          p_soft_skills: softSkills.length > 0
+            ? softSkills
+            : null,
+          p_raw_job_text: jobForm.activeTab === 'ai' ? jobForm.rawJobText : jobForm.formData.raw_job_text
+        });
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data?.job_id) {
+        // Fetch the newly created job to get all fields
+        const { data: jobData, error: jobError } = await supabase
+          .from('jobs')
+          .select('*')
+          .eq('id', data.job_id)
+          .single();
+          
+        if (jobError) throw jobError;
+        
+        // Add to jobs list and select it
+        setJobs(prev => [jobData, ...prev]);
+        setSelectedJob(jobData);
+        setShowJobForm(false);
+        
+        // Move to step 2 if we're in step 1
+        if (currentStep === 1) {
+          setCurrentStep(2);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error creating job:', error);
+      jobForm.setError(error.message || 'Failed to create job. Please try again.');
+    } finally {
+      jobForm.setIsSubmitting(false);
+    }
+  };
+  
+  // Handle cancel for the job form
+  const handleJobFormCancel = () => {
+    if (jobs.length > 0) {
+      setShowJobForm(false);
+      jobForm.resetForm();
     }
   };
   
@@ -504,7 +619,7 @@ export default function NewScanPage() {
                       </h3>
                       {jobs.length > 0 && (
                         <button
-                          onClick={() => setShowJobForm(false)}
+                          onClick={handleJobFormCancel}
                           className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
                         >
                           Cancel
@@ -512,82 +627,37 @@ export default function NewScanPage() {
                       )}
                     </div>
                     
-                    <form onSubmit={handleJobSubmit} className="space-y-6">
-                      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                        <div>
-                          <label htmlFor="company" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Company
-                          </label>
-                          <input
-                            type="text"
-                            id="company"
-                            name="company"
-                            value={jobFormData.company}
-                            onChange={handleJobChange}
-                            required
-                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-800 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label htmlFor="position" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Position
-                          </label>
-                          <input
-                            type="text"
-                            id="position"
-                            name="position"
-                            value={jobFormData.position}
-                            onChange={handleJobChange}
-                            required
-                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-800 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Location
-                          </label>
-                          <input
-                            type="text"
-                            id="location"
-                            name="location"
-                            value={jobFormData.location}
-                            onChange={handleJobChange}
-                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-800 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Job Description
-                        </label>
-                        <div className="mt-1">
-                          <textarea
-                            id="description"
-                            name="description"
-                            rows={10}
-                            value={jobFormData.description}
-                            onChange={handleJobChange}
-                            placeholder="Paste the job description here..."
-                            className="block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-800 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          />
-                        </div>
-                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                          The full job description will help us analyze your resume against this job.
-                        </p>
-                      </div>
-
-                      <div className="flex justify-end">
-                        <button
-                          type="submit"
-                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
-                          Save Job
-                        </button>
-                      </div>
-                    </form>
+                    <JobFormContent
+                      activeTab={jobForm.activeTab}
+                      setActiveTab={jobForm.setActiveTab}
+                      isSubmitting={jobForm.isSubmitting}
+                      error={jobForm.error}
+                      isProcessingAI={jobForm.isProcessingAI}
+                      rawJobText={jobForm.rawJobText}
+                      formData={jobForm.formData}
+                      handleTabChange={jobForm.handleTabChange}
+                      handleFormChange={jobForm.handleFormChange}
+                      handleRawTextChange={jobForm.handleRawTextChange}
+                      handleAddRequirement={jobForm.handleAddRequirement}
+                      handleRemoveRequirement={jobForm.handleRemoveRequirement}
+                      newRequirement={jobForm.newRequirement}
+                      setNewRequirement={jobForm.setNewRequirement}
+                      handleAddBenefit={jobForm.handleAddBenefit}
+                      handleRemoveBenefit={jobForm.handleRemoveBenefit}
+                      newBenefit={jobForm.newBenefit}
+                      setNewBenefit={jobForm.setNewBenefit}
+                      handleAddHardSkill={jobForm.handleAddHardSkill}
+                      handleRemoveHardSkill={jobForm.handleRemoveHardSkill}
+                      newHardSkill={jobForm.newHardSkill}
+                      setNewHardSkill={jobForm.setNewHardSkill}
+                      handleAddSoftSkill={jobForm.handleAddSoftSkill}
+                      handleRemoveSoftSkill={jobForm.handleRemoveSoftSkill}
+                      newSoftSkill={jobForm.newSoftSkill}
+                      setNewSoftSkill={jobForm.setNewSoftSkill}
+                      onSubmit={handleJobSubmit}
+                      onCancel={handleJobFormCancel}
+                      isModal={false}
+                    />
                   </div>
                 )}
               </div>
