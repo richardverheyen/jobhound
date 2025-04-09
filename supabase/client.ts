@@ -26,20 +26,6 @@ export const supabase = createBrowserClient(
   }
 );
 
-export const supabaseJs = createClient(supabaseUrl, supabaseAnonKey,
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-    },
-    global: {
-      headers: {
-       'apikey': supabaseAnonKey
-      }
-    }
-  })
-
-
 // Helper to check if we're using the local development environment
 export const isLocalDev = () => {
   return supabaseUrl?.includes('localhost') || supabaseUrl?.includes('127.0.0.1');

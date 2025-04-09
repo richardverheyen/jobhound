@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase, supabaseJs, getCurrentSession } from '@/supabase/client'
+import { supabase, getCurrentSession } from '@/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Navbar } from '@/app/components/Navbar'
