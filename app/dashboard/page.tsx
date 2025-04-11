@@ -204,7 +204,7 @@ export default function DashboardPage() {
     setSelectedResume(null);
   };
   
-  // Create job modal functions
+  Create job modal functions
   const openCreateJobModal = () => {
     setCreateJobModalOpen(true);
   };

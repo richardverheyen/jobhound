@@ -409,63 +409,8 @@ export function JobFormContent({
   onCancel,
   isModal = false
 }: JobFormContentProps) {
-  // Add state to track if the component has mounted
-  const [isMounted, setIsMounted] = useState(false);
-  
-  // Use a ref to prevent global event listeners from affecting the component
-  const componentRef = useRef<HTMLDivElement>(null);
-
-  // Handle React's synthetic events within the component
-  useEffect(() => {
-    setIsMounted(true);
-
-    // Function to prevent clicks inside this component from bubbling up
-    const handleGlobalClick = (e: MouseEvent) => {
-      if (componentRef.current && !componentRef.current.contains(e.target as Node)) {
-        // Click was outside our component, do nothing
-        return;
-      }
-      
-      // Check if click is on a link or button outside our form elements
-      const target = e.target as HTMLElement;
-      const isLink = target.tagName === 'A' || 
-                     target.closest('a') || 
-                     target.tagName === 'BUTTON' || 
-                     target.closest('button');
-      
-      if (isLink && !target.closest('form') && !target.closest('[data-testid]')) {
-        // Let normal links and buttons work
-        return;
-      }
-      
-      // For other elements inside our component, don't interfere
-      e.stopPropagation();
-    };
-
-    // Add low-level event listeners to catch events that might be causing issues
-    document.addEventListener('mousedown', handleGlobalClick, true);
-    document.addEventListener('click', handleGlobalClick, true);
-    
-    return () => {
-      document.removeEventListener('mousedown', handleGlobalClick, true);
-      document.removeEventListener('click', handleGlobalClick, true);
-      setIsMounted(false);
-    };
-  }, []);
-
-  if (!isMounted) {
-    return null; // Return null on server or before mount to avoid hydration issues
-  }
-
   return (
-    <div 
-      ref={componentRef} 
-      style={{ 
-        position: 'relative', 
-        zIndex: isModal ? 100 : 'auto',
-        isolation: 'isolate' // Create a stacking context
-      }}
-    >
+    <div>
       {/* Tab navigation */}
       <div className="border-b border-gray-200 dark:border-gray-700 mt-4">
         <nav className="-mb-px flex" aria-label="Tabs">
@@ -568,7 +513,7 @@ export function JobFormContent({
       
       {/* Manual job entry form */}
       {activeTab === 'manual' && (
-        <form onClick={(e) => e.stopPropagation()} onSubmit={onSubmit} className="space-y-4 mt-4">
+        <form onSubmit={onSubmit} className="space-y-4 mt-4">
           {/* Basic Information section */}
           <div className="space-y-4">
             <div>

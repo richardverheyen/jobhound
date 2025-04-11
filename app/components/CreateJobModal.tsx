@@ -203,7 +203,7 @@ export default function CreateJobModal({
                   </button>
                 </div>
 
-                <JobFormContent
+                {/* <JobFormContent
                   activeTab={activeTab}
                   setActiveTab={setActiveTab}
                   isSubmitting={isSubmitting}
@@ -233,7 +233,7 @@ export default function CreateJobModal({
                   onSubmit={handleSubmit}
                   onCancel={onClose}
                   isModal={true}
-                />
+                /> */}
               </div>
             </div>
           </div>
