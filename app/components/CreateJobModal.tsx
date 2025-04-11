@@ -74,21 +74,8 @@ export default function CreateJobModal({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [onClose, isSubmitting, isProcessingAI]);
 
-  // Prevent scrolling of the background when modal is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    e.stopPropagation(); // Prevent event from bubbling
     
     // Validate form
     const validationErrors = validateForm();
@@ -178,24 +165,20 @@ export default function CreateJobModal({
 
   if (!isOpen) return null;
 
+  // Safe close handler that checks for processing states
+  const handleClose = () => {
+    if (!isSubmitting && !isProcessingAI) {
+      onClose();
+    }
+  };
+
   return (
-    <div 
-      className="fixed inset-0 z-50 overflow-y-auto"
-      aria-labelledby="modal-title"
-      role="dialog"
-      aria-modal="true"
-      onClick={(e) => e.stopPropagation()}
-    >
+    <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         {/* Background overlay */}
         <div 
           className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity duration-300 ease-out"
-          onClick={(e) => {
-            e.stopPropagation(); // Stop event propagation
-            if (!(isSubmitting || isProcessingAI)) {
-              onClose();
-            }
-          }}
+          onClick={handleClose}
           aria-hidden="true"
           style={{ opacity: isOpen ? 0.5 : 0 }}
         ></div>
@@ -205,12 +188,7 @@ export default function CreateJobModal({
           className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all duration-300 ease-out sm:my-8 sm:align-middle sm:max-w-lg w-full"
           style={{ 
             transform: isOpen ? 'translateY(0)' : 'translateY(50px)', 
-            opacity: isOpen ? 1 : 0,
-            position: 'relative', // Ensure proper stacking context
-            zIndex: 1 // Higher than the overlay
-          }}
-          onClick={(e) => {
-            e.stopPropagation(); // Prevent clicks from bubbling through
+            opacity: isOpen ? 1 : 0
           }}
         >
           <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
@@ -221,10 +199,7 @@ export default function CreateJobModal({
                     Add New Job
                   </h3>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!(isSubmitting || isProcessingAI)) onClose();
-                    }}
+                    onClick={handleClose}
                     disabled={isSubmitting || isProcessingAI}
                     className="rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
                   >
