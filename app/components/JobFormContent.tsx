@@ -420,7 +420,10 @@ export function JobFormContent({
                 ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200'
             } ${(isSubmitting || isProcessingAI) ? 'cursor-not-allowed opacity-50' : ''}`}
-            onClick={() => handleTabChange('ai')}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleTabChange('ai');
+            }}
             disabled={isSubmitting || isProcessingAI}
             data-testid="ai-tab-button"
           >
@@ -432,7 +435,10 @@ export function JobFormContent({
                 ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200'
             } ${(isSubmitting || isProcessingAI) ? 'cursor-not-allowed opacity-50' : ''}`}
-            onClick={() => handleTabChange('manual')}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleTabChange('manual');
+            }}
             disabled={isSubmitting || isProcessingAI}
             data-testid="manual-tab-button"
           >
@@ -486,7 +492,10 @@ export function JobFormContent({
           <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
             <button
               type="button"
-              onClick={() => handleTabChange('manual')}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleTabChange('manual');
+              }}
               disabled={isProcessingAI}
               className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white sm:ml-3 sm:w-auto sm:text-sm ${
                 isProcessingAI
@@ -500,7 +509,10 @@ export function JobFormContent({
             {isModal && (
               <button
                 type="button"
-                onClick={onCancel}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCancel();
+                }}
                 disabled={isSubmitting || isProcessingAI}
                 className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
               >
@@ -513,7 +525,13 @@ export function JobFormContent({
       
       {/* Manual job entry form */}
       {activeTab === 'manual' && (
-        <form onSubmit={onSubmit} className="space-y-4 mt-4">
+        <form 
+          onSubmit={(e) => {
+            e.stopPropagation();
+            onSubmit(e);
+          }} 
+          className="space-y-4 mt-4"
+        >
           {/* Basic Information section */}
           <div className="space-y-4">
             <div>
@@ -618,28 +636,37 @@ export function JobFormContent({
             </div>
           </div>
           
-          {/* Form Actions */}
-          <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm ${
-                isSubmitting
-                  ? 'bg-blue-400 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700'
-              }`}
-              data-testid="create-job-button"
-            >
-              {isSubmitting ? 'Creating...' : 'Add Job'}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTabChange('ai')}
-              disabled={isSubmitting}
-              className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-            >
-              Back
-            </button>
+          {/* Action buttons */}
+          <div className="pt-5 mt-5 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex justify-end">
+              {isModal && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCancel();
+                  }}
+                  disabled={isSubmitting}
+                  className="bg-white dark:bg-gray-800 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className={`ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                  isSubmitting
+                    ? 'bg-blue-400 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                {isSubmitting ? 'Saving...' : 'Save Job'}
+              </button>
+            </div>
           </div>
         </form>
       )}
