@@ -409,8 +409,17 @@ export function JobFormContent({
   onCancel,
   isModal = false
 }: JobFormContentProps) {
+  // Add a function to handle click events and prevent propagation
+  const handleClick = (e: React.MouseEvent) => {
+    // Only stop propagation if the click is on the form itself
+    // This allows links and other interactive elements to work normally
+    if (e.target === e.currentTarget) {
+      e.stopPropagation();
+    }
+  };
+
   return (
-    <div>
+    <div onClick={handleClick}>
       {/* Tab navigation */}
       <div className="border-b border-gray-200 dark:border-gray-700 mt-4">
         <nav className="-mb-px flex" aria-label="Tabs">
@@ -420,7 +429,10 @@ export function JobFormContent({
                 ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200'
             } ${(isSubmitting || isProcessingAI) ? 'cursor-not-allowed opacity-50' : ''}`}
-            onClick={() => handleTabChange('ai')}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleTabChange('ai');
+            }}
             disabled={isSubmitting || isProcessingAI}
             data-testid="ai-tab-button"
           >
@@ -432,7 +444,10 @@ export function JobFormContent({
                 ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200'
             } ${(isSubmitting || isProcessingAI) ? 'cursor-not-allowed opacity-50' : ''}`}
-            onClick={() => handleTabChange('manual')}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleTabChange('manual');
+            }}
             disabled={isSubmitting || isProcessingAI}
             data-testid="manual-tab-button"
           >
@@ -463,7 +478,10 @@ export function JobFormContent({
                 name="raw_job_text"
                 rows={12}
                 value={rawJobText}
-                onChange={handleRawTextChange}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  handleRawTextChange(e);
+                }}
                 disabled={isProcessingAI}
                 className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
                 placeholder="Paste the entire job listing here"
@@ -486,7 +504,10 @@ export function JobFormContent({
           <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
             <button
               type="button"
-              onClick={() => handleTabChange('manual')}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleTabChange('manual');
+              }}
               disabled={isProcessingAI}
               className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white sm:ml-3 sm:w-auto sm:text-sm ${
                 isProcessingAI
@@ -500,7 +521,10 @@ export function JobFormContent({
             {isModal && (
               <button
                 type="button"
-                onClick={onCancel}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCancel();
+                }}
                 disabled={isSubmitting || isProcessingAI}
                 className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
               >
@@ -513,7 +537,10 @@ export function JobFormContent({
       
       {/* Manual job entry form */}
       {activeTab === 'manual' && (
-        <form onSubmit={onSubmit} className="space-y-4 mt-4">
+        <form onSubmit={(e) => {
+          e.stopPropagation();
+          onSubmit(e);
+        }} className="space-y-4 mt-4">
           {/* Basic Information section */}
           <div className="space-y-4">
             <div>
@@ -526,7 +553,10 @@ export function JobFormContent({
                   id="company"
                   name="company"
                   value={formData.company}
-                  onChange={handleFormChange}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handleFormChange(e);
+                  }}
                   required
                   className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
                   placeholder="e.g., Acme Inc."
@@ -545,7 +575,10 @@ export function JobFormContent({
                   id="title"
                   name="title"
                   value={formData.title}
-                  onChange={handleFormChange}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handleFormChange(e);
+                  }}
                   required
                   className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
                   placeholder="e.g., Software Engineer"
@@ -564,7 +597,10 @@ export function JobFormContent({
                   id="location"
                   name="location"
                   value={formData.location}
-                  onChange={handleFormChange}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handleFormChange(e);
+                  }}
                   className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
                   placeholder="e.g., San Francisco, CA or Remote"
                   data-testid="job-location-input"
@@ -581,7 +617,10 @@ export function JobFormContent({
                   id="job_type"
                   name="job_type"
                   value={formData.job_type}
-                  onChange={handleFormChange}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handleFormChange(e);
+                  }}
                   className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
                   data-testid="job-type-input"
                 >
@@ -608,7 +647,10 @@ export function JobFormContent({
                   name="description"
                   rows={4}
                   value={formData.description}
-                  onChange={handleFormChange}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handleFormChange(e);
+                  }}
                   required
                   className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
                   placeholder="Full job description"
@@ -634,7 +676,10 @@ export function JobFormContent({
             </button>
             <button
               type="button"
-              onClick={() => handleTabChange('ai')}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleTabChange('ai');
+              }}
               disabled={isSubmitting}
               className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
             >

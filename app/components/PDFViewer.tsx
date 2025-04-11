@@ -41,6 +41,15 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ fileUrl, onClick, isFullViewer = 
     };
   }, []);
 
+  // Handle click events properly
+  const handleClick = (e: React.MouseEvent) => {
+    // Only call onClick if it's provided and the click is directly on the container
+    if (onClick && e.target === e.currentTarget) {
+      e.stopPropagation();
+      onClick();
+    }
+  };
+
   return (
     <div 
       ref={containerRef}
@@ -49,7 +58,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ fileUrl, onClick, isFullViewer = 
         cursor: onClick ? 'pointer' : 'default',
         overflow: 'hidden', // Prevent scrollbars
       }}
-      onClick={onClick}
+      onClick={handleClick}
     >
       {containerWidth > 0 && (
         <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
