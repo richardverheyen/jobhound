@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { Navbar } from '@/app/components/Navbar'
 import { Job, Resume, CreditUsage, User, JobScan } from '@/types'
 import ResumeModal from '@/app/components/ResumeModal';
-import CreateJobModal from '@/app/components/CreateJobModal';
+// import CreateJobModal from '@/app/components/CreateJobModal';
 import JobsList from '@/app/components/JobsList';
 import DefaultResumeWidget from '@/app/components/DefaultResumeWidget';
 import BuyCreditsButton from '@/app/components/BuyCreditsButton';
@@ -20,7 +20,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
   const [resumeModalOpen, setResumeModalOpen] = useState<boolean>(false);
-  const [createJobModalOpen, setCreateJobModalOpen] = useState<boolean>(false);
+  // const [createJobModalOpen, setCreateJobModalOpen] = useState<boolean>(false);
   const [displayName, setDisplayName] = useState<string>('');
   const [user, setUser] = useState<any>(null);
 
@@ -205,13 +205,13 @@ export default function DashboardPage() {
   };
   
   // Create job modal functions
-  const openCreateJobModal = () => {
-    setCreateJobModalOpen(true);
-  };
+  // const openCreateJobModal = () => {
+  //   setCreateJobModalOpen(true);
+  // };
   
-  const closeCreateJobModal = () => {
-    setCreateJobModalOpen(false);
-  };
+  // const closeCreateJobModal = () => {
+  //   setCreateJobModalOpen(false);
+  // };
   
   const handleJobCreated = async (jobId: string) => {
     // Refresh data after a job is created
@@ -278,12 +278,12 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Jobs List */}
             <div className="lg:col-span-2">
-              <JobsList 
+              {/* <JobsList 
                 jobs={jobs}
                 emptyStateAction={openCreateJobModal}
                 title="My Job Listings"
                 viewAllLink="/dashboard/jobs"
-              />
+              /> */}
             </div>
 
             {/* Right Column: Resume and Job Goal */}
@@ -389,12 +389,12 @@ export default function DashboardPage() {
         onClose={closeResumeModal}
       />
       
-      <CreateJobModal 
+      {/* <CreateJobModal 
         isOpen={createJobModalOpen} 
         onClose={closeCreateJobModal} 
         onSuccess={handleJobCreated} 
         navigateToJobOnSuccess={false} 
-      />
+      /> */}
     </div>
   );
 }
