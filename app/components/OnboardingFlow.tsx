@@ -46,27 +46,8 @@ export default function OnboardingFlow() {
       try {
         setIsLoading(true);
         
-        // Generate a fingerprint based on browser/device information
-        const generateFingerprint = () => {
-          const userAgent = navigator.userAgent;
-          const screenData = `${window.screen.width}x${window.screen.height}x${window.screen.colorDepth}`;
-          const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-          const language = navigator.language;
-          
-          // Create a simple fingerprint - for production, use a more robust solution
-          const fingerprint = btoa(
-            `${userAgent}|${screenData}|${timezone}|${language}|${Date.now().toString().substring(0, 8)}`
-          ).substring(0, 64);
-          
-          return fingerprint;
-        };
-        
-        const fingerprint = generateFingerprint();
-        
-        // Always create a new anonymous user
-        const { data, error } = await supabase.rpc('create_anonymous_user', {
-          p_client_fingerprint: fingerprint
-        });
+        // Always create a new anonymous user without fingerprint checking
+        const { data, error } = await supabase.rpc('create_new_anonymous_user');
         
         if (error) {
           throw error;
