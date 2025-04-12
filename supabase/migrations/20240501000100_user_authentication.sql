@@ -144,8 +144,9 @@ BEGIN
     v_expires_at -- credits expire when the anonymous user expires
   );
   
-  -- Generate a session token for the anonymous user
-  PERFORM auth.set_auth_for_request(v_auth_id);
+  -- Note: In a real implementation, we would generate a JWT token here,
+  -- but this can be handled by the frontend by signing in with the temporary 
+  -- credentials after this function call
   
   RETURN jsonb_build_object(
     'user_id', v_user_id,
@@ -168,6 +169,7 @@ DECLARE
   v_resume_id UUID;
   v_auth_id UUID;
   v_remaining_credits INT;
+  v_credit_id UUID;
 BEGIN
   -- Check if anonymous user exists
   SELECT EXISTS (
@@ -189,11 +191,12 @@ BEGIN
     RETURN jsonb_build_object('success', FALSE, 'error', 'Job or resume not found');
   END IF;
   
-  -- Get remaining credits
-  SELECT remaining_credits INTO v_remaining_credits 
-  FROM public.credit_purchases 
-  WHERE user_id = p_anonymous_user_id 
-  ORDER BY purchase_date DESC 
+  -- Get remaining credits and credit purchase ID
+  SELECT cp.id, cp.remaining_credits 
+  INTO v_credit_id, v_remaining_credits
+  FROM public.credit_purchases cp
+  WHERE cp.user_id = p_anonymous_user_id 
+  ORDER BY cp.purchase_date DESC 
   LIMIT 1;
   
   -- Update the anonymous user with the provided email and remove anonymous flag
@@ -229,13 +232,10 @@ BEGIN
       'Onboarding flow scan'
     );
     
-    -- Update remaining credits
+    -- Update remaining credits using the credit_id we retrieved earlier
     UPDATE public.credit_purchases 
     SET remaining_credits = v_remaining_credits - 1
-    WHERE user_id = p_anonymous_user_id 
-    AND remaining_credits > 0
-    ORDER BY purchase_date DESC 
-    LIMIT 1;
+    WHERE id = v_credit_id;
     
     -- TODO: In a real implementation, we would create the actual scan here
     -- or return the job/resume IDs for the front-end to create it

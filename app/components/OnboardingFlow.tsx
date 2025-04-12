@@ -77,6 +77,25 @@ export default function OnboardingFlow() {
           if (!userError && userData && new Date(userData.anonymous_expires_at) > new Date()) {
             // We have a valid anonymous user, use it
             setAnonymousUserId(userData.id);
+            
+            // Check if we're already authenticated with this user
+            const { data: authData } = await supabase.auth.getSession();
+            if (!authData.session) {
+              // Try to sign in with stored credentials
+              const tempEmail = `anonymous_${userData.id}@temporary.jobhound`;
+              const tempPassword = `temp_${userData.id}`;
+              
+              try {
+                await supabase.auth.signInWithPassword({
+                  email: tempEmail,
+                  password: tempPassword
+                });
+              } catch (signInError) {
+                console.warn('Could not sign in with stored anonymous user', signInError);
+                // Continue anyway as we can still use the ID
+              }
+            }
+            
             setIsLoading(false);
             return;
           }
@@ -97,6 +116,15 @@ export default function OnboardingFlow() {
           setAnonymousUserId(data.user_id);
           // Store the ID in localStorage to help avoid creating multiple
           localStorage.setItem('anonymousUserId', data.user_id);
+          
+          // Sign in with the anonymous user credentials
+          const tempEmail = `anonymous_${data.user_id}@temporary.jobhound`;
+          const tempPassword = `temp_${data.user_id}`;
+          
+          await supabase.auth.signInWithPassword({
+            email: tempEmail,
+            password: tempPassword
+          });
         }
       } catch (error: any) {
         console.error('Error creating anonymous user:', error);
