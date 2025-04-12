@@ -83,46 +83,50 @@ This onboarding flow shares similarities with the existing `/dashboard/scans/new
 
 ## Implementation Notes
 
-In a full implementation:
+The onboarding flow now implements a complete anonymous user system:
 
-1. Anonymous user authentication would be handled per the app_flow.md document:
+1. **Anonymous User Creation with Auth Integration**:
+   - Creates both a database record AND a Supabase Auth user
+   - Uses device fingerprinting to prevent multiple anonymous users from the same device
+   - Stores the anonymous user ID in localStorage for persistence
    ```typescript
-   // When user starts onboarding
-   const { data } = await supabase.auth.signUp({
-     email: `anonymous-${Date.now()}@jobhound.example.com`,
-     password: crypto.randomUUID(),
-     options: { data: { is_anonymous: true } }
+   // Generate a unique device fingerprint
+   const fingerprint = generateFingerprint();
+   
+   // Create anonymous user with fingerprint
+   const { data } = await supabase.rpc('create_anonymous_user', {
+     p_client_fingerprint: fingerprint
    });
    
-   await supabase.rpc('create_anonymous_user');
+   // This creates both a database user and a Supabase Auth user
    ```
 
-2. Job and resume data would be stored under this anonymous user
+2. **Device Fingerprinting**:
+   - Uses browser information to create a unique device identifier
+   - Prevents users from creating multiple anonymous accounts to get more free credits
+   - If a user returns to the onboarding flow from the same device, they continue their existing session
 
-3. When the user creates a permanent account, the data would be transferred:
+3. **User Conversion Process**:
+   - Anonymous users have temporary credentials in Supabase Auth
+   - When converting to a permanent account, we update both database and auth records
+   - The user's password is updated via the Auth API
    ```typescript
-   // When user completes sign-up
-   const { data } = await supabase.auth.updateUser({
-     email: userProvidedEmail,
-     password: userProvidedPassword
+   // Convert anonymous user to permanent
+   const { data } = await supabase.rpc('convert_anonymous_user', {
+     p_anonymous_user_id: anonymousUserId,
+     p_email: email,
+     p_full_name: fullName
    });
    
-   await supabase.rpc('convert_anonymous_user', {
-     p_user_id: data.user.id,
-     p_email: userProvidedEmail
+   // Update password on the Auth user
+   await supabase.auth.updateUser({
+     password: password,
    });
    ```
 
-4. After successful account creation, the scan would be generated and the user redirected:
-   ```typescript
-   // Create the scan using the job and resume created during onboarding
-   const result = await createScan({
-     jobId,
-     resumeId
-   });
-   
-   // Redirect to the job details page showing the scan results
-   router.push(`/dashboard/jobs/${jobId}`);
-   ```
+4. **Session Management**:
+   - The user remains logged in throughout the process
+   - After conversion, they are signed in with their new credentials
+   - The system handles auth token refreshing automatically
 
-The current implementation is a UI prototype that demonstrates the flow without the backend authentication logic. 
+This approach ensures that we maintain a single user record throughout the entire onboarding process while preventing abuse of the free credit system. 

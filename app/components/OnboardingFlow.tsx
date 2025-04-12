@@ -45,7 +45,49 @@ export default function OnboardingFlow() {
     const createAnonymousUser = async () => {
       try {
         setIsLoading(true);
-        const { data, error } = await supabase.rpc('create_anonymous_user');
+        
+        // Generate a fingerprint based on browser/device information
+        const generateFingerprint = () => {
+          const userAgent = navigator.userAgent;
+          const screenData = `${window.screen.width}x${window.screen.height}x${window.screen.colorDepth}`;
+          const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          const language = navigator.language;
+          
+          // Create a simple fingerprint - for production, use a more robust solution
+          const fingerprint = btoa(
+            `${userAgent}|${screenData}|${timezone}|${language}|${Date.now().toString().substring(0, 8)}`
+          ).substring(0, 64);
+          
+          return fingerprint;
+        };
+        
+        const fingerprint = generateFingerprint();
+        
+        // Check if we already have a stored anonymous user ID in localStorage
+        const storedUserId = localStorage.getItem('anonymousUserId');
+        if (storedUserId) {
+          // Verify if this user ID is still valid
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('id, is_anonymous, anonymous_expires_at')
+            .eq('id', storedUserId)
+            .eq('is_anonymous', true)
+            .single();
+            
+          if (!userError && userData && new Date(userData.anonymous_expires_at) > new Date()) {
+            // We have a valid anonymous user, use it
+            setAnonymousUserId(userData.id);
+            setIsLoading(false);
+            return;
+          }
+          // Invalid or expired user, remove from localStorage and continue
+          localStorage.removeItem('anonymousUserId');
+        }
+        
+        // Create a new anonymous user with fingerprint
+        const { data, error } = await supabase.rpc('create_anonymous_user', {
+          p_client_fingerprint: fingerprint
+        });
         
         if (error) {
           throw error;
@@ -53,6 +95,8 @@ export default function OnboardingFlow() {
         
         if (data && data.user_id) {
           setAnonymousUserId(data.user_id);
+          // Store the ID in localStorage to help avoid creating multiple
+          localStorage.setItem('anonymousUserId', data.user_id);
         }
       } catch (error: any) {
         console.error('Error creating anonymous user:', error);
@@ -243,24 +287,11 @@ export default function OnboardingFlow() {
     }
     
     try {
-      // 1. Register user with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName
-          }
-        }
-      });
-      
-      if (authError) throw authError;
-      
       if (!anonymousUserId) {
         throw new Error('Session lost. Please start over.');
       }
       
-      // 2. Convert anonymous user and create scan
+      // Convert anonymous user and set up account
       const { data: conversionData, error: conversionError } = await supabase.rpc(
         'convert_anonymous_user',
         {
@@ -275,6 +306,21 @@ export default function OnboardingFlow() {
       if (!conversionData.success) {
         throw new Error(conversionData.error || 'Failed to process your account');
       }
+      
+      // Update the auth user password
+      const { error: passwordError } = await supabase.auth.updateUser({
+        password: password,
+      });
+      
+      if (passwordError) throw passwordError;
+      
+      // Sign in with the new credentials
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
+      
+      if (signInError) throw signInError;
       
       // Success! Redirect to the job details page to see the scan
       router.push(`/dashboard/jobs/${conversionData.job_id}`);

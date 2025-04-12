@@ -55,26 +55,77 @@ CREATE TRIGGER on_auth_user_created
   EXECUTE FUNCTION public.handle_new_user();
 
 -- Add function to create anonymous users for the onboarding flow
-CREATE OR REPLACE FUNCTION create_anonymous_user()
+CREATE OR REPLACE FUNCTION create_anonymous_user(
+  p_client_fingerprint TEXT DEFAULT NULL
+)
 RETURNS JSONB AS $$
 DECLARE
   v_user_id UUID;
+  v_auth_id UUID;
   v_expires_at TIMESTAMP WITH TIME ZONE;
+  v_existing_user JSONB;
 BEGIN
+  -- Check if a user with this fingerprint already exists
+  IF p_client_fingerprint IS NOT NULL THEN
+    SELECT jsonb_build_object('user_id', u.id, 'expires_at', u.anonymous_expires_at)
+    INTO v_existing_user
+    FROM public.users u
+    WHERE u.device_fingerprint = p_client_fingerprint
+      AND u.is_anonymous = TRUE
+      AND u.anonymous_expires_at > NOW();
+      
+    -- If a user with this fingerprint exists, return it
+    IF v_existing_user IS NOT NULL THEN
+      RETURN v_existing_user;
+    END IF;
+  END IF;
+
   -- Set expiration to 24 hours from now (for onboarding flow)
   v_expires_at := NOW() + INTERVAL '24 hours';
   
-  -- Create a new anonymous user
+  -- Create a new anonymous auth user
+  v_auth_id := gen_random_uuid();
+  
+  -- Insert into auth.users with a temporary anonymous email
+  INSERT INTO auth.users (
+    id,
+    email,
+    encrypted_password,
+    email_confirmed_at,
+    created_at,
+    updated_at,
+    last_sign_in_at,
+    raw_app_meta_data,
+    raw_user_meta_data
+  ) VALUES (
+    v_auth_id,
+    'anonymous_' || v_auth_id || '@temporary.jobhound',
+    crypt('temp_' || v_auth_id, gen_salt('bf')), -- Temporary password
+    NOW(),
+    NOW(),
+    NOW(),
+    NOW(),
+    '{"provider": "anonymous", "providers": ["anonymous"]}',
+    '{"is_anonymous": true}'
+  );
+  
+  -- Create a new anonymous user in the public schema
   INSERT INTO public.users (
+    id,
     is_anonymous,
     anonymous_expires_at,
+    device_fingerprint,
     created_at,
-    updated_at
+    updated_at,
+    auth_id
   ) VALUES (
+    v_auth_id,  -- Use the same ID as the auth user
     TRUE,
     v_expires_at,
+    p_client_fingerprint,
     NOW(),
-    NOW()
+    NOW(),
+    v_auth_id
   )
   RETURNING id INTO v_user_id;
   
@@ -93,8 +144,12 @@ BEGIN
     v_expires_at -- credits expire when the anonymous user expires
   );
   
+  -- Generate a session token for the anonymous user
+  PERFORM auth.set_auth_for_request(v_auth_id);
+  
   RETURN jsonb_build_object(
     'user_id', v_user_id,
+    'auth_id', v_auth_id,
     'expires_at', v_expires_at
   );
 END;
@@ -111,6 +166,7 @@ DECLARE
   v_exists BOOLEAN;
   v_job_id UUID;
   v_resume_id UUID;
+  v_auth_id UUID;
   v_remaining_credits INT;
 BEGIN
   -- Check if anonymous user exists
@@ -146,6 +202,13 @@ BEGIN
       full_name = p_full_name,
       is_anonymous = FALSE,
       anonymous_expires_at = NULL,
+      updated_at = NOW()
+  WHERE id = p_anonymous_user_id;
+  
+  -- Update the auth user record
+  UPDATE auth.users
+  SET email = p_email,
+      raw_user_meta_data = jsonb_build_object('full_name', p_full_name, 'is_anonymous', false),
       updated_at = NOW()
   WHERE id = p_anonymous_user_id;
   
