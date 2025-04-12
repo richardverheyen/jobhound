@@ -63,23 +63,7 @@ DECLARE
   v_user_id UUID;
   v_auth_id UUID;
   v_expires_at TIMESTAMP WITH TIME ZONE;
-  v_existing_user JSONB;
 BEGIN
-  -- Check if a user with this fingerprint already exists
-  IF p_client_fingerprint IS NOT NULL THEN
-    SELECT jsonb_build_object('user_id', u.id, 'expires_at', u.anonymous_expires_at)
-    INTO v_existing_user
-    FROM public.users u
-    WHERE u.device_fingerprint = p_client_fingerprint
-      AND u.is_anonymous = TRUE
-      AND u.anonymous_expires_at > NOW();
-      
-    -- If a user with this fingerprint exists, return it
-    IF v_existing_user IS NOT NULL THEN
-      RETURN v_existing_user;
-    END IF;
-  END IF;
-
   -- Set expiration to 24 hours from now (for onboarding flow)
   v_expires_at := NOW() + INTERVAL '24 hours';
   
@@ -144,10 +128,7 @@ BEGIN
     v_expires_at -- credits expire when the anonymous user expires
   );
   
-  -- Note: In a real implementation, we would generate a JWT token here,
-  -- but this can be handled by the frontend by signing in with the temporary 
-  -- credentials after this function call
-  
+  -- Return the user information
   RETURN jsonb_build_object(
     'user_id', v_user_id,
     'auth_id', v_auth_id,

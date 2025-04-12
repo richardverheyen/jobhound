@@ -63,47 +63,7 @@ export default function OnboardingFlow() {
         
         const fingerprint = generateFingerprint();
         
-        // Check if we already have a stored anonymous user ID in localStorage
-        const storedUserId = localStorage.getItem('anonymousUserId');
-        if (storedUserId) {
-          // Verify if this user ID is still valid
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('id, is_anonymous, anonymous_expires_at')
-            .eq('id', storedUserId)
-            .eq('is_anonymous', true)
-            .single();
-            
-          if (!userError && userData && new Date(userData.anonymous_expires_at) > new Date()) {
-            // We have a valid anonymous user, use it
-            setAnonymousUserId(userData.id);
-            
-            // Check if we're already authenticated with this user
-            const { data: authData } = await supabase.auth.getSession();
-            if (!authData.session) {
-              // Try to sign in with stored credentials
-              const tempEmail = `anonymous_${userData.id}@temporary.jobhound`;
-              const tempPassword = `temp_${userData.id}`;
-              
-              try {
-                await supabase.auth.signInWithPassword({
-                  email: tempEmail,
-                  password: tempPassword
-                });
-              } catch (signInError) {
-                console.warn('Could not sign in with stored anonymous user', signInError);
-                // Continue anyway as we can still use the ID
-              }
-            }
-            
-            setIsLoading(false);
-            return;
-          }
-          // Invalid or expired user, remove from localStorage and continue
-          localStorage.removeItem('anonymousUserId');
-        }
-        
-        // Create a new anonymous user with fingerprint
+        // Always create a new anonymous user
         const { data, error } = await supabase.rpc('create_anonymous_user', {
           p_client_fingerprint: fingerprint
         });
@@ -114,7 +74,7 @@ export default function OnboardingFlow() {
         
         if (data && data.user_id) {
           setAnonymousUserId(data.user_id);
-          // Store the ID in localStorage to help avoid creating multiple
+          // Store the ID in localStorage
           localStorage.setItem('anonymousUserId', data.user_id);
           
           // Sign in with the anonymous user credentials
