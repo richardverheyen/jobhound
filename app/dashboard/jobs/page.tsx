@@ -5,6 +5,7 @@ import { supabase } from '@/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Navbar } from '@/app/components/Navbar';
 import { Job, JobScan } from '@/types';
+import CreateJobModal from '@/app/components/CreateJobModal';
 import JobsList from '@/app/components/JobsList';
 
 export default function JobsPage() {
@@ -13,6 +14,9 @@ export default function JobsPage() {
   const [profileData, setProfileData] = useState<any>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Create job modal state
+  const [createJobModalOpen, setCreateJobModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -83,6 +87,15 @@ export default function JobsPage() {
     fetchData();
   }, [router]);
   
+  // Create job modal functions
+  const openCreateJobModal = () => {
+    setCreateJobModalOpen(true);
+  };
+  
+  const closeCreateJobModal = () => {
+    setCreateJobModalOpen(false);
+  };
+  
   const handleJobCreated = async (jobId: string) => {
     // Refresh the jobs list
     const { data: { user } } = await supabase.auth.getUser();
@@ -152,6 +165,15 @@ export default function JobsPage() {
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Job Applications</h1>
+            <button
+              onClick={openCreateJobModal}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Add New Job
+            </button>
           </div>
 
           <JobsList 
@@ -162,6 +184,14 @@ export default function JobsPage() {
           />
         </div>
       </main>
+      
+      {/* Create Job Modal */}
+      <CreateJobModal 
+        isOpen={createJobModalOpen} 
+        onClose={closeCreateJobModal} 
+        onSuccess={handleJobCreated} 
+        navigateToJobOnSuccess={false} 
+      />
     </div>
   );
 } 
