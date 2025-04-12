@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Image from "next/image";
 import Link from "next/link";
 import { Navbar } from '@/app/components/Navbar';
+import OnboardingFlowSection from '@/app/components/OnboardingFlowSection';
 
 export default async function Home() {
   const supabase = await createClient()
@@ -79,6 +80,20 @@ export default async function Home() {
                 Increase your chances of getting interviews with AI-powered insights and recommendations.
               </p>
             </div>
+          </div>
+          
+          {/* Onboarding Flow Section */}
+          <div className="mt-24 mb-16">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white">
+                Try It Now - No Sign Up Required
+              </h2>
+              <p className="mt-3 max-w-2xl mx-auto text-xl text-gray-500 dark:text-gray-400">
+                See how JobHound can improve your job application in just a few steps.
+              </p>
+            </div>
+            
+            <OnboardingFlowSection />
           </div>
           
           <div className="mt-16">

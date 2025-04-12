@@ -54,18 +54,18 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
 
--- Add function to create anonymous users
+-- Add function to create anonymous users for the onboarding flow
 CREATE OR REPLACE FUNCTION create_anonymous_user()
 RETURNS JSONB AS $$
 DECLARE
   v_user_id UUID;
   v_expires_at TIMESTAMP WITH TIME ZONE;
 BEGIN
-  -- Set expiration to 7 days from now
-  v_expires_at := NOW() + INTERVAL '7 days';
+  -- Set expiration to 24 hours from now (for onboarding flow)
+  v_expires_at := NOW() + INTERVAL '24 hours';
   
   -- Create a new anonymous user
-  INSERT INTO users (
+  INSERT INTO public.users (
     is_anonymous,
     anonymous_expires_at,
     created_at,
@@ -78,8 +78,8 @@ BEGIN
   )
   RETURNING id INTO v_user_id;
   
-  -- Give the anonymous user 3 free credits
-  INSERT INTO credit_purchases (
+  -- Grant 10 free credits to anonymous users (same as regular users)
+  INSERT INTO public.credit_purchases (
     user_id,
     credit_amount,
     remaining_credits,
@@ -87,8 +87,8 @@ BEGIN
     expires_at
   ) VALUES (
     v_user_id,
-    3, -- 3 free credits for anonymous users
-    3, -- all credits initially available
+    10, -- 10 free credits, same as regular users
+    10, -- all credits initially available
     NOW(),
     v_expires_at -- credits expire when the anonymous user expires
   );
@@ -103,23 +103,16 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Add function to convert anonymous user to registered user
 CREATE OR REPLACE FUNCTION convert_anonymous_user(
   p_anonymous_user_id UUID, 
-  p_registered_user_id UUID,
-  p_email TEXT
+  p_email TEXT,
+  p_full_name TEXT
 )
-RETURNS BOOLEAN AS $$
+RETURNS JSONB AS $$
 DECLARE
   v_exists BOOLEAN;
+  v_job_id UUID;
+  v_resume_id UUID;
+  v_remaining_credits INT;
 BEGIN
-  -- Check if the registered user exists
-  SELECT EXISTS (
-    SELECT 1 FROM public.users WHERE id = p_registered_user_id
-  ) INTO v_exists;
-  
-  -- If registered user already exists, we can't convert
-  IF v_exists THEN
-    RETURN FALSE;
-  END IF;
-  
   -- Check if anonymous user exists
   SELECT EXISTS (
     SELECT 1 FROM public.users 
@@ -128,26 +121,91 @@ BEGIN
   
   -- If anonymous user doesn't exist, we can't convert
   IF NOT v_exists THEN
-    RETURN FALSE;
+    RETURN jsonb_build_object('success', FALSE, 'error', 'Anonymous user not found');
   END IF;
   
-  -- Transfer anonymous user data to the registered user ID
+  -- Get the job and resume IDs created during onboarding
+  SELECT id INTO v_job_id FROM public.jobs WHERE user_id = p_anonymous_user_id ORDER BY created_at DESC LIMIT 1;
+  SELECT id INTO v_resume_id FROM public.resumes WHERE user_id = p_anonymous_user_id ORDER BY created_at DESC LIMIT 1;
+  
+  -- Check if both job and resume exist
+  IF v_job_id IS NULL OR v_resume_id IS NULL THEN
+    RETURN jsonb_build_object('success', FALSE, 'error', 'Job or resume not found');
+  END IF;
+  
+  -- Get remaining credits
+  SELECT remaining_credits INTO v_remaining_credits 
+  FROM public.credit_purchases 
+  WHERE user_id = p_anonymous_user_id 
+  ORDER BY purchase_date DESC 
+  LIMIT 1;
+  
+  -- Update the anonymous user with the provided email and remove anonymous flag
   UPDATE public.users
-  SET id = p_registered_user_id,
-      email = p_email,
+  SET email = p_email,
+      full_name = p_full_name,
       is_anonymous = FALSE,
       anonymous_expires_at = NULL,
       updated_at = NOW()
   WHERE id = p_anonymous_user_id;
   
-  -- Update any related records with the new user ID
-  UPDATE public.credit_purchases SET user_id = p_registered_user_id WHERE user_id = p_anonymous_user_id;
-  UPDATE public.credit_usage SET user_id = p_registered_user_id WHERE user_id = p_anonymous_user_id;
-  UPDATE public.resumes SET user_id = p_registered_user_id WHERE user_id = p_anonymous_user_id;
-  UPDATE public.jobs SET user_id = p_registered_user_id WHERE user_id = p_anonymous_user_id;
-  UPDATE public.job_scans SET user_id = p_registered_user_id WHERE user_id = p_anonymous_user_id;
+  -- Create a scan using one credit
+  IF v_remaining_credits > 0 THEN
+    -- Record credit usage for the scan
+    INSERT INTO public.credit_usage (
+      user_id,
+      credit_amount,
+      usage_type,
+      usage_date,
+      notes
+    ) VALUES (
+      p_anonymous_user_id,
+      1, -- use 1 credit
+      'scan',
+      NOW(),
+      'Onboarding flow scan'
+    );
+    
+    -- Update remaining credits
+    UPDATE public.credit_purchases 
+    SET remaining_credits = v_remaining_credits - 1
+    WHERE user_id = p_anonymous_user_id 
+    AND remaining_credits > 0
+    ORDER BY purchase_date DESC 
+    LIMIT 1;
+    
+    -- TODO: In a real implementation, we would create the actual scan here
+    -- or return the job/resume IDs for the front-end to create it
+  END IF;
   
-  -- Success
-  RETURN TRUE;
+  -- Return success with job and resume IDs for scan creation/viewing
+  RETURN jsonb_build_object(
+    'success', TRUE,
+    'user_id', p_anonymous_user_id,
+    'job_id', v_job_id,
+    'resume_id', v_resume_id,
+    'remaining_credits', GREATEST(0, v_remaining_credits - 1)
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Add function for cleanup of expired anonymous users
+CREATE OR REPLACE FUNCTION cleanup_expired_anonymous_users()
+RETURNS INT AS $$
+DECLARE
+  v_count INT;
+BEGIN
+  -- Delete any users whose anonymous_expires_at has passed
+  WITH deleted_users AS (
+    DELETE FROM public.users
+    WHERE is_anonymous = TRUE AND anonymous_expires_at < NOW()
+    RETURNING id
+  )
+  SELECT COUNT(*) INTO v_count FROM deleted_users;
+  
+  -- Since we have cascading deletes set up in the database,
+  -- this will automatically delete all related data
+  
+  RETURN v_count;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER; 
