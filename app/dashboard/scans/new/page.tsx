@@ -8,6 +8,7 @@ import { Navbar } from '@/app/components/Navbar';
 import { Job, Resume } from '@/types';
 import { createScan } from '@/app/lib/scanService';
 import { useCreateScan } from "./createScan";
+import JobCreateForm from '@/app/components/JobCreateForm';
 
 export default function NewScanPage() {
   const router = useRouter();
@@ -24,12 +25,6 @@ export default function NewScanPage() {
   
   // New job form state
   const [showJobForm, setShowJobForm] = useState<boolean>(false);
-  const [jobFormData, setJobFormData] = useState({
-    company: '',
-    position: '',
-    location: '',
-    description: ''
-  });
 
   // New resume form state
   const [showResumeForm, setShowResumeForm] = useState<boolean>(false);
@@ -108,41 +103,20 @@ export default function NewScanPage() {
   };
   
   // Job form handlers
-  const handleJobChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setJobFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleJobSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    
-    try {
-      if (!user) {
-        throw new Error('You must be logged in to create a job');
-      }
+  const handleJobSuccess = async (jobId: string) => {
+    // Refresh the jobs list
+    if (user) {
+      await fetchJobs();
       
-      // Insert the job into Supabase
-      const { data, error } = await supabase
+      // Find and select the newly created job
+      const { data: newJob } = await supabase
         .from('jobs')
-        .insert([
-          {
-            user_id: user.id,
-            company: jobFormData.company,
-            title: jobFormData.position,
-            location: jobFormData.location,
-            description: jobFormData.description
-          }
-        ])
-        .select()
+        .select('*')
+        .eq('id', jobId)
         .single();
       
-      if (error) throw error;
-      
-      // Add to jobs list and select it
-      if (data) {
-        setJobs(prev => [data, ...prev]);
-        setSelectedJob(data);
+      if (newJob) {
+        setSelectedJob(newJob);
         setShowJobForm(false);
         
         // Move to step 2 if we're in step 1
@@ -150,9 +124,6 @@ export default function NewScanPage() {
           setCurrentStep(2);
         }
       }
-    } catch (error: any) {
-      console.error('Error creating job:', error);
-      setError(error.message || 'Failed to create job. Please try again.');
     }
   };
   
@@ -512,82 +483,11 @@ export default function NewScanPage() {
                       )}
                     </div>
                     
-                    <form onSubmit={handleJobSubmit} className="space-y-6">
-                      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                        <div>
-                          <label htmlFor="company" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Company
-                          </label>
-                          <input
-                            type="text"
-                            id="company"
-                            name="company"
-                            value={jobFormData.company}
-                            onChange={handleJobChange}
-                            required
-                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-800 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label htmlFor="position" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Position
-                          </label>
-                          <input
-                            type="text"
-                            id="position"
-                            name="position"
-                            value={jobFormData.position}
-                            onChange={handleJobChange}
-                            required
-                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-800 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Location
-                          </label>
-                          <input
-                            type="text"
-                            id="location"
-                            name="location"
-                            value={jobFormData.location}
-                            onChange={handleJobChange}
-                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-800 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Job Description
-                        </label>
-                        <div className="mt-1">
-                          <textarea
-                            id="description"
-                            name="description"
-                            rows={10}
-                            value={jobFormData.description}
-                            onChange={handleJobChange}
-                            placeholder="Paste the job description here..."
-                            className="block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-800 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          />
-                        </div>
-                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                          The full job description will help us analyze your resume against this job.
-                        </p>
-                      </div>
-
-                      <div className="flex justify-end">
-                        <button
-                          type="submit"
-                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
-                          Save Job
-                        </button>
-                      </div>
-                    </form>
+                    <JobCreateForm 
+                      onSuccess={handleJobSuccess}
+                      navigateToJobOnSuccess={false}
+                      onCancel={() => setShowJobForm(false)}
+                    />
                   </div>
                 )}
               </div>
