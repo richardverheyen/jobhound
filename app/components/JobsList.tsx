@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Job, JobScan } from '@/types';
 import ProgressRing from './ProgressRing';
-import CreateJobModal from './CreateJobModal';
+import JobCreateDialog from './JobCreateDialog';
 
 // Extend Window interface to include our custom function
 declare global {
@@ -437,11 +437,11 @@ export default function JobsList({
       </div>
 
       {/* CreateJobModal component */}
-      <CreateJobModal 
-        isOpen={createJobModalOpen} 
-        onClose={closeCreateJobModal} 
-        onSuccess={handleJobCreated} 
-        navigateToJobOnSuccess={false} 
+      <JobCreateDialog
+        isOpen={createJobModalOpen}
+        onClose={closeCreateJobModal}
+        onSuccess={handleJobCreated}
+        navigateToJobOnSuccess={false}
       />
     </>
   );

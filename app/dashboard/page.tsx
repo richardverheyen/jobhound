@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Navbar } from '@/app/components/Navbar'
 import { Job, Resume, CreditUsage, User, JobScan } from '@/types'
-import ResumeModal from '@/app/components/ResumeModal';
+import ResumeViewDialog from '@/app/components/ResumeViewDialog';
 import JobsList from '@/app/components/JobsList';
 import DefaultResumeWidget from '@/app/components/DefaultResumeWidget';
 import BuyCreditsButton from '@/app/components/BuyCreditsButton';
@@ -367,10 +367,10 @@ export default function DashboardPage() {
         </div>
       </main>
       
-      <ResumeModal 
+      <ResumeViewDialog
         resume={selectedResume}
         isOpen={resumeModalOpen}
-        onClose={closeResumeModal}
+        onClose={() => setResumeModalOpen(false)}
       />
     </div>
   );

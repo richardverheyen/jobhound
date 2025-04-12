@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Resume } from '@/types';
 import { supabase } from '@/supabase/client';
 import { Navbar } from '@/app/components/Navbar';
-import ResumeModal from '@/app/components/ResumeModal';
+import ResumeViewDialog from '@/app/components/ResumeViewDialog';
 import DirectResumeUpload from '@/app/components/DirectResumeUpload';
 import { useRouter } from 'next/navigation';
 
@@ -16,7 +16,7 @@ export default function ResumesPage() {
   const [defaultResumeId, setDefaultResumeId] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
   const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [resumeModalOpen, setResumeModalOpen] = useState(false);
 
   useEffect(() => {
     const getUser = async () => {
@@ -161,11 +161,11 @@ export default function ResumesPage() {
 
   const openResumeModal = (resume: Resume) => {
     setSelectedResume(resume);
-    setModalOpen(true);
+    setResumeModalOpen(true);
   };
 
   const closeResumeModal = () => {
-    setModalOpen(false);
+    setResumeModalOpen(false);
     setSelectedResume(null);
   };
 
@@ -317,9 +317,9 @@ export default function ResumesPage() {
         </div>
       </main>
       
-      <ResumeModal 
+      <ResumeViewDialog
         resume={selectedResume}
-        isOpen={modalOpen}
+        isOpen={resumeModalOpen}
         onClose={closeResumeModal}
       />
     </div>

@@ -5,7 +5,7 @@ import { supabase } from '@/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Navbar } from '@/app/components/Navbar';
 import { Job, JobScan } from '@/types';
-import CreateJobModal from '@/app/components/CreateJobModal';
+import JobCreateDialog from '@/app/components/JobCreateDialog';
 import JobsList from '@/app/components/JobsList';
 
 export default function JobsPage() {
@@ -16,7 +16,7 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true);
   
   // Create job modal state
-  const [createJobModalOpen, setCreateJobModalOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -89,11 +89,11 @@ export default function JobsPage() {
   
   // Create job modal functions
   const openCreateJobModal = () => {
-    setCreateJobModalOpen(true);
+    setCreateModalOpen(true);
   };
   
   const closeCreateJobModal = () => {
-    setCreateJobModalOpen(false);
+    setCreateModalOpen(false);
   };
   
   const handleJobCreated = async (jobId: string) => {
@@ -186,11 +186,11 @@ export default function JobsPage() {
       </main>
       
       {/* Create Job Modal */}
-      <CreateJobModal 
-        isOpen={createJobModalOpen} 
-        onClose={closeCreateJobModal} 
-        onSuccess={handleJobCreated} 
-        navigateToJobOnSuccess={false} 
+      <JobCreateDialog
+        isOpen={createModalOpen}
+        onClose={closeCreateJobModal}
+        onSuccess={handleJobCreated}
+        navigateToJobOnSuccess={false}
       />
     </div>
   );
