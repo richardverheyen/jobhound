@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import Image from "next/image";
 import Link from "next/link";
 import { Navbar } from '@/app/components/Navbar';
-import OnboardingFlowSection from '@/app/components/OnboardingFlowSection';
+import OnboardingFlow from '@/app/components/OnboardingFlow';
 
 export default async function Home() {
   const supabase = await createClient()
@@ -93,7 +93,7 @@ export default async function Home() {
               </p>
             </div>
             
-            <OnboardingFlowSection />
+            <OnboardingFlow />
           </div>
           
           <div className="mt-16">
