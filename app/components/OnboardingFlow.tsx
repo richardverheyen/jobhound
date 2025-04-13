@@ -353,9 +353,6 @@ export default function OnboardingFlow() {
             
             {/* Column 2: Resume Upload */}
             <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-                Upload Your Resume
-              </h2>
               
               <div className='max-h-96 overflow-scroll'>
                 <ResumeViewDefault 
