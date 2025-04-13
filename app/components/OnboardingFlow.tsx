@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/supabase/client";
 import JobCreateFormFast from "./JobCreateFormFast";
@@ -13,6 +13,111 @@ enum OnboardingStep {
   IN_PROGRESS = 1,
   COMPLETE = 2,
 }
+
+// Memoized progress indicator component
+const ProgressIndicator = memo(({ 
+  jobId, 
+  resumeId, 
+  scanningResume,
+  handleScanResume 
+}: { 
+  jobId: string | null, 
+  resumeId: string | null, 
+  scanningResume: boolean,
+  handleScanResume: () => Promise<void>
+}) => {
+  const [isHoveringButton, setIsHoveringButton] = useState(false);
+
+  return (
+    <div className="relative">
+      <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200 dark:bg-gray-700">
+        <div
+          style={{
+            width:
+              isHoveringButton && jobId && resumeId
+                ? "100%"
+                : jobId && resumeId
+                  ? "66%"
+                  : jobId || resumeId
+                    ? "33%"
+                    : "0%",
+          }}
+          className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${scanningResume ? "bg-green-500" : "bg-blue-500"
+            } transition-all duration-300 ease-in-out`}
+        ></div>
+      </div>
+      <div className="relative flex justify-between -mt-2">
+        <div className="flex flex-col items-start">
+          <div
+            className={`z-10 flex items-center justify-center w-8 h-8 rounded-full 
+              ${jobId
+                ? "bg-blue-500 text-white"
+                : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+              }
+              transition-colors duration-300`}
+          >
+            1
+          </div>
+          <span
+            className={`text-xs mt-1 ${jobId
+                ? "text-blue-500 font-medium"
+                : "text-gray-500 dark:text-gray-400"
+              }`}
+          >
+            Job Information
+          </span>
+        </div>
+
+        <div className="absolute left-1/2 transform -translate-x-1/2 flex flex-col items-center">
+          <div
+            className={`z-10 flex items-center justify-center w-8 h-8 rounded-full 
+            ${resumeId
+                ? "bg-blue-500 text-white"
+                : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+              }
+            transition-colors duration-300`}
+          >
+            2
+          </div>
+          <span
+            className={`text-xs mt-1 ${resumeId
+                ? "text-blue-500 font-medium"
+                : "text-gray-500 dark:text-gray-400"
+              }`}
+          >
+            Resume Upload
+          </span>
+        </div>
+
+        <div className="flex flex-col items-end">
+          <button
+            onClick={handleScanResume}
+            disabled={!jobId || !resumeId || scanningResume}
+            onMouseEnter={() => setIsHoveringButton(true)}
+            onMouseLeave={() => setIsHoveringButton(false)}
+            className={`z-10 flex items-center justify-center rounded-md px-3 py-1 ${jobId && resumeId
+                ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                : "bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed"
+              } transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500`}
+          >
+            <span>Scan Resume</span>
+          </button>
+          <span
+            className={`text-xs mt-1 ${jobId && resumeId
+                ? "text-blue-500 font-medium"
+                : "text-gray-500 dark:text-gray-400"
+              }`}
+          >
+            Scan Resume
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// Set display name for debugging
+ProgressIndicator.displayName = "ProgressIndicator";
 
 export default function OnboardingFlow() {
   const router = useRouter();
@@ -32,8 +137,7 @@ export default function OnboardingFlow() {
   const [password, setPassword] = useState<string>("");
   const [fullName, setFullName] = useState<string>("");
 
-  // Progress bar state
-  const [isHoveringButton, setIsHoveringButton] = useState(false);
+  // Progress bar state - moved to ProgressIndicator component
   const [scanningResume, setScanningResume] = useState(false);
 
   // Create anonymous user on component mount
@@ -280,98 +384,12 @@ export default function OnboardingFlow() {
     <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
       {/* Progress indicator */}
       <div className="px-6 pt-6">
-        <div className="relative">
-          <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200 dark:bg-gray-700">
-            <div
-              style={{
-                width:
-                  isHoveringButton && jobId && resumeId
-                    ? "100%"
-                    : jobId && resumeId
-                      ? "66%"
-                      : jobId || resumeId
-                        ? "33%"
-                        : "0%",
-              }}
-              className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${scanningResume ? "bg-green-500" : "bg-blue-500"
-                } transition-all duration-300 ease-in-out`}
-            ></div>
-          </div>
-          <div className="relative flex justify-between -mt-2">
-            <div className="flex flex-col items-start">
-              <div
-                className={`z-10 flex items-center justify-center w-8 h-8 rounded-full 
-                  ${jobId
-                    ? "bg-blue-500 text-white"
-                    : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
-                  }
-                  transition-colors duration-300`}
-              >
-                1
-              </div>
-              <span
-                className={`text-xs mt-1 ${jobId
-                    ? "text-blue-500 font-medium"
-                    : "text-gray-500 dark:text-gray-400"
-                  }`}
-              >
-                Job Information
-              </span>
-            </div>
-
-            <div className="absolute left-1/2 transform -translate-x-1/2 flex flex-col items-center">
-              <div
-                className={`z-10 flex items-center justify-center w-8 h-8 rounded-full 
-                ${resumeId
-                    ? "bg-blue-500 text-white"
-                    : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
-                  }
-                transition-colors duration-300`}
-              >
-                2
-              </div>
-              <span
-                className={`text-xs mt-1 ${resumeId
-                    ? "text-blue-500 font-medium"
-                    : "text-gray-500 dark:text-gray-400"
-                  }`}
-              >
-                Resume Upload
-              </span>
-            </div>
-
-            <div className="flex flex-col items-end">
-              {/* Replaced the number 3 with scan button */}
-              <button
-                onClick={handleScanResume}
-                disabled={!jobId || !resumeId || scanningResume}
-                onMouseEnter={() => setIsHoveringButton(true)}
-                onMouseLeave={() => setIsHoveringButton(false)}
-                className={`z-10 flex items-center justify-center rounded-md px-3 py-1 ${jobId && resumeId
-                    ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
-                    : "bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed"
-                  } transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500`}
-              >
-                <span className="relative">
-                  Scan Resume
-                  {scanningResume && (
-                    <span className="absolute inset-0 flex items-center justify-center">
-                      <span className="inline-block h-2 w-2 rounded-full bg-white absolute animate-ping opacity-75"></span>
-                    </span>
-                  )}
-                </span>
-              </button>
-              <span
-                className={`text-xs mt-1 ${jobId && resumeId
-                    ? "text-blue-500 font-medium"
-                    : "text-gray-500 dark:text-gray-400"
-                  }`}
-              >
-                Scan Resume
-              </span>
-            </div>
-          </div>
-        </div>
+        <ProgressIndicator 
+          jobId={jobId} 
+          resumeId={resumeId} 
+          scanningResume={scanningResume}
+          handleScanResume={handleScanResume}
+        />
       </div>
 
       {/* Error message */}
