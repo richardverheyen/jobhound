@@ -31,22 +31,8 @@ export default function OnboardingFlow() {
   const [fullName, setFullName] = useState<string>('');
   
   // Progress bar state
-  const [progressWidth, setProgressWidth] = useState('0%');
   const [isHoveringButton, setIsHoveringButton] = useState(false);
   const [scanningResume, setScanningResume] = useState(false);
-
-  // Update progress width when job or resume changes or on button hover
-  useEffect(() => {
-    if (isHoveringButton && jobId && resumeId) {
-      setProgressWidth('100%');
-    } else if (jobId && resumeId) {
-      setProgressWidth('66%');
-    } else if (jobId || resumeId) {
-      setProgressWidth('33%');
-    } else {
-      setProgressWidth('0%');
-    }
-  }, [jobId, resumeId, isHoveringButton]);
 
   // Create anonymous user on component mount
   useEffect(() => {
@@ -272,7 +258,7 @@ export default function OnboardingFlow() {
         <div className="relative">
           <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200 dark:bg-gray-700">
             <div 
-              style={{ width: progressWidth }} 
+              style={{ width: isHoveringButton && jobId && resumeId ? '100%' : jobId && resumeId ? '66%' : jobId || resumeId ? '33%' : '0%' }} 
               className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${scanningResume ? 'bg-green-500' : 'bg-blue-500'} transition-all duration-300 ease-in-out`}
             ></div>
           </div>
@@ -308,7 +294,7 @@ export default function OnboardingFlow() {
               <button
                 onClick={handleScanResume}
                 disabled={!jobId || !resumeId || scanningResume}
-                onMouseEnter={() => jobId && resumeId && setIsHoveringButton(true)}
+                onMouseEnter={() => setIsHoveringButton(true)}
                 onMouseLeave={() => setIsHoveringButton(false)}
                 className={`z-10 flex items-center justify-center rounded-md px-3 py-1 ${
                   jobId && resumeId 
@@ -378,7 +364,7 @@ export default function OnboardingFlow() {
                   onViewResume={handleResumeView}
                   onCreateResume={handleResumeCreate}
                   showManageButton={false}
-                  preventRefresh={!resumeId}
+                  preventRefresh={scanningResume}
               />
               
               {resumeId && (
