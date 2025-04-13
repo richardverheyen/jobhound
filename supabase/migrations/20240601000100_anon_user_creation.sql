@@ -45,6 +45,8 @@ RETURNS TRIGGER AS $$
 DECLARE
   v_user_id UUID;
   v_is_anonymous BOOLEAN;
+  v_display_name TEXT;
+  v_avatar_url TEXT;
 BEGIN
   -- Check if this was an anonymous user before the update
   SELECT is_anonymous INTO v_is_anonymous 
@@ -56,12 +58,23 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- Update the user record with email and other information
+  -- Extract profile information from auth data
+  -- For Google identity linking, profile data will be in raw_user_meta_data
+  v_display_name := NEW.raw_user_meta_data->>'full_name';
+  IF v_display_name IS NULL THEN
+    v_display_name := NEW.raw_user_meta_data->>'name';
+  END IF;
+  
+  v_avatar_url := NEW.raw_user_meta_data->>'avatar_url';
+  
+  -- Update the user record with email and other profile information
   UPDATE public.users
   SET 
     email = NEW.email,
     is_anonymous = FALSE,
     anonymous_expires_at = NULL,
+    display_name = v_display_name,
+    avatar_url = v_avatar_url,
     updated_at = NOW()
   WHERE id = NEW.id
   RETURNING id INTO v_user_id;
