@@ -378,7 +378,7 @@ export default function OnboardingFlow() {
                   onViewResume={handleResumeView}
                   onCreateResume={handleResumeCreate}
                   showManageButton={false}
-                  preventRefresh={scanningResume || isHoveringButton}
+                  preventRefresh={!resumeId}
               />
               
               {resumeId && (
