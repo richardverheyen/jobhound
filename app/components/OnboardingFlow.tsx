@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/supabase/client';
-import JobCreateForm from './JobCreateForm';
+import JobCreateFormFast from './JobCreateFormFast';
 import ResumeViewDefault from './ResumeViewDefault';
 import { Resume } from '@/types';
 
@@ -333,7 +333,7 @@ export default function OnboardingFlow() {
               <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
                 Enter Job Details
               </h2>
-              <JobCreateForm 
+              <JobCreateFormFast
                 onSuccess={handleJobCreated} 
                 navigateToJobOnSuccess={false} 
               />
@@ -353,7 +353,9 @@ export default function OnboardingFlow() {
             
             {/* Column 2: Resume Upload */}
             <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-              
+            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
+                Your Resume
+            </h2>
               <div className='max-h-96 overflow-scroll'>
                 <ResumeViewDefault 
                     user={{ id: anonymousUserId || '' }}
