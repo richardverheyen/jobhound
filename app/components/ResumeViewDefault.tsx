@@ -158,7 +158,9 @@ export default function ResumeViewDefault({
   return (
     <div className="overflow-scroll">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-medium text-gray-900 dark:text-white">Default Resume</h2>
+        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
+          Your Resume
+        </h2>
         {showManageButton && (
           <Link href="/dashboard/resumes" className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400">
             Manage Resumes

@@ -254,6 +254,9 @@ export default function OnboardingFlow() {
     return '0%'; // No steps complete
   };
   
+  // New state for hover effect on scan button
+  const [isHoveringButton, setIsHoveringButton] = useState(false);
+  
   return (
     <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
       {/* Progress indicator */}
@@ -261,29 +264,44 @@ export default function OnboardingFlow() {
         <div className="relative">
           <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200 dark:bg-gray-700">
             <div 
-              style={{ width: getProgressWidth() }} 
-              className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500"
+              style={{ width: isHoveringButton && jobId && resumeId ? '100%' : getProgressWidth() }} 
+              className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 transition-all duration-300 ease-in-out`}
             ></div>
           </div>
           <div className="flex text-sm justify-between -mt-2">
             <div 
               className={`z-10 flex items-center justify-center w-8 h-8 rounded-full 
-                ${jobId ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
+                ${jobId ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}
+                transition-colors duration-300`}
             >
               1
             </div>
             <div 
               className={`z-10 flex items-center justify-center w-8 h-8 rounded-full 
-                ${resumeId ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
+                ${resumeId ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}
+                transition-colors duration-300`}
             >
               2
             </div>
-            <div 
-              className={`z-10 flex items-center justify-center w-8 h-8 rounded-full 
-                ${jobId && resumeId ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
+            
+            {/* Replaced the number 3 with scan button */}
+            <button
+              onClick={handleScanResume}
+              disabled={!jobId || !resumeId || isLoading}
+              onMouseEnter={() => setIsHoveringButton(true)}
+              onMouseLeave={() => setIsHoveringButton(false)}
+              className={`z-10 flex items-center justify-center rounded-md px-3 py-1 ${
+                jobId && resumeId 
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer' 
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+              } transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500`}
             >
-              3
-            </div>
+              {isLoading ? (
+                <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+              ) : (
+                <span>Scan Resume</span>
+              )}
+            </button>
           </div>
           <div className="flex justify-between text-xs mt-1">
             <span className={jobId ? 'text-blue-500 font-medium' : 'text-gray-500 dark:text-gray-400'}>
@@ -312,7 +330,9 @@ export default function OnboardingFlow() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Column 1: Job Information */}
             <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-              
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
+                Enter Job Details
+              </h2>
               <JobCreateForm 
                 onSuccess={handleJobCreated} 
                 navigateToJobOnSuccess={false} 
@@ -337,13 +357,15 @@ export default function OnboardingFlow() {
                 Upload Your Resume
               </h2>
               
-              <ResumeViewDefault 
-                user={{ id: anonymousUserId || '' }}
-                defaultResumeId={resumeId || undefined}
-                onViewResume={handleResumeView}
-                onCreateResume={handleResumeCreate}
-                showManageButton={false}
-              />
+              <div className='max-h-96 overflow-scroll'>
+                <ResumeViewDefault 
+                    user={{ id: anonymousUserId || '' }}
+                    defaultResumeId={resumeId || undefined}
+                    onViewResume={handleResumeView}
+                    onCreateResume={handleResumeCreate}
+                    showManageButton={false}
+                />
+              </div>
               
               {resumeId && (
                 <div className="mt-4 bg-green-50 dark:bg-green-900/20 p-3 rounded-md border border-green-100 dark:border-green-800">
@@ -361,31 +383,7 @@ export default function OnboardingFlow() {
           </div>
         )}
         
-        {/* Scan Resume Button - shown when both job and resume are ready */}
-        {jobId && resumeId && (
-          <div className="mt-6 flex justify-center">
-            <button
-              onClick={handleScanResume}
-              disabled={isLoading}
-              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              {isLoading ? (
-                <>
-                  <span className="animate-spin h-5 w-5 mr-3 border-2 border-white border-t-transparent rounded-full"></span>
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <svg className="mr-2 -ml-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                    <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                  </svg>
-                  Scan My Resume with Google
-                </>
-              )}
-            </button>
-          </div>
-        )}
+        {/* Removed the Scan Resume Button from the bottom */}
         
         <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-md border border-blue-100 dark:border-blue-800">
           <div className="flex">
@@ -394,7 +392,7 @@ export default function OnboardingFlow() {
             </svg>
             <div>
               <p className="text-sm text-blue-700 dark:text-blue-300">
-                Enter your job details and upload your resume, then click "Scan My Resume with Google" to analyze your resume against the job description. You'll sign in with Google to save your data.
+                Enter your job details and upload your resume, then click "Scan Resume" to analyze your resume against the job description. You'll sign in with Google to save your data.
               </p>
             </div>
           </div>
