@@ -271,7 +271,7 @@ export default function JobCreateFormFast({
   // Input step view
   if (step === 'input') {
     return (
-      <div className="flex flex-col h-full min-h-[400px]">
+      <div className="flex flex-grow flex-col h-full">
         {error && (
           <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded">
             {error}
@@ -322,7 +322,7 @@ export default function JobCreateFormFast({
   // Review step view
   return (
     <div className="mt-4">
-      <div className="relative bg-white dark:bg-gray-800 shadow rounded-lg p-6 space-y-4">
+      <div className="relative bg-white dark:bg-gray-800 shadow rounded-lg space-y-4">
         {/* Back button */}
         <button
           onClick={handleBackToInput}
@@ -334,19 +334,9 @@ export default function JobCreateFormFast({
           </svg>
         </button>
         
-        {/* Success indicator */}
-        <div className="inline-flex items-center mb-2 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-md border border-green-100 dark:border-green-800">
-          <svg className="h-4 w-4 text-green-500 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-          </svg>
-          <p className="text-xs text-green-700 dark:text-green-300">
-            Job created successfully
-          </p>
-        </div>
-        
         {/* Title and important job details at the top */}
         <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{formData.title}</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-1">{formData.title}</h2>
           {formData.job_type && (
             <p className="text-sm text-blue-600 dark:text-blue-400 mb-4">{formData.job_type}</p>
           )}
@@ -448,22 +438,6 @@ export default function JobCreateFormFast({
           </div>
         )}
       </div>
-      
-      {/* Only show Navigate button if we're not auto-navigating */}
-      {!navigateToJobOnSuccess && createdJobId && (
-        <div className="mt-4 flex justify-center">
-          <button
-            onClick={() => {
-              if (createdJobId) {
-                router.push(`/dashboard/jobs/${createdJobId}`);
-              }
-            }}
-            className="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:text-sm"
-          >
-            View Job Details
-          </button>
-        </div>
-      )}
     </div>
   );
 } 

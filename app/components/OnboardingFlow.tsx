@@ -336,7 +336,7 @@ export default function OnboardingFlow() {
         {currentStep === OnboardingStep.IN_PROGRESS && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Column 1: Job Information */}
-            <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex flex-col bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 p-4">
               <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
                 Job Details
               </h2>
