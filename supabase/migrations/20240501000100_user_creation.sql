@@ -8,6 +8,11 @@ DECLARE
   v_user_id UUID;
   v_exists BOOLEAN;
 BEGIN
+  -- Skip anonymous users - they will be handled separately
+  IF NEW.raw_app_meta_data->>'provider' = 'anonymous' THEN
+    RETURN NEW;
+  END IF;
+
   -- Check if the user already exists in the users table
   SELECT EXISTS (
     SELECT 1 FROM public.users WHERE id = NEW.id
