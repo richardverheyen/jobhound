@@ -7,8 +7,6 @@ RETURNS TRIGGER AS $$
 DECLARE
   v_user_id UUID;
   v_exists BOOLEAN;
-  v_display_name TEXT;
-  v_avatar_url TEXT;
 BEGIN
   -- Skip anonymous users - they will be handled separately
   IF NEW.raw_app_meta_data->>'provider' = 'anonymous' THEN
@@ -22,27 +20,15 @@ BEGIN
   
   -- Only insert if the user doesn't already exist
   IF NOT v_exists THEN
-    -- Extract profile information from auth data
-    v_display_name := NEW.raw_user_meta_data->>'full_name';
-    IF v_display_name IS NULL THEN
-      v_display_name := NEW.raw_user_meta_data->>'name';
-    END IF;
-    
-    v_avatar_url := NEW.raw_user_meta_data->>'avatar_url';
-    
     -- Insert the user record
     INSERT INTO public.users (
       id,
       email,
-      display_name,
-      avatar_url,
       created_at,
       updated_at
     ) VALUES (
       NEW.id,
       NEW.email,
-      v_display_name,
-      v_avatar_url,
       NEW.created_at,
       NEW.updated_at
     )

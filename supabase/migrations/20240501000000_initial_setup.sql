@@ -17,8 +17,6 @@ $$ LANGUAGE plpgsql;
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email TEXT UNIQUE,
-  display_name TEXT,
-  avatar_url TEXT,
   stripe_customer_id TEXT UNIQUE,
   default_resume_id UUID,
   is_anonymous BOOLEAN DEFAULT FALSE,
