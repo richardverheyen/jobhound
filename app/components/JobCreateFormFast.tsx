@@ -365,4 +365,83 @@ export default function JobCreateFormFast({
             <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Salary Range</h3>
             <p className="mt-1 text-sm text-gray-900 dark:text-white">
               {formData.salary_range_min !== undefined && formData.salary_range_max !== undefined
-                ? `${formData.salary_currency ? formData.salary_currency + ' ' : ''}${formData.salary_range_min.toLocaleString()} - ${formData.salary_currency ? formData.salary_currency + ' ' : ''}${formData.salary_range_max.toLocaleString()} ${formData.salary_period ? `(${formData.salary_period})` : ''}`
+                ? `${formData.salary_currency ? formData.salary_currency + ' ' : ''}${formData.salary_range_min.toLocaleString()} - ${formData.salary_currency ? formData.salary_currency + ' ' : ''}${formData.salary_range_max.toLocaleString()} ${formData.salary_period ? `(${formData.salary_period})` : ''}`                : formData.salary_range_min !== undefined
+                  ? `${formData.salary_currency ? formData.salary_currency + ' ' : ''}${formData.salary_range_min.toLocaleString()} ${formData.salary_period ? `(${formData.salary_period})` : ''} minimum`
+                  : formData.salary_range_max !== undefined
+                    ? `${formData.salary_currency ? formData.salary_currency + ' ' : ''}${formData.salary_range_max.toLocaleString()} ${formData.salary_period ? `(${formData.salary_period})` : ''} maximum`
+                    : 'Salary details not available'
+              }
+            </p>
+          </div>
+        )}
+
+        <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Job Description</h3>
+          <div className="mt-2 text-sm text-gray-900 dark:text-white whitespace-pre-line">
+            {formData.description}
+          </div>
+        </div>
+
+        {formData.requirements && formData.requirements.length > 0 && (
+          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Requirements</h3>
+            <ul className="mt-2 text-sm text-gray-900 dark:text-white list-disc pl-5 space-y-1">
+              {Array.isArray(formData.requirements) ? 
+                formData.requirements.map((req, index) => (
+                  <li key={index}>{req}</li>
+                ))
+                : null
+              }
+            </ul>
+          </div>
+        )}
+
+        {formData.benefits && formData.benefits.length > 0 && (
+          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Benefits</h3>
+            <ul className="mt-2 text-sm text-gray-900 dark:text-white list-disc pl-5 space-y-1">
+              {Array.isArray(formData.benefits) ? 
+                formData.benefits.map((benefit, index) => (
+                  <li key={index}>{benefit}</li>
+                ))
+                : null
+              }
+            </ul>
+          </div>
+        )}
+
+        {formData.hard_skills && formData.hard_skills.length > 0 && (
+          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Hard Skills</h3>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {Array.isArray(formData.hard_skills) ? 
+                formData.hard_skills.map((skill, index) => (
+                  <span key={index} className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-full">
+                    {skill}
+                  </span>
+                ))
+                : null
+              }
+            </div>
+          </div>
+        )}
+
+        {formData.soft_skills && formData.soft_skills.length > 0 && (
+          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Soft Skills</h3>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {Array.isArray(formData.soft_skills) ? 
+                formData.soft_skills.map((skill, index) => (
+                  <span key={index} className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-full">
+                    {skill}
+                  </span>
+                ))
+                : null
+              }
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+} 
