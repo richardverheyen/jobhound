@@ -284,7 +284,7 @@ export default function JobCreateFormFast({
         <div className="flex-grow flex flex-col">
           <div className="relative flex-grow flex flex-col">
             <textarea
-              className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full h-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md min-h-[300px] flex-grow"
+              className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full h-full p-1.5 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md min-h-[300px] flex-grow"
               value={rawJobText}
               onChange={handleRawTextChange}
               disabled={isProcessingAI}

@@ -277,7 +277,7 @@ export default function OnboardingFlow() {
             ></div>
           </div>
           <div className="flex justify-between -mt-2">
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-start">
               <div 
                 className={`z-10 flex items-center justify-center w-8 h-8 rounded-full 
                   ${jobId ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}
@@ -303,7 +303,7 @@ export default function OnboardingFlow() {
               </span>
             </div>
             
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-end">
               {/* Replaced the number 3 with scan button */}
               <button
                 onClick={handleScanResume}
@@ -378,7 +378,7 @@ export default function OnboardingFlow() {
                   onViewResume={handleResumeView}
                   onCreateResume={handleResumeCreate}
                   showManageButton={false}
-                  preventRefresh={scanningResume}
+                  preventRefresh={scanningResume || isHoveringButton}
               />
               
               {resumeId && (
