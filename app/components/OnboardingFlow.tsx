@@ -10,9 +10,8 @@ import { Resume } from '@/types';
 // Define steps in the onboarding flow
 enum OnboardingStep {
   INITIALIZE = 0,
-  JOB_DETAILS = 1,
-  RESUME_UPLOAD = 2,
-  ACCOUNT_CREATION = 3
+  IN_PROGRESS = 1,
+  COMPLETE = 2
 }
 
 export default function OnboardingFlow() {
@@ -53,8 +52,8 @@ export default function OnboardingFlow() {
         console.log('Anonymous user created successfully:', { userId: data.user.id });
         setAnonymousUserId(data.user.id);
         
-        // Move to first actual step after initialization
-        setCurrentStep(OnboardingStep.JOB_DETAILS);
+        // Move to in-progress step after initialization
+        setCurrentStep(OnboardingStep.IN_PROGRESS);
       } catch (error: any) {
         console.error('Error in anonymous user creation flow:', error);
         setError(error.message || 'Failed to initialize session. Please refresh and try again.');
@@ -69,7 +68,6 @@ export default function OnboardingFlow() {
   // Handle job creation success
   const handleJobCreated = (createdJobId: string) => {
     setJobId(createdJobId);
-    setCurrentStep(OnboardingStep.RESUME_UPLOAD);
   };
   
   // Handle resume upload/view
@@ -85,9 +83,6 @@ export default function OnboardingFlow() {
         console.log('Resume signed URL received:', signedUrl);
       }
       setResumeId(createdResumeId);
-      
-      // Make sure we stay on the resume upload page after upload
-      setCurrentStep(OnboardingStep.RESUME_UPLOAD);
     }
   };
   
@@ -252,6 +247,13 @@ export default function OnboardingFlow() {
     );
   }
   
+  // Calculate progress based on completion status
+  const getProgressWidth = () => {
+    if (jobId && resumeId) return '66%'; // Two steps complete
+    if (jobId || resumeId) return '33%'; // One step complete
+    return '0%'; // No steps complete
+  };
+  
   return (
     <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
       {/* Progress indicator */}
@@ -259,39 +261,39 @@ export default function OnboardingFlow() {
         <div className="relative">
           <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200 dark:bg-gray-700">
             <div 
-              style={{ width: `${((currentStep - 1) / 3) * 100}%` }} 
+              style={{ width: getProgressWidth() }} 
               className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500"
             ></div>
           </div>
           <div className="flex text-sm justify-between -mt-2">
             <div 
               className={`z-10 flex items-center justify-center w-8 h-8 rounded-full 
-                ${currentStep >= OnboardingStep.JOB_DETAILS ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
+                ${jobId ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
             >
               1
             </div>
             <div 
               className={`z-10 flex items-center justify-center w-8 h-8 rounded-full 
-                ${currentStep >= OnboardingStep.RESUME_UPLOAD ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
+                ${resumeId ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
             >
               2
             </div>
             <div 
               className={`z-10 flex items-center justify-center w-8 h-8 rounded-full 
-                ${currentStep >= OnboardingStep.ACCOUNT_CREATION ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
+                ${jobId && resumeId ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
             >
               3
             </div>
           </div>
           <div className="flex justify-between text-xs mt-1">
-            <span className={currentStep === OnboardingStep.JOB_DETAILS ? 'text-blue-500 font-medium' : 'text-gray-500 dark:text-gray-400'}>
+            <span className={jobId ? 'text-blue-500 font-medium' : 'text-gray-500 dark:text-gray-400'}>
               Job Information
             </span>
-            <span className={currentStep === OnboardingStep.RESUME_UPLOAD ? 'text-blue-500 font-medium' : 'text-gray-500 dark:text-gray-400'}>
+            <span className={resumeId ? 'text-blue-500 font-medium' : 'text-gray-500 dark:text-gray-400'}>
               Resume Upload
             </span>
-            <span className={currentStep === OnboardingStep.ACCOUNT_CREATION ? 'text-blue-500 font-medium' : 'text-gray-500 dark:text-gray-400'}>
-              Create Account
+            <span className={jobId && resumeId ? 'text-blue-500 font-medium' : 'text-gray-500 dark:text-gray-400'}>
+              Scan Resume
             </span>
           </div>
         </div>
@@ -304,192 +306,101 @@ export default function OnboardingFlow() {
         </div>
       )}
       
-      {/* Step content */}
+      {/* Two column layout for desktop, single column for mobile */}
       <div className="p-6">
-        {/* Step 1: Job Information using JobCreateForm */}
-        {currentStep === OnboardingStep.JOB_DETAILS && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-              Try JobHound: Enter Job Details
-            </h2>
-            <JobCreateForm 
-              onSuccess={handleJobCreated} 
-              navigateToJobOnSuccess={false} 
-            />
-          </div>
-        )}
-        
-        {/* Step 2: Resume Upload using ResumeViewDefault */}
-        {currentStep === OnboardingStep.RESUME_UPLOAD && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-              Upload Your Resume
-            </h2>
-            
-            <ResumeViewDefault 
-              user={{ id: anonymousUserId || '' }}
-              defaultResumeId={resumeId || undefined}
-              onViewResume={handleResumeView}
-              onCreateResume={handleResumeCreate}
-              showManageButton={false}
-            />
-            
-            <div className="mt-6 flex justify-between">
-              <button
-                onClick={() => setCurrentStep(OnboardingStep.JOB_DETAILS)}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
-              >
-                <svg className="mr-2 -ml-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
-                </svg>
-                Back
-              </button>
-              
-              {resumeId ? (
-                <button
-                  onClick={handleScanResume}
-                  disabled={isLoading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {isLoading ? (
-                    <>
-                      <span className="animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full"></span>
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      Scan My Resume with Google
-                      <svg className="ml-2 -mr-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </>
-                  )}
-                </button>
-              ) : (
-                <button
-                  disabled={true}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-400 cursor-not-allowed opacity-50"
-                >
-                  Upload Resume First
-                </button>
-              )}
-            </div>
-            
-            <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-md border border-blue-100 dark:border-blue-800">
-              <div className="flex">
-                <svg className="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                <div>
-                  <p className="text-sm text-blue-700 dark:text-blue-300">
-                    Upload your resume and click "Scan My Resume with Google" to analyze your resume against the job description. You'll sign in with Google to save your data.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* Step 3: Create Account - Only used if we implement email/password signup */}
-        {currentStep === OnboardingStep.ACCOUNT_CREATION && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-              Create Your Account
-            </h2>
-            
-            <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-100 dark:border-blue-800">
-              <div className="flex items-start">
-                <svg className="h-6 w-6 text-blue-500 mr-2 flex-shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div>
-                  <h3 className="font-medium text-gray-900 dark:text-white">Ready to analyze your resume</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                    Your job and resume have been temporarily saved. Create an account to analyze your resume against the job description and save your data.
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <form onSubmit={handleCreateAccount} className="space-y-4">
-              <div>
-                <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Full Name *
-                </label>
-                <input
-                  type="text"
-                  id="fullName"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
-              
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
-              
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Password *
-                </label>
-                <input
-                  type="password"
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Password must be at least 8 characters
-                </p>
-              </div>
-              
-              <div className="mt-4 bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-md border border-yellow-100 dark:border-yellow-800">
-                <div className="flex">
-                  <svg className="h-5 w-5 text-yellow-400 mr-2 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  <div>
-                    <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                      In a real application, you would need to verify your email before creating an account. For this demo, we'll proceed without verification.
+        {currentStep === OnboardingStep.IN_PROGRESS && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Column 1: Job Information */}
+            <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
+                Try JobHound: Enter Job Details
+              </h2>
+              <JobCreateForm 
+                onSuccess={handleJobCreated} 
+                navigateToJobOnSuccess={false} 
+              />
+              {jobId && (
+                <div className="mt-4 bg-green-50 dark:bg-green-900/20 p-3 rounded-md border border-green-100 dark:border-green-800">
+                  <div className="flex items-center">
+                    <svg className="h-5 w-5 text-green-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      Job details saved successfully!
                     </p>
                   </div>
                 </div>
-              </div>
-              
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="mt-6 w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-              >
-                {isLoading ? 'Creating Account...' : 'Create Account & Analyze Resume'}
-              </button>
-            </form>
+              )}
+            </div>
             
-            <div className="mt-6">
-              <button
-                onClick={() => setCurrentStep(OnboardingStep.RESUME_UPLOAD)}
-                disabled={isLoading}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
-              >
-                <svg className="mr-2 -ml-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
-                </svg>
-                Back
-              </button>
+            {/* Column 2: Resume Upload */}
+            <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
+                Upload Your Resume
+              </h2>
+              
+              <ResumeViewDefault 
+                user={{ id: anonymousUserId || '' }}
+                defaultResumeId={resumeId || undefined}
+                onViewResume={handleResumeView}
+                onCreateResume={handleResumeCreate}
+                showManageButton={false}
+              />
+              
+              {resumeId && (
+                <div className="mt-4 bg-green-50 dark:bg-green-900/20 p-3 rounded-md border border-green-100 dark:border-green-800">
+                  <div className="flex items-center">
+                    <svg className="h-5 w-5 text-green-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      Resume uploaded successfully!
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
+        
+        {/* Scan Resume Button - shown when both job and resume are ready */}
+        {jobId && resumeId && (
+          <div className="mt-6 flex justify-center">
+            <button
+              onClick={handleScanResume}
+              disabled={isLoading}
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              {isLoading ? (
+                <>
+                  <span className="animate-spin h-5 w-5 mr-3 border-2 border-white border-t-transparent rounded-full"></span>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <svg className="mr-2 -ml-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                    <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                  </svg>
+                  Scan My Resume with Google
+                </>
+              )}
+            </button>
+          </div>
+        )}
+        
+        <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-md border border-blue-100 dark:border-blue-800">
+          <div className="flex">
+            <svg className="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <div>
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                Enter your job details and upload your resume, then click "Scan My Resume with Google" to analyze your resume against the job description. You'll sign in with Google to save your data.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
