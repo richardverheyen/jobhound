@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/supabase/client';
-import { TextArea, Box } from '@radix-ui/themes';
+import { TextArea, Flex } from '@radix-ui/themes';
 
 // Define the job form data structure based on the database schema
 export interface JobFormData {
@@ -281,7 +281,7 @@ export default function JobCreateFormFast({
         
         <div className="flex-grow flex flex-col">
           <div className="relative flex-grow flex flex-col">
-            <Box className="relative flex-grow">
+            <Flex className="relative flex-grow min-h-[400px]">
               <TextArea 
                 variant="soft"
                 size="3"
@@ -289,7 +289,6 @@ export default function JobCreateFormFast({
                 value={rawJobText}
                 onChange={handleRawTextChange}
                 disabled={isProcessingAI}
-                style={{ minHeight: '300px', width: '100%', height: '100%' }}
                 data-testid="raw-job-text-input"
               />
               
@@ -304,7 +303,7 @@ export default function JobCreateFormFast({
                   </div>
                 </div>
               )}
-            </Box>
+            </Flex>
           </div>
           
           {onCancel && (

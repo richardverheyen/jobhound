@@ -32,17 +32,21 @@ export default function OnboardingFlow() {
   
   // Progress bar state
   const [progressWidth, setProgressWidth] = useState('0%');
+  const [isHoveringButton, setIsHoveringButton] = useState(false);
+  const [scanningResume, setScanningResume] = useState(false);
 
-  // Update progress width when job or resume changes
+  // Update progress width when job or resume changes or on button hover
   useEffect(() => {
-    if (jobId && resumeId) {
+    if (isHoveringButton && jobId && resumeId) {
+      setProgressWidth('100%');
+    } else if (jobId && resumeId) {
       setProgressWidth('66%');
     } else if (jobId || resumeId) {
       setProgressWidth('33%');
     } else {
       setProgressWidth('0%');
     }
-  }, [jobId, resumeId]);
+  }, [jobId, resumeId, isHoveringButton]);
 
   // Create anonymous user on component mount
   useEffect(() => {
@@ -107,7 +111,7 @@ export default function OnboardingFlow() {
       return;
     }
     
-    setIsLoading(true);
+    setScanningResume(true);
     setError(null);
     
     try {
@@ -137,7 +141,7 @@ export default function OnboardingFlow() {
     } catch (error: any) {
       console.error('Error linking identity:', error);
       setError(error.message || 'Failed to start authentication. Please try again.');
-      setIsLoading(false);
+      setScanningResume(false);
     }
   };
   
@@ -269,7 +273,7 @@ export default function OnboardingFlow() {
           <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200 dark:bg-gray-700">
             <div 
               style={{ width: progressWidth }} 
-              className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 transition-all duration-300 ease-in-out`}
+              className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${scanningResume ? 'bg-green-500' : 'bg-blue-500'} transition-all duration-300 ease-in-out`}
             ></div>
           </div>
           <div className="flex justify-between -mt-2">
@@ -303,18 +307,23 @@ export default function OnboardingFlow() {
               {/* Replaced the number 3 with scan button */}
               <button
                 onClick={handleScanResume}
-                disabled={!jobId || !resumeId || isLoading}
+                disabled={!jobId || !resumeId || scanningResume}
+                onMouseEnter={() => jobId && resumeId && setIsHoveringButton(true)}
+                onMouseLeave={() => setIsHoveringButton(false)}
                 className={`z-10 flex items-center justify-center rounded-md px-3 py-1 ${
                   jobId && resumeId 
                     ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer' 
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
                 } transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500`}
               >
-                {isLoading ? (
-                  <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
-                ) : (
-                  <span>Scan Resume</span>
-                )}
+                <span className="relative">
+                  Scan Resume
+                  {scanningResume && (
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <span className="inline-block h-2 w-2 rounded-full bg-white absolute animate-ping opacity-75"></span>
+                    </span>
+                  )}
+                </span>
               </button>
               <span className={`text-xs mt-1 ${jobId && resumeId ? 'text-blue-500 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
                 Scan Resume
@@ -369,6 +378,7 @@ export default function OnboardingFlow() {
                   onViewResume={handleResumeView}
                   onCreateResume={handleResumeCreate}
                   showManageButton={false}
+                  preventRefresh={scanningResume}
               />
               
               {resumeId && (
@@ -386,8 +396,6 @@ export default function OnboardingFlow() {
             </div>
           </div>
         )}
-        
-        {/* Removed the Scan Resume Button from the bottom */}
         
         <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-md border border-blue-100 dark:border-blue-800">
           <div className="flex">

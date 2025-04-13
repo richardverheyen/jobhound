@@ -24,8 +24,9 @@ interface ResumeViewDefaultProps {
   user: User | null;
   defaultResumeId?: string;
   onViewResume: (resume: Resume) => void;
-  onCreateResume: (resumeId?: string) => void;
+  onCreateResume: (resumeId?: string, signedUrl?: string) => void;
   showManageButton?: boolean;
+  preventRefresh?: boolean;
 }
 
 export default function ResumeViewDefault({
@@ -34,13 +35,14 @@ export default function ResumeViewDefault({
   onViewResume,
   onCreateResume,
   showManageButton = true,
+  preventRefresh = false,
 }: ResumeViewDefaultProps) {
   const [defaultResume, setDefaultResume] = useState<Resume | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Function to fetch the default resume
   const fetchDefaultResume = async () => {
-    if (!user) return;
+    if (!user || preventRefresh) return;
 
     setLoading(true);
     try {
@@ -102,8 +104,14 @@ export default function ResumeViewDefault({
 
   // Fetch default resume when the component mounts or when user/defaultResumeId changes
   useEffect(() => {
-    fetchDefaultResume();
-  }, [user, defaultResumeId]);
+    // Skip fetching if preventRefresh is true
+    if (!preventRefresh) {
+      fetchDefaultResume();
+    } else {
+      // Ensure loading state is cleared when preventing refresh
+      setLoading(false);
+    }
+  }, [user, defaultResumeId, preventRefresh]);
 
   // Handle resume creation success
   const handleResumeCreated = (resumeId: string, signedUrl?: string) => {
@@ -125,14 +133,16 @@ export default function ResumeViewDefault({
       setDefaultResume(tempResume);
 
       // Notify parent component
-      onCreateResume(resumeId);
+      onCreateResume(resumeId, signedUrl);
     } else {
       // If we don't have a signed URL, we need to fetch the resume data
       // Notify parent component
       onCreateResume(resumeId);
 
-      // Fetch the updated resume data
-      fetchDefaultResume();
+      // Fetch the updated resume data if not preventing refresh
+      if (!preventRefresh) {
+        fetchDefaultResume();
+      }
     }
   };
 
