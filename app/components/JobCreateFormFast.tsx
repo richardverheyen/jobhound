@@ -279,19 +279,13 @@ export default function JobCreateFormFast({
         )}
         
         <div className="flex-grow flex flex-col">
-          <div className="text-center mb-4">
-            <p className="text-gray-600 dark:text-gray-300">
-              Copy/paste your unedited job listing data here, and we'll scrape the useful stuff with AI
-            </p>
-          </div>
-          
           <div className="relative flex-grow flex flex-col">
             <textarea
               className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full h-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md min-h-[300px] flex-grow"
               value={rawJobText}
               onChange={handleRawTextChange}
               disabled={isProcessingAI}
-              placeholder="Paste the entire job listing here"
+              placeholder="Copy/paste your unedited job listing data here, and we'll scrape the useful stuff with AI"
               data-testid="raw-job-text-input"
             />
             
@@ -328,7 +322,7 @@ export default function JobCreateFormFast({
   // Review step view
   return (
     <div className="mt-4">
-      <div className="relative bg-white dark:bg-gray-800 shadow rounded-lg p-6 space-y-4">
+      <div className="relative bg-white dark:bg-gray-800 shadow rounded-lg space-y-4">
         {/* Back button */}
         <button
           onClick={handleBackToInput}

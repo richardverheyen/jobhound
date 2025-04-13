@@ -30,8 +30,8 @@ export default function OnboardingFlow() {
   const [password, setPassword] = useState<string>('');
   const [fullName, setFullName] = useState<string>('');
   
-  // State for hover effect on scan button
-  const [isHoveringButton, setIsHoveringButton] = useState(false);
+  // Progress bar state instead of hover effect on scan button
+  const [progressWidth, setProgressWidth] = useState('0%');
 
   // Create anonymous user on component mount
   useEffect(() => {
@@ -251,11 +251,15 @@ export default function OnboardingFlow() {
   }
   
   // Calculate progress based on completion status
-  const getProgressWidth = () => {
-    if (jobId && resumeId) return '66%'; // Two steps complete
-    if (jobId || resumeId) return '33%'; // One step complete
-    return '0%'; // No steps complete
-  };
+  useEffect(() => {
+    if (jobId && resumeId) {
+      setProgressWidth('66%');
+    } else if (jobId || resumeId) {
+      setProgressWidth('33%');
+    } else {
+      setProgressWidth('0%');
+    }
+  }, [jobId, resumeId]);
   
   return (
     <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
@@ -264,55 +268,58 @@ export default function OnboardingFlow() {
         <div className="relative">
           <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200 dark:bg-gray-700">
             <div 
-              style={{ width: isHoveringButton && jobId && resumeId ? '100%' : getProgressWidth() }} 
+              style={{ width: progressWidth }} 
               className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 transition-all duration-300 ease-in-out`}
             ></div>
           </div>
-          <div className="flex text-sm justify-between -mt-2">
-            <div 
-              className={`z-10 flex items-center justify-center w-8 h-8 rounded-full 
-                ${jobId ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}
-                transition-colors duration-300`}
-            >
-              1
-            </div>
-            <div 
-              className={`z-10 flex items-center justify-center w-8 h-8 rounded-full 
-                ${resumeId ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}
-                transition-colors duration-300`}
-            >
-              2
+          <div className="flex justify-between -mt-2">
+            <div className="flex flex-col items-center">
+              <div 
+                className={`z-10 flex items-center justify-center w-8 h-8 rounded-full 
+                  ${jobId ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}
+                  transition-colors duration-300`}
+              >
+                1
+              </div>
+              <span className={`text-xs mt-1 ${jobId ? 'text-blue-500 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
+                Job Information
+              </span>
             </div>
             
-            {/* Replaced the number 3 with scan button */}
-            <button
-              onClick={handleScanResume}
-              disabled={!jobId || !resumeId || isLoading}
-              onMouseEnter={() => setIsHoveringButton(true)}
-              onMouseLeave={() => setIsHoveringButton(false)}
-              className={`z-10 flex items-center justify-center rounded-md px-3 py-1 ${
-                jobId && resumeId 
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer' 
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
-              } transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500`}
-            >
-              {isLoading ? (
-                <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
-              ) : (
-                <span>Scan Resume</span>
-              )}
-            </button>
-          </div>
-          <div className="flex justify-between text-xs mt-1">
-            <span className={jobId ? 'text-blue-500 font-medium' : 'text-gray-500 dark:text-gray-400'}>
-              Job Information
-            </span>
-            <span className={resumeId ? 'text-blue-500 font-medium' : 'text-gray-500 dark:text-gray-400'}>
-              Resume Upload
-            </span>
-            <span className={jobId && resumeId ? 'text-blue-500 font-medium' : 'text-gray-500 dark:text-gray-400'}>
-              Scan Resume
-            </span>
+            <div className="flex flex-col items-center">
+              <div 
+                className={`z-10 flex items-center justify-center w-8 h-8 rounded-full 
+                  ${resumeId ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}
+                  transition-colors duration-300`}
+              >
+                2
+              </div>
+              <span className={`text-xs mt-1 ${resumeId ? 'text-blue-500 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
+                Resume Upload
+              </span>
+            </div>
+            
+            <div className="flex flex-col items-center">
+              {/* Replaced the number 3 with scan button */}
+              <button
+                onClick={handleScanResume}
+                disabled={!jobId || !resumeId || isLoading}
+                className={`z-10 flex items-center justify-center rounded-md px-3 py-1 ${
+                  jobId && resumeId 
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer' 
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                } transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500`}
+              >
+                {isLoading ? (
+                  <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                ) : (
+                  <span>Scan Resume</span>
+                )}
+              </button>
+              <span className={`text-xs mt-1 ${jobId && resumeId ? 'text-blue-500 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
+                Scan Resume
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -331,7 +338,7 @@ export default function OnboardingFlow() {
             {/* Column 1: Job Information */}
             <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 p-4">
               <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-                Enter Job Details
+                Job Details
               </h2>
               <JobCreateFormFast
                 onSuccess={handleJobCreated} 
@@ -353,18 +360,16 @@ export default function OnboardingFlow() {
             
             {/* Column 2: Resume Upload */}
             <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-                Your Resume
-            </h2>
-              <div className='max-h-96 overflow-scroll'>
-                <ResumeViewDefault 
-                    user={{ id: anonymousUserId || '' }}
-                    defaultResumeId={resumeId || undefined}
-                    onViewResume={handleResumeView}
-                    onCreateResume={handleResumeCreate}
-                    showManageButton={false}
-                />
-              </div>
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
+                  Your Resume
+              </h2>
+              <ResumeViewDefault 
+                  user={{ id: anonymousUserId || '' }}
+                  defaultResumeId={resumeId || undefined}
+                  onViewResume={handleResumeView}
+                  onCreateResume={handleResumeCreate}
+                  showManageButton={false}
+              />
               
               {resumeId && (
                 <div className="mt-4 bg-green-50 dark:bg-green-900/20 p-3 rounded-md border border-green-100 dark:border-green-800">
