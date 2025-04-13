@@ -174,7 +174,8 @@ export default function DirectResumeUpload({
         onSuccess(resumeData.resume_id);
       }
       
-      // Refresh the page to show the new resume
+      // Instead of refreshing the page, just invalidate the cache for the current route
+      // This will trigger a re-fetch of data without a full navigation
       router.refresh();
       
     } catch (err: any) {

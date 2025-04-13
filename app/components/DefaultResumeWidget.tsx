@@ -34,71 +34,84 @@ export default function DefaultResumeWidget({
   const [defaultResume, setDefaultResume] = useState<Resume | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   
-  useEffect(() => {
+  // Function to fetch the default resume
+  const fetchDefaultResume = async () => {
     if (!user) return;
-
-    const fetchDefaultResume = async () => {
-      setLoading(true);
-      try {
-        // First determine which resume ID to use
-        let resumeId = defaultResumeId;
-        
-        // If no resume ID provided, try to get it from the user object
-        if (!resumeId && user?.default_resume_id) {
-          resumeId = user.default_resume_id;
-        }
-        
-        console.log('DefaultResumeWidget fetching resume with ID:', resumeId);
-        console.log('User data:', user);
-        
-        // If we have a resume ID, fetch the resume
-        if (resumeId) {
-          const { data: resumeData, error } = await supabase
-            .from('resumes')
-            .select('*')
-            .eq('id', resumeId)
-            .single();
-          
-          if (error) {
-            console.error('Error fetching default resume:', error);
-            console.error('Resume ID used:', resumeId);
-            setDefaultResume(null);
-            setLoading(false);
-            return;
-          }
-          
-          // Add some logging for debugging
-          console.log('Resume data fetched:', resumeData);
-          
-          // If resume has a file_path, get the signed URL
-          if (resumeData && resumeData.file_path) {
-            const { data: fileData, error: fileError } = await supabase
-              .storage
-              .from('resumes')
-              .createSignedUrl(resumeData.file_path, 60 * 60); // 1 hour expiry
-              
-            if (fileError) {
-              console.error('Error getting signed URL:', fileError);
-            } else if (fileData) {
-              resumeData.file_url = fileData.signedUrl;
-            }
-          }
-          
-          setDefaultResume(resumeData);
-        } else {
-          console.log('No resume ID available to fetch default resume');
-          setDefaultResume(null);
-        }
-      } catch (error) {
-        console.error('Error in fetchDefaultResume:', error);
-        setDefaultResume(null);
-      } finally {
-        setLoading(false);
+    
+    setLoading(true);
+    try {
+      // First determine which resume ID to use
+      let resumeId = defaultResumeId;
+      
+      // If no resume ID provided, try to get it from the user object
+      if (!resumeId && user?.default_resume_id) {
+        resumeId = user.default_resume_id;
       }
-    };
+      
+      console.log('DefaultResumeWidget fetching resume with ID:', resumeId);
+      console.log('User data:', user);
+      
+      // If we have a resume ID, fetch the resume
+      if (resumeId) {
+        const { data: resumeData, error } = await supabase
+          .from('resumes')
+          .select('*')
+          .eq('id', resumeId)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching default resume:', error);
+          console.error('Resume ID used:', resumeId);
+          setDefaultResume(null);
+          setLoading(false);
+          return;
+        }
+        
+        // Add some logging for debugging
+        console.log('Resume data fetched:', resumeData);
+        
+        // If resume has a file_path, get the signed URL
+        if (resumeData && resumeData.file_path) {
+          const { data: fileData, error: fileError } = await supabase
+            .storage
+            .from('resumes')
+            .createSignedUrl(resumeData.file_path, 60 * 60); // 1 hour expiry
+            
+          if (fileError) {
+            console.error('Error getting signed URL:', fileError);
+          } else if (fileData) {
+            resumeData.file_url = fileData.signedUrl;
+          }
+        }
+        
+        setDefaultResume(resumeData);
+      } else {
+        console.log('No resume ID available to fetch default resume');
+        setDefaultResume(null);
+      }
+    } catch (error) {
+      console.error('Error in fetchDefaultResume:', error);
+      setDefaultResume(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // Fetch default resume when the component mounts or when user/defaultResumeId changes
+  useEffect(() => {
     fetchDefaultResume();
   }, [user, defaultResumeId]);
+
+  // Handle resume creation success
+  const handleResumeCreated = (resumeId: string) => {
+    console.log('Resume created with ID:', resumeId);
+    
+    // Notify parent component
+    onCreateResume(resumeId);
+    
+    // Fetch the updated resume data
+    fetchDefaultResume();
+  };
 
   if (loading) {
     return (
@@ -140,7 +153,7 @@ export default function DefaultResumeWidget({
           </p>
           <div className="mt-4">
             <DirectResumeUpload 
-              onSuccess={(resumeId) => onCreateResume(resumeId)}
+              onSuccess={handleResumeCreated}
               className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-blue-600 hover:bg-blue-700"
               buttonText="Upload Resume"
             />

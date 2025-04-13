@@ -74,12 +74,17 @@ export default function OnboardingFlow() {
   
   // Handle resume upload/view
   const handleResumeView = (resume: Resume) => {
+    console.log('Resume viewed:', resume);
     setResumeId(resume.id);
   };
   
   const handleResumeCreate = (createdResumeId?: string) => {
     if (createdResumeId) {
+      console.log('Resume created with ID:', createdResumeId);
       setResumeId(createdResumeId);
+      
+      // Make sure we stay on the resume upload page after upload
+      setCurrentStep(OnboardingStep.RESUME_UPLOAD);
     }
   };
   
