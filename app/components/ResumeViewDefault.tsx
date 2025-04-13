@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Resume, User } from '@/types';
 import { supabase } from '@/supabase/client';
-import DirectResumeUpload from './DirectResumeUpload';
+import ResumeCreateButton from './ResumeCreateButton';
 import dynamic from 'next/dynamic';
 
 // Dynamically import PDF viewer components to ensure they only run on client
@@ -18,19 +18,19 @@ const PDFViewer = dynamic(() => import('./PDFViewer'), {
   ) 
 });
 
-interface ResumeDefaultViewProps {
+interface ResumeViewDefaultProps {
   user: User | null;
   defaultResumeId?: string;
   onViewResume: (resume: Resume) => void;
   onCreateResume: (resumeId?: string) => void;
 }
 
-export default function ResumeDefaultView({ 
+export default function ResumeViewDefault({ 
   user, 
   defaultResumeId,
   onViewResume, 
   onCreateResume 
-}: ResumeDefaultViewProps) {
+}: ResumeViewDefaultProps) {
   const [defaultResume, setDefaultResume] = useState<Resume | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   
@@ -48,7 +48,7 @@ export default function ResumeDefaultView({
         resumeId = user.default_resume_id;
       }
       
-      console.log('ResumeDefaultView fetching resume with ID:', resumeId);
+      console.log('ResumeViewDefault fetching resume with ID:', resumeId);
       console.log('User data:', user);
       
       // If we have a resume ID, fetch the resume
@@ -172,7 +172,7 @@ export default function ResumeDefaultView({
             Upload a resume to enhance your job matching.
           </p>
           <div className="mt-4">
-            <DirectResumeUpload 
+            <ResumeCreateButton 
               onSuccess={handleResumeCreated}
               className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-blue-600 hover:bg-blue-700"
               buttonText="Upload Resume"

@@ -8,7 +8,7 @@ import { Navbar } from '@/app/components/Navbar'
 import { Job, Resume, CreditUsage, User, JobScan } from '@/types'
 import ResumeViewDialog from '@/app/components/ResumeViewDialog';
 import JobsList from '@/app/components/JobsList';
-import DefaultResumeWidget from '@/app/components/DefaultResumeWidget';
+import ResumeViewDefault from '@/app/components/ResumeViewDefault';
 import BuyCreditsButton from '@/app/components/BuyCreditsButton';
 
 export default function DashboardPage() {
@@ -313,7 +313,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Default Resume */}
-              <DefaultResumeWidget
+              <ResumeViewDefault
                 user={user}
                 onViewResume={openResumeModal}
                 onCreateResume={(resumeId) => resumeId && handleResumeCreated(resumeId)}

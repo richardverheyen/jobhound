@@ -8,11 +8,11 @@ import { defaultLayoutPlugin } from '@react-pdf-viewer/default-layout';
 import '@react-pdf-viewer/core/lib/styles/index.css';
 import '@react-pdf-viewer/default-layout/lib/styles/index.css';
 
-interface FullPDFViewerProps {
+interface PDFViewerInteractiveProps {
   fileUrl: string;
 }
 
-const FullPDFViewer: React.FC<FullPDFViewerProps> = ({ fileUrl }) => {
+const PDFViewerInteractive: React.FC<PDFViewerInteractiveProps> = ({ fileUrl }) => {
   // Create the default layout plugin instance
   const defaultLayoutPluginInstance = defaultLayoutPlugin();
 
@@ -49,4 +49,4 @@ const FullPDFViewer: React.FC<FullPDFViewerProps> = ({ fileUrl }) => {
   );
 };
 
-export default FullPDFViewer; 
+export default PDFViewerInteractive; 

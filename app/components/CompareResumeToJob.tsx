@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Resume, Job } from '@/types';
 import { supabase } from '@/supabase/client';
-import DirectResumeUpload from './DirectResumeUpload';
+import ResumeCreateButton from './ResumeCreateButton';
 import { createScan } from '@/app/lib/scanService';
 
 interface CompareResumeToJobProps {
@@ -109,7 +109,7 @@ export default function CompareResumeToJob({
             
             <span className="text-sm text-gray-500 dark:text-gray-400">or</span>
             
-            <DirectResumeUpload 
+            <ResumeCreateButton 
               onSuccess={handleResumeCreated}
               className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               buttonText="Upload New"

@@ -6,7 +6,7 @@ import { Resume } from '@/types';
 import { supabase } from '@/supabase/client';
 import { Navbar } from '@/app/components/Navbar';
 import ResumeViewDialog from '@/app/components/ResumeViewDialog';
-import DirectResumeUpload from '@/app/components/DirectResumeUpload';
+import ResumeCreateButton from '@/app/components/ResumeCreateButton';
 import { useRouter } from 'next/navigation';
 
 export default function ResumesPage() {
@@ -192,7 +192,7 @@ export default function ResumesPage() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h1 className="text-2xl font-bold">My Resumes</h1>
-              <DirectResumeUpload onSuccess={handleResumeCreated} />
+              <ResumeCreateButton onSuccess={handleResumeCreated} />
             </div>
 
             <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
@@ -215,7 +215,7 @@ export default function ResumesPage() {
                   <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No resumes yet</h3>
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by uploading your resume.</p>
                   <div className="mt-6">
-                    <DirectResumeUpload onSuccess={handleResumeCreated} />
+                    <ResumeCreateButton onSuccess={handleResumeCreated} />
                   </div>
                 </div>
               ) : (

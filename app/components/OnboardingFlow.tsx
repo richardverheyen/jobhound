@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/supabase/client';
 import JobCreateForm from './JobCreateForm';
-import DefaultResumeWidget from './DefaultResumeWidget';
+import ResumeViewDefault from './ResumeViewDefault';
 import { Resume } from '@/types';
 
 // Define steps in the onboarding flow
@@ -319,15 +319,16 @@ export default function OnboardingFlow() {
           </div>
         )}
         
-        {/* Step 2: Resume Upload using DefaultResumeWidget */}
+        {/* Step 2: Resume Upload using ResumeViewDefault */}
         {currentStep === OnboardingStep.RESUME_UPLOAD && (
           <div>
             <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
               Upload Your Resume
             </h2>
             
-            <DefaultResumeWidget 
+            <ResumeViewDefault 
               user={{ id: anonymousUserId || '' }}
+              defaultResumeId={resumeId || undefined}
               onViewResume={handleResumeView}
               onCreateResume={handleResumeCreate}
             />
