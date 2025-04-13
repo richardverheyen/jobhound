@@ -23,13 +23,15 @@ interface ResumeViewDefaultProps {
   defaultResumeId?: string;
   onViewResume: (resume: Resume) => void;
   onCreateResume: (resumeId?: string) => void;
+  showManageButton?: boolean;
 }
 
 export default function ResumeViewDefault({ 
   user, 
   defaultResumeId,
   onViewResume, 
-  onCreateResume 
+  onCreateResume,
+  showManageButton = true
 }: ResumeViewDefaultProps) {
   const [defaultResume, setDefaultResume] = useState<Resume | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -138,9 +140,11 @@ export default function ResumeViewDefault({
       <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-medium text-gray-900 dark:text-white">Default Resume</h2>
-          <Link href="/dashboard/resumes" className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400">
-            Manage Resumes
-          </Link>
+          {showManageButton && (
+            <Link href="/dashboard/resumes" className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400">
+              Manage Resumes
+            </Link>
+          )}
         </div>
         <div className="flex justify-center py-6">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -153,9 +157,11 @@ export default function ResumeViewDefault({
     <div className="overflow-scroll">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-medium text-gray-900 dark:text-white">Default Resume</h2>
-        <Link href="/dashboard/resumes" className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400">
-          Manage Resumes
-        </Link>
+        {showManageButton && (
+          <Link href="/dashboard/resumes" className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400">
+            Manage Resumes
+          </Link>
+        )}
       </div>
 
       {defaultResume && defaultResume.file_url ? (

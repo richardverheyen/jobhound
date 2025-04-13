@@ -331,6 +331,7 @@ export default function OnboardingFlow() {
               defaultResumeId={resumeId || undefined}
               onViewResume={handleResumeView}
               onCreateResume={handleResumeCreate}
+              showManageButton={false}
             />
             
             <div className="mt-6 flex justify-between">
