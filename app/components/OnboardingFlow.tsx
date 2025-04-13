@@ -33,54 +33,25 @@ export default function OnboardingFlow() {
 
   // Create anonymous user on component mount
   useEffect(() => {
-    const createAnonymousUser = async () => {
+    const signInAnonymously = async () => {
       try {
         setIsLoading(true);
         setError(null);
         
-        // Call the simplified RPC function that returns just the UUID
-        const { data: userId, error } = await supabase.rpc('create_new_anonymous_user');
+        // Use Supabase's built-in anonymous sign-in
+        const { data, error } = await supabase.auth.signInAnonymously();
         
         if (error) {
-          console.error('Error with create_new_anonymous_user RPC:', error);
+          console.error('Error with anonymous sign-in:', error);
           throw new Error(`Failed to create anonymous user: ${error.message}`);
         }
         
-        if (!userId) {
-          throw new Error('Failed to create anonymous user: No user ID returned');
+        if (!data.user) {
+          throw new Error('Failed to create anonymous user: No user returned');
         }
         
-        console.log('Anonymous user created successfully:', { userId });
-        setAnonymousUserId(userId);
-        
-        // Get session - it should already be active since the DB function 
-        // created and authenticated the user
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.error('Error getting session:', sessionError);
-          throw new Error(`Failed to get session: ${sessionError.message}`);
-        }
-        
-        if (!session) {
-          console.log('No session found, attempting to establish one');
-          
-          // If no session is available, try to manually sign in as anonymous
-          const { error: signInError } = await supabase.auth.signInAnonymously();
-          
-          if (signInError) {
-            console.error('Error signing in anonymously:', signInError);
-            throw new Error(`Failed to sign in: ${signInError.message}`);
-          }
-          
-          // Verify we now have a session
-          const { data: { session: newSession }, error: newSessionError } = await supabase.auth.getSession();
-          
-          if (newSessionError || !newSession) {
-            console.error('Failed to establish session after sign in:', newSessionError);
-            throw new Error('Authentication error: Could not establish session');
-          }
-        }
+        console.log('Anonymous user created successfully:', { userId: data.user.id });
+        setAnonymousUserId(data.user.id);
         
         // Move to first actual step after initialization
         setCurrentStep(OnboardingStep.JOB_DETAILS);
@@ -92,7 +63,7 @@ export default function OnboardingFlow() {
       }
     };
 
-    createAnonymousUser();
+    signInAnonymously();
   }, []);
   
   // Handle job creation success
@@ -143,39 +114,26 @@ export default function OnboardingFlow() {
     }
     
     try {
-      if (!anonymousUserId) {
-        throw new Error('Session lost. Please start over.');
-      }
-      
-      console.log('Converting anonymous user to regular account:', {
-        anonymousUserId,
-        email: email.trim()
+      // Use the updateUser method to convert anonymous user to a permanent user
+      const { data: updateData, error: updateError } = await supabase.auth.updateUser({
+        email: email.trim(),
+        data: { full_name: fullName.trim() }
       });
       
-      // Convert anonymous user to regular user
-      const { data: conversionData, error: conversionError } = await supabase.rpc(
-        'convert_anonymous_user',
-        {
-          p_anonymous_user_id: anonymousUserId,
-          p_email: email.trim(),
-          p_full_name: fullName.trim()
-        }
-      );
-      
-      if (conversionError) {
-        console.error('Error converting anonymous user:', conversionError);
-        throw new Error(`Account conversion failed: ${conversionError.message}`);
+      if (updateError) {
+        console.error('Error updating user email:', updateError);
+        throw new Error(`Failed to update email: ${updateError.message}`);
       }
       
-      if (!conversionData || !conversionData.success) {
-        const errorMsg = conversionData?.error || 'Unknown error during account conversion';
-        console.error('Conversion unsuccessful:', errorMsg);
-        throw new Error(errorMsg);
-      }
+      // Wait for user to click the email verification link or enter OTP
+      // For this demo, we'll show a message and assume they've verified
+      console.log('Email verification sent, waiting for user to verify...');
       
-      console.log('User converted successfully, updating password');
+      // In production, you'd handle email verification here, perhaps by
+      // redirecting to a verification page or showing a verification UI
+      // For this demo, we'll simulate verification by directly updating password
       
-      // Update the auth user password
+      // Update the user password
       const { error: passwordError } = await supabase.auth.updateUser({
         password: password,
       });
@@ -185,21 +143,24 @@ export default function OnboardingFlow() {
         throw new Error(`Failed to set password: ${passwordError.message}`);
       }
       
-      console.log('Password updated, signing in with new credentials');
+      // Get the most recent job ID for redirect
+      let redirectJobId = jobId;
       
-      // Sign in with the new credentials
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password
-      });
-      
-      if (signInError) {
-        console.error('Error signing in with new credentials:', signInError);
-        throw new Error(`Failed to sign in with new account: ${signInError.message}`);
+      if (!redirectJobId) {
+        const { data: jobData, error: jobError } = await supabase
+          .from('jobs')
+          .select('id')
+          .eq('user_id', anonymousUserId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+          
+        if (jobError) {
+          console.error('Error fetching job ID:', jobError);
+        } else if (jobData) {
+          redirectJobId = jobData.id;
+        }
       }
-      
-      // Use the job ID from state or from the conversion response
-      const redirectJobId = jobId || conversionData.job_id;
       
       if (!redirectJobId) {
         throw new Error('No job found to analyze. Please try again.');
@@ -420,6 +381,19 @@ export default function OnboardingFlow() {
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   Password must be at least 8 characters
                 </p>
+              </div>
+              
+              <div className="mt-4 bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-md border border-yellow-100 dark:border-yellow-800">
+                <div className="flex">
+                  <svg className="h-5 w-5 text-yellow-400 mr-2 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <div>
+                    <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                      In a real application, you would need to verify your email before creating an account. For this demo, we'll proceed without verification.
+                    </p>
+                  </div>
+                </div>
               </div>
               
               <button

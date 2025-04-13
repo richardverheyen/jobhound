@@ -44,15 +44,15 @@ CREATE OR REPLACE FUNCTION public.complete_anon_user()
 RETURNS TRIGGER AS $$
 DECLARE
   v_user_id UUID;
-  v_old_provider TEXT;
-  v_new_provider TEXT;
+  v_is_anonymous BOOLEAN;
 BEGIN
-  -- Extract providers from old and new data
-  v_old_provider := OLD.raw_app_meta_data->>'provider';
-  v_new_provider := NEW.raw_app_meta_data->>'provider';
+  -- Check if this was an anonymous user before the update
+  SELECT is_anonymous INTO v_is_anonymous 
+  FROM public.users 
+  WHERE id = NEW.id;
   
-  -- Only proceed if this is an anonymous user being converted to a regular user
-  IF v_old_provider != 'anonymous' OR v_new_provider = 'anonymous' THEN
+  -- Only proceed if user exists and was anonymous
+  IF v_is_anonymous IS NULL OR v_is_anonymous = FALSE OR NEW.email IS NULL THEN
     RETURN NEW;
   END IF;
 
@@ -101,109 +101,6 @@ CREATE TRIGGER on_auth_anon_user_updated
   FOR EACH ROW
   EXECUTE FUNCTION public.complete_anon_user();
 
--- RPC Functions for Anonymous User Management
--- ==========================================
-
--- Function to create a new anonymous user
-CREATE OR REPLACE FUNCTION public.create_new_anonymous_user()
-RETURNS UUID AS $$
-DECLARE
-  v_user_id UUID;
-BEGIN
-  -- Generate a UUID for the new user
-  v_user_id := uuid_generate_v4();
-  
-  -- Create the user in auth.users with anonymous provider
-  -- This will trigger our handle_new_anon_user trigger
-  INSERT INTO auth.users (
-    id,
-    role,
-    raw_app_meta_data,
-    created_at,
-    updated_at
-  ) VALUES (
-    v_user_id,
-    'authenticated',
-    jsonb_build_object('provider', 'anonymous'),
-    NOW(),
-    NOW()
-  );
-  
-  -- Set up authentication for this anonymous user
-  -- Add a session for the anonymous user (14 day expiry by default)
-  INSERT INTO auth.sessions (
-    id,
-    user_id,
-    created_at,
-    updated_at
-  ) VALUES (
-    uuid_generate_v4(),
-    v_user_id,
-    now(),
-    now()
-  );
-  
-  -- Return just the user ID
-  RETURN v_user_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Function to convert an anonymous user to a regular user
-CREATE OR REPLACE FUNCTION public.convert_anonymous_user(
-  p_anonymous_user_id UUID,
-  p_email TEXT,
-  p_full_name TEXT
-)
-RETURNS JSONB AS $$
-DECLARE
-  v_result JSONB;
-  v_job_id UUID;
-BEGIN
-  -- Validate inputs
-  IF p_anonymous_user_id IS NULL OR p_email IS NULL OR p_full_name IS NULL THEN
-    RETURN jsonb_build_object(
-      'success', FALSE,
-      'error', 'Missing required parameters'
-    );
-  END IF;
-  
-  -- Check if the user exists and is anonymous
-  IF NOT EXISTS (
-    SELECT 1 FROM public.users 
-    WHERE id = p_anonymous_user_id AND is_anonymous = TRUE
-  ) THEN
-    RETURN jsonb_build_object(
-      'success', FALSE,
-      'error', 'User not found or not an anonymous user'
-    );
-  END IF;
-  
-  -- Update auth.users - this will trigger our complete_anon_user trigger
-  UPDATE auth.users SET
-    email = p_email,
-    raw_app_meta_data = raw_app_meta_data - 'provider' || jsonb_build_object('provider', 'email'),
-    raw_user_meta_data = jsonb_build_object('full_name', p_full_name),
-    updated_at = NOW()
-  WHERE id = p_anonymous_user_id;
-  
-  -- Get the user's most recent job ID for redirect
-  SELECT id INTO v_job_id 
-  FROM jobs 
-  WHERE user_id = p_anonymous_user_id 
-  ORDER BY created_at DESC 
-  LIMIT 1;
-  
-  -- Return success result
-  v_result := jsonb_build_object(
-    'success', TRUE,
-    'user_id', p_anonymous_user_id,
-    'job_id', v_job_id
-  );
-  
-  RETURN v_result;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- Function to clean up expired anonymous users (can be called by a cron job)
 CREATE OR REPLACE FUNCTION public.cleanup_expired_anonymous_users()
 RETURNS JSONB AS $$
@@ -225,4 +122,88 @@ BEGIN
     'deleted_count', v_count
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER; 
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Add is_anonymous field to JWT
+CREATE OR REPLACE FUNCTION auth.jwt()
+RETURNS jsonb
+LANGUAGE sql STABLE
+AS $$
+  SELECT 
+    coalesce(
+      nullif(current_setting('request.jwt.claim', true), ''),
+      nullif(current_setting('request.jwt.claims', true), '')
+    )::jsonb
+    || 
+    jsonb_build_object(
+      'is_anonymous', 
+      EXISTS (
+        SELECT 1 FROM public.users 
+        WHERE id = auth.uid() AND is_anonymous = true
+      )
+    )
+$$;
+
+-- Add RLS policies that differentiate between anonymous and permanent users
+-- Example 1: Limit the total number of jobs an anonymous user can create to 1
+CREATE OR REPLACE FUNCTION check_anonymous_job_limit()
+RETURNS BOOLEAN AS $$
+BEGIN
+  -- If user is not anonymous, always allow
+  IF NOT (SELECT (auth.jwt()->>'is_anonymous')::boolean) THEN
+    RETURN TRUE;
+  END IF;
+  
+  -- If anonymous, check job count limit
+  RETURN (
+    SELECT COUNT(*) < 1 FROM jobs WHERE user_id = auth.uid()
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Apply the function as a restrictive policy on jobs table
+DROP POLICY IF EXISTS "Anonymous users limited to 1 job" ON jobs;
+CREATE POLICY "Anonymous users limited to 1 job" 
+  ON jobs 
+  AS RESTRICTIVE 
+  FOR INSERT 
+  TO authenticated 
+  WITH CHECK (check_anonymous_job_limit());
+
+-- Example 2: Only allow permanent users to create multiple resumes, anonymous limited to 1
+DROP POLICY IF EXISTS "Anonymous users limited to 1 resume" ON resumes;
+CREATE POLICY "Anonymous users limited to 1 resume" 
+  ON resumes 
+  AS RESTRICTIVE 
+  FOR INSERT 
+  TO authenticated 
+  WITH CHECK (
+    NOT (SELECT (auth.jwt()->>'is_anonymous')::boolean) OR
+    (SELECT COUNT(*) < 1 FROM resumes WHERE user_id = auth.uid())
+  );
+
+-- Example 3: Add a policy to restrict anonymous users access to certain tables
+-- For this example, let's restrict anonymous access to credit_usage
+DROP POLICY IF EXISTS "Only permanent users can access credit usage" ON credit_usage;
+CREATE POLICY "Only permanent users can access credit usage" 
+  ON credit_usage 
+  FOR ALL 
+  TO authenticated 
+  USING (NOT (SELECT (auth.jwt()->>'is_anonymous')::boolean));
+
+-- Example 4: Add a restrictive policy that prevents anonymous users from deleting data
+DROP POLICY IF EXISTS "Anonymous users cannot delete jobs" ON jobs;
+CREATE POLICY "Anonymous users cannot delete jobs" 
+  ON jobs 
+  AS RESTRICTIVE 
+  FOR DELETE 
+  TO authenticated 
+  USING (NOT (SELECT (auth.jwt()->>'is_anonymous')::boolean));
+
+DROP POLICY IF EXISTS "Anonymous users cannot delete resumes" ON resumes;
+CREATE POLICY "Anonymous users cannot delete resumes" 
+  ON resumes 
+  AS RESTRICTIVE 
+  FOR DELETE 
+  TO authenticated 
+  USING (NOT (SELECT (auth.jwt()->>'is_anonymous')::boolean)); 
