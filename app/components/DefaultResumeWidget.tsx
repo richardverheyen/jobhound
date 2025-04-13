@@ -103,14 +103,34 @@ export default function DefaultResumeWidget({
   }, [user, defaultResumeId]);
 
   // Handle resume creation success
-  const handleResumeCreated = (resumeId: string) => {
+  const handleResumeCreated = (resumeId: string, signedUrl?: string) => {
     console.log('Resume created with ID:', resumeId);
     
-    // Notify parent component
-    onCreateResume(resumeId);
-    
-    // Fetch the updated resume data
-    fetchDefaultResume();
+    if (signedUrl) {
+      console.log('Resume signed URL received:', signedUrl);
+      // Create a temporary resume object with the data we already have
+      const tempResume: Resume = {
+        id: resumeId,
+        file_url: signedUrl,
+        filename: 'Uploaded Resume.pdf',
+        user_id: user?.id || '',
+        file_path: '',
+        created_at: new Date().toISOString()
+      };
+      
+      // Set it as the current resume without refetching
+      setDefaultResume(tempResume);
+      
+      // Notify parent component
+      onCreateResume(resumeId);
+    } else {
+      // If we don't have a signed URL, we need to fetch the resume data
+      // Notify parent component
+      onCreateResume(resumeId);
+      
+      // Fetch the updated resume data
+      fetchDefaultResume();
+    }
   };
 
   if (loading) {

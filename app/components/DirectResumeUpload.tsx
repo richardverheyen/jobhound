@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/supabase/client';
 
 interface DirectResumeUploadProps {
-  onSuccess?: (resumeId: string) => void;
+  onSuccess?: (resumeId: string, signedUrl?: string) => void;
   className?: string;
   buttonText?: string;
 }
@@ -171,6 +171,24 @@ export default function DirectResumeUpload({
       
       // Call onSuccess with the resume ID if provided
       if (onSuccess && resumeData.resume_id) {
+        // Get a fresh signed URL to ensure the component can display it immediately
+        try {
+          const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+            .from('resumes')
+            .createSignedUrl(filePath, 60 * 60); // 1 hour expiry
+            
+          if (signedUrlError) {
+            console.warn('Error getting signed URL for callback:', signedUrlError);
+          } else if (signedUrlData) {
+            // Pass both the resume ID and the signed URL to the callback
+            onSuccess(resumeData.resume_id, signedUrlData.signedUrl);
+            return; // Exit early since we've called onSuccess with full data
+          }
+        } catch (signedUrlErr) {
+          console.warn('Exception getting signed URL for callback:', signedUrlErr);
+        }
+        
+        // Fallback to just passing the resume ID if we couldn't get a URL
         onSuccess(resumeData.resume_id);
       }
       

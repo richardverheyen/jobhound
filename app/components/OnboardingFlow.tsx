@@ -78,9 +78,12 @@ export default function OnboardingFlow() {
     setResumeId(resume.id);
   };
   
-  const handleResumeCreate = (createdResumeId?: string) => {
+  const handleResumeCreate = (createdResumeId?: string, signedUrl?: string) => {
     if (createdResumeId) {
       console.log('Resume created with ID:', createdResumeId);
+      if (signedUrl) {
+        console.log('Resume signed URL received:', signedUrl);
+      }
       setResumeId(createdResumeId);
       
       // Make sure we stay on the resume upload page after upload
