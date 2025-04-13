@@ -83,18 +83,47 @@ export default function OnboardingFlow() {
     }
   };
   
-  // Proceed to account creation step after resume is uploaded
-  const handleProceedToAccount = () => {
+  // Initiate OAuth identity linking process
+  const handleScanResume = async () => {
     if (!resumeId) {
       setError('Please upload a resume first');
       return;
     }
     
-    setCurrentStep(OnboardingStep.ACCOUNT_CREATION);
+    setIsLoading(true);
     setError(null);
+    
+    try {
+      // Store the job ID in localStorage so we can access it after OAuth redirect
+      if (jobId) {
+        localStorage.setItem('onboarding_job_id', jobId);
+      }
+      
+      // Start the Google OAuth identity linking process with redirect parameters
+      const { data, error } = await supabase.auth.linkIdentity({
+        provider: 'google',
+        options: {
+          // Specify redirect URL with job ID for post-authentication processing
+          redirectTo: `${window.location.origin}/auth/callback?next=/dashboard/jobs/${jobId}`
+        }
+      });
+      
+      if (error) {
+        console.error('Error starting identity linking:', error);
+        throw new Error(`Failed to start identity linking: ${error.message}`);
+      }
+      
+      // The OAuth flow will be handled by Supabase Auth and the browser will
+      // redirect to the OAuth provider. After completion, the user will be
+      // redirected back to your application based on your Supabase Auth settings.
+    } catch (error: any) {
+      console.error('Error linking identity:', error);
+      setError(error.message || 'Failed to start authentication. Please try again.');
+      setIsLoading(false);
+    }
   };
   
-  // Create user account from anonymous account
+  // Create user account from anonymous account - used for email/password signup
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -305,21 +334,52 @@ export default function OnboardingFlow() {
                 Back
               </button>
               
-              <button
-                onClick={handleProceedToAccount}
-                disabled={!resumeId}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-              >
-                Create Scan
-                <svg className="ml-2 -mr-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+              {resumeId ? (
+                <button
+                  onClick={handleScanResume}
+                  disabled={isLoading}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {isLoading ? (
+                    <>
+                      <span className="animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full"></span>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      Scan My Resume with Google
+                      <svg className="ml-2 -mr-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </>
+                  )}
+                </button>
+              ) : (
+                <button
+                  disabled={true}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-400 cursor-not-allowed opacity-50"
+                >
+                  Upload Resume First
+                </button>
+              )}
+            </div>
+            
+            <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-md border border-blue-100 dark:border-blue-800">
+              <div className="flex">
+                <svg className="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
-              </button>
+                <div>
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    Upload your resume and click "Scan My Resume with Google" to analyze your resume against the job description. You'll sign in with Google to save your data.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         )}
         
-        {/* Step 3: Create Account */}
+        {/* Step 3: Create Account - Only used if we implement email/password signup */}
         {currentStep === OnboardingStep.ACCOUNT_CREATION && (
           <div>
             <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">

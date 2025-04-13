@@ -32,17 +32,39 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (
-    !user &&
-    !request.nextUrl.pathname.match("/") &&
-    !request.nextUrl.pathname.startsWith('/auth')
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
+
+  // Check if user is trying to access dashboard routes
+  const isDashboardRoute = request.nextUrl.pathname.startsWith('/dashboard');
+
+  if (!user && !request.nextUrl.pathname.match("/") && !request.nextUrl.pathname.startsWith('/auth')) {
+    // No user, redirect to login page
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
-  // IMPORTANT: You *must* return the supabaseResponse object as it is.
+
+  // If user exists and is trying to access dashboard, check if they're anonymous
+  if (user && isDashboardRoute) {
+    try {
+      // Get the user's metadata to check if they're anonymous
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('is_anonymous')
+        .eq('id', user.id)
+        .single();
+
+      // If user is anonymous, redirect to the onboarding page
+      if (userData?.is_anonymous === true) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/';  // Redirect to homepage/onboarding
+        return NextResponse.redirect(url);
+      }
+    } catch (error) {
+      console.error('Error checking user anonymous status:', error);
+    }
+  }
+
+  // IMPORTANT: You *must* return the supabaseResponse object as is.
   // If you're creating a new response object with NextResponse.next() make sure to:
   // 1. Pass the request in it, like so:
   //    const myNewResponse = NextResponse.next({ request })
