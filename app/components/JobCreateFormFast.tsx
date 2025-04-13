@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/supabase/client';
+import { TextArea, Box } from '@radix-ui/themes';
 
 // Define the job form data structure based on the database schema
 export interface JobFormData {
@@ -280,26 +281,30 @@ export default function JobCreateFormFast({
         
         <div className="flex-grow flex flex-col">
           <div className="relative flex-grow flex flex-col">
-            <textarea
-              className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full h-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md min-h-[300px] flex-grow"
-              value={rawJobText}
-              onChange={handleRawTextChange}
-              disabled={isProcessingAI}
-              placeholder="Copy/paste your unedited job listing data here, and we'll scrape the useful stuff with AI"
-              data-testid="raw-job-text-input"
-            />
-            
-            {isProcessingAI && (
-              <div className="absolute inset-0 bg-gray-100 dark:bg-gray-800 bg-opacity-50 dark:bg-opacity-50 flex items-center justify-center rounded-md">
-                <div className="flex flex-col items-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <span className="mt-2 text-sm font-medium text-blue-500">Processing with AI...</span>
+            <Box className="relative flex-grow">
+              <TextArea 
+                variant="soft"
+                size="3"
+                placeholder="Copy/paste your unedited job listing data here, and we'll scrape the useful stuff with AI"
+                value={rawJobText}
+                onChange={handleRawTextChange}
+                disabled={isProcessingAI}
+                style={{ minHeight: '300px', width: '100%', height: '100%' }}
+                data-testid="raw-job-text-input"
+              />
+              
+              {isProcessingAI && (
+                <div className="absolute inset-0 bg-gray-100 dark:bg-gray-800 bg-opacity-50 dark:bg-opacity-50 flex items-center justify-center rounded-md">
+                  <div className="flex flex-col items-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span className="mt-2 text-sm font-medium text-blue-500">Processing with AI...</span>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </Box>
           </div>
           
           {onCancel && (
@@ -361,83 +366,3 @@ export default function JobCreateFormFast({
             <p className="mt-1 text-sm text-gray-900 dark:text-white">
               {formData.salary_range_min !== undefined && formData.salary_range_max !== undefined
                 ? `${formData.salary_currency ? formData.salary_currency + ' ' : ''}${formData.salary_range_min.toLocaleString()} - ${formData.salary_currency ? formData.salary_currency + ' ' : ''}${formData.salary_range_max.toLocaleString()} ${formData.salary_period ? `(${formData.salary_period})` : ''}`
-                : formData.salary_range_min !== undefined
-                  ? `${formData.salary_currency ? formData.salary_currency + ' ' : ''}${formData.salary_range_min.toLocaleString()} ${formData.salary_period ? `(${formData.salary_period})` : ''} minimum`
-                  : formData.salary_range_max !== undefined
-                    ? `${formData.salary_currency ? formData.salary_currency + ' ' : ''}${formData.salary_range_max.toLocaleString()} ${formData.salary_period ? `(${formData.salary_period})` : ''} maximum`
-                    : 'Salary details not available'
-              }
-            </p>
-          </div>
-        )}
-
-        <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Job Description</h3>
-          <div className="mt-2 text-sm text-gray-900 dark:text-white whitespace-pre-line">
-            {formData.description}
-          </div>
-        </div>
-
-        {formData.requirements && formData.requirements.length > 0 && (
-          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Requirements</h3>
-            <ul className="mt-2 text-sm text-gray-900 dark:text-white list-disc pl-5 space-y-1">
-              {Array.isArray(formData.requirements) ? 
-                formData.requirements.map((req, index) => (
-                  <li key={index}>{req}</li>
-                ))
-                : null
-              }
-            </ul>
-          </div>
-        )}
-
-        {formData.benefits && formData.benefits.length > 0 && (
-          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Benefits</h3>
-            <ul className="mt-2 text-sm text-gray-900 dark:text-white list-disc pl-5 space-y-1">
-              {Array.isArray(formData.benefits) ? 
-                formData.benefits.map((benefit, index) => (
-                  <li key={index}>{benefit}</li>
-                ))
-                : null
-              }
-            </ul>
-          </div>
-        )}
-
-        {formData.hard_skills && formData.hard_skills.length > 0 && (
-          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Hard Skills</h3>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {Array.isArray(formData.hard_skills) ? 
-                formData.hard_skills.map((skill, index) => (
-                  <span key={index} className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-full">
-                    {skill}
-                  </span>
-                ))
-                : null
-              }
-            </div>
-          </div>
-        )}
-
-        {formData.soft_skills && formData.soft_skills.length > 0 && (
-          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Soft Skills</h3>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {Array.isArray(formData.soft_skills) ? 
-                formData.soft_skills.map((skill, index) => (
-                  <span key={index} className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-full">
-                    {skill}
-                  </span>
-                ))
-                : null
-              }
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-} 
