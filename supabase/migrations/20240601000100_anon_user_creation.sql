@@ -106,58 +106,29 @@ CREATE TRIGGER on_auth_anon_user_updated
 
 -- Function to create a new anonymous user
 CREATE OR REPLACE FUNCTION public.create_new_anonymous_user()
-RETURNS JSONB AS $$
+RETURNS UUID AS $$
 DECLARE
   v_user_id UUID;
-  v_email TEXT;
-  v_password TEXT;
-  v_result JSONB;
 BEGIN
-  -- Generate unique email and password for the anonymous user
+  -- Generate a UUID for the new user
   v_user_id := uuid_generate_v4();
-  v_email := 'anonymous_' || v_user_id || '@temporary.jobhound';
-  v_password := 'temp_' || v_user_id;
   
-  -- Create user in auth.users with anonymous provider
+  -- Create the user in auth.users with anonymous provider
   -- This will trigger our handle_new_anon_user trigger
   INSERT INTO auth.users (
-    instance_id,
     id,
-    aud,
     role,
-    email,
-    encrypted_password,
-    email_confirmed_at,
-    recovery_sent_at,
-    last_sign_in_at,
-    raw_app_meta_data,
-    raw_user_meta_data,
     created_at,
     updated_at
   ) VALUES (
-    (SELECT instance_id FROM auth.instances LIMIT 1),
     v_user_id,
     'authenticated',
-    'authenticated',
-    v_email,
-    crypt(v_password, gen_salt('bf')),
-    NOW(),
-    NOW(),
-    NOW(),
-    jsonb_build_object('provider', 'anonymous'),
-    jsonb_build_object('full_name', 'Anonymous User'),
     NOW(),
     NOW()
   );
   
-  -- Return user details
-  v_result := jsonb_build_object(
-    'user_id', v_user_id,
-    'email', v_email,
-    'password', v_password
-  );
-  
-  RETURN v_result;
+  -- Return just the user ID
+  RETURN v_user_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -195,7 +166,7 @@ BEGIN
   UPDATE auth.users SET
     email = p_email,
     raw_app_meta_data = raw_app_meta_data - 'provider' || jsonb_build_object('provider', 'email'),
-    raw_user_meta_data = raw_user_meta_data || jsonb_build_object('full_name', p_full_name),
+    raw_user_meta_data = jsonb_build_object('full_name', p_full_name),
     updated_at = NOW()
   WHERE id = p_anonymous_user_id;
   

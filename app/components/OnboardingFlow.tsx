@@ -38,32 +38,35 @@ export default function OnboardingFlow() {
         setIsLoading(true);
         setError(null);
         
-        // Call handle_new_anon_user through an RPC
-        const { data, error } = await supabase.rpc('create_new_anonymous_user');
+        // Call the simplified RPC function that returns just the UUID
+        const { data: userId, error } = await supabase.rpc('create_new_anonymous_user');
         
         if (error) {
           console.error('Error with create_new_anonymous_user RPC:', error);
           throw new Error(`Failed to create anonymous user: ${error.message}`);
         }
         
-        if (!data || !data.user_id || !data.email || !data.password) {
-          throw new Error('Invalid response from user creation service');
+        if (!userId) {
+          throw new Error('Failed to create anonymous user: No user ID returned');
         }
         
-        console.log('Anonymous user created successfully:', { userId: data.user_id });
-        setAnonymousUserId(data.user_id);
-          
-        // Sign in with the anonymous user credentials that were created
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: data.email,
-          password: data.password
-        });
-          
-        if (signInError) {
-          console.error('Error signing in as anonymous user:', signInError);
-          throw new Error(`Failed to sign in: ${signInError.message}`);
+        console.log('Anonymous user created successfully:', { userId });
+        setAnonymousUserId(userId);
+        
+        // Get session - it should already be active since the DB function 
+        // created and authenticated the user
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Error getting session:', sessionError);
+          throw new Error(`Failed to get session: ${sessionError.message}`);
         }
-          
+        
+        if (!session) {
+          console.error('No session after creating anonymous user');
+          throw new Error('Authentication error: No session available');
+        }
+        
         // Move to first actual step after initialization
         setCurrentStep(OnboardingStep.JOB_DETAILS);
       } catch (error: any) {
