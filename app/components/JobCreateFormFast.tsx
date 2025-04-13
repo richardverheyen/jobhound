@@ -230,7 +230,7 @@ export default function JobCreateFormFast({
 
   // Create a debounced version of the process function
   const debouncedProcessJobListing = useRef(
-    debounce(processJobListing, 1500) // 1.5 second delay
+    debounce(processJobListing, 500) // 0.5 second delay
   ).current;
 
   const handleRawTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -281,7 +281,7 @@ export default function JobCreateFormFast({
         
         <div className="flex-grow flex flex-col">
           <div className="relative flex-grow flex flex-col">
-            <Flex className="relative flex-grow min-h-[400px]">
+            <Flex className="relative flex-grow min-h-[400px] w-full">
               <TextArea 
                 variant="soft"
                 size="3"
@@ -290,6 +290,8 @@ export default function JobCreateFormFast({
                 onChange={handleRawTextChange}
                 disabled={isProcessingAI}
                 data-testid="raw-job-text-input"
+                style={{ width: '100%', height: '100%', flex: '1 1 auto', resize: 'vertical' }}
+                className="w-full h-full"
               />
               
               {isProcessingAI && (
@@ -325,7 +327,6 @@ export default function JobCreateFormFast({
   
   // Review step view
   return (
-    <div className="mt-4">
       <div className="relative bg-white dark:bg-gray-800 shadow rounded-lg space-y-4">
         {/* Back button */}
         <button
@@ -441,6 +442,5 @@ export default function JobCreateFormFast({
           </div>
         )}
       </div>
-    </div>
   );
 } 
