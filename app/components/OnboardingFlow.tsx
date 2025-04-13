@@ -29,6 +29,9 @@ export default function OnboardingFlow() {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [fullName, setFullName] = useState<string>('');
+  
+  // State for hover effect on scan button
+  const [isHoveringButton, setIsHoveringButton] = useState(false);
 
   // Create anonymous user on component mount
   useEffect(() => {
@@ -253,9 +256,6 @@ export default function OnboardingFlow() {
     if (jobId || resumeId) return '33%'; // One step complete
     return '0%'; // No steps complete
   };
-  
-  // New state for hover effect on scan button
-  const [isHoveringButton, setIsHoveringButton] = useState(false);
   
   return (
     <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
