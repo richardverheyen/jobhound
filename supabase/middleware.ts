@@ -35,15 +35,17 @@ export async function updateSession(request: NextRequest) {
 
   // Check if user is trying to access dashboard routes
   const isDashboardRoute = request.nextUrl.pathname.startsWith('/dashboard');
-
-  if (!user && !request.nextUrl.pathname.match("/") && !request.nextUrl.pathname.startsWith('/auth')) {
-    // No user, redirect to login page
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+  const isAuthRoute = request.nextUrl.pathname.startsWith('/auth');
+  const isRootRoute = request.nextUrl.pathname === '/';
+  
+  // Not logged in users redirected to login except for root and auth routes
+  if (!user && !isRootRoute && !isAuthRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
   }
 
-  // If user exists and is trying to access dashboard, check if they're anonymous
+  // Only check anonymous status for dashboard routes (not for root or auth routes)
   if (user && isDashboardRoute) {
     try {
       // Get the user's metadata to check if they're anonymous
@@ -53,8 +55,9 @@ export async function updateSession(request: NextRequest) {
         .eq('id', user.id)
         .single();
 
-      // If user is anonymous, redirect to the onboarding page
-      if (userData?.is_anonymous === true) {
+      // If we couldn't determine user status or user is anonymous, redirect to the onboarding page
+      if (error || userData?.is_anonymous === true) {
+        console.log('Redirecting anonymous user from dashboard:', user.id);
         const url = request.nextUrl.clone();
         url.pathname = '/';  // Redirect to homepage/onboarding
         return NextResponse.redirect(url);

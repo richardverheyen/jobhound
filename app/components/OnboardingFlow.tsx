@@ -99,12 +99,12 @@ export default function OnboardingFlow() {
         localStorage.setItem('onboarding_job_id', jobId);
       }
       
-      // Start the Google OAuth identity linking process with redirect parameters
-      const { data, error } = await supabase.auth.linkIdentity({
+      // Start the Google OAuth identity linking process
+      // Use the linkIdentity method as per Supabase docs for anonymous sign-ins
+      const { data, error } = await supabase.auth.linkIdentity({ 
         provider: 'google',
         options: {
-          // Specify redirect URL with job ID for post-authentication processing
-          redirectTo: `${window.location.origin}/auth/callback?next=/dashboard/jobs/${jobId}`
+          redirectTo: `${window.location.origin}/auth/callback`
         }
       });
       
@@ -113,9 +113,10 @@ export default function OnboardingFlow() {
         throw new Error(`Failed to start identity linking: ${error.message}`);
       }
       
-      // The OAuth flow will be handled by Supabase Auth and the browser will
-      // redirect to the OAuth provider. After completion, the user will be
-      // redirected back to your application based on your Supabase Auth settings.
+      // The OAuth flow will redirect the user to Google's login page
+      // and then back to our callback URL after authentication
+      console.log('Starting Google OAuth flow for identity linking');
+      
     } catch (error: any) {
       console.error('Error linking identity:', error);
       setError(error.message || 'Failed to start authentication. Please try again.');

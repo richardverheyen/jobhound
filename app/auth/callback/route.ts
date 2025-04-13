@@ -10,15 +10,47 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     const supabase = await createClient()
-    await supabase.auth.exchangeCodeForSession(code)
+    
+    // Exchange the code for a session
+    const { data: authData, error: authError } = await supabase.auth.exchangeCodeForSession(code)
+    
+    if (authError) {
+      console.error('Error exchanging code for session:', authError)
+      return NextResponse.redirect(`${requestUrl.origin}/auth/error?error=${encodeURIComponent(authError.message)}`)
+    }
     
     // Get the authenticated user
     const { data: { user } } = await supabase.auth.getUser()
     
     if (user) {
+      // Check if this user exists in the public.users table and update if needed
+      const { data: userData, error: userCheckError } = await supabase
+        .from('users')
+        .select('is_anonymous')
+        .eq('id', user.id)
+        .single();
+      
+      if (!userCheckError && userData?.is_anonymous === true) {
+        // Update the user record to mark them as non-anonymous
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({
+            is_anonymous: false,
+            anonymous_expires_at: null,
+            email: user.email
+          })
+          .eq('id', user.id);
+        
+        if (updateError) {
+          console.error('Error updating user is_anonymous flag:', updateError);
+        } else {
+          console.log('Successfully converted anonymous user to permanent user:', user.id);
+        }
+      }
+      
       // Check if this was an anonymous user conversion (from identity linking)
       // by looking for a job they created during onboarding
-      const { data: recentJob, error } = await supabase
+      const { data: recentJob, error: jobError } = await supabase
         .from('jobs')
         .select('id')
         .eq('user_id', user.id)
@@ -26,7 +58,7 @@ export async function GET(request: NextRequest) {
         .limit(1)
         .single();
       
-      if (recentJob && !error) {
+      if (recentJob && !jobError) {
         // If we found a job, redirect the user to that job's details page
         return NextResponse.redirect(`${requestUrl.origin}/dashboard/jobs/${recentJob.id}`)
       }
