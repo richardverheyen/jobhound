@@ -44,21 +44,3 @@ CREATE POLICY "Users can update their own profile"
 CREATE INDEX idx_users_default_resume_id ON users(default_resume_id);
 CREATE INDEX idx_users_is_anonymous ON users(is_anonymous);
 CREATE INDEX idx_users_anonymous_expires_at ON users(anonymous_expires_at);
-
--- Add user handling functions
-CREATE OR REPLACE FUNCTION cleanup_expired_anonymous_users()
-RETURNS INTEGER AS $$
-DECLARE
-  v_count INTEGER;
-BEGIN
-  WITH deleted_users AS (
-    DELETE FROM users
-    WHERE is_anonymous = TRUE
-      AND anonymous_expires_at < NOW()
-    RETURNING id
-  )
-  SELECT COUNT(*) INTO v_count FROM deleted_users;
-  
-  RETURN v_count;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER; 

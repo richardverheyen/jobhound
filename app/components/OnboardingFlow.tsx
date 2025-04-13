@@ -36,33 +36,39 @@ export default function OnboardingFlow() {
     const createAnonymousUser = async () => {
       try {
         setIsLoading(true);
+        setError(null);
         
         // Call handle_new_anon_user through an RPC
         const { data, error } = await supabase.rpc('create_new_anonymous_user');
         
         if (error) {
-          throw error;
+          console.error('Error with create_new_anonymous_user RPC:', error);
+          throw new Error(`Failed to create anonymous user: ${error.message}`);
         }
         
-        if (data && data.user_id) {
-          setAnonymousUserId(data.user_id);
-          
-          // Sign in with the anonymous user credentials that were created
-          const { error: signInError } = await supabase.auth.signInWithPassword({
-            email: data.email,
-            password: data.password
-          });
-          
-          if (signInError) {
-            throw signInError;
-          }
-          
-          // Move to first actual step after initialization
-          setCurrentStep(OnboardingStep.JOB_DETAILS);
+        if (!data || !data.user_id || !data.email || !data.password) {
+          throw new Error('Invalid response from user creation service');
         }
+        
+        console.log('Anonymous user created successfully:', { userId: data.user_id });
+        setAnonymousUserId(data.user_id);
+          
+        // Sign in with the anonymous user credentials that were created
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: data.email,
+          password: data.password
+        });
+          
+        if (signInError) {
+          console.error('Error signing in as anonymous user:', signInError);
+          throw new Error(`Failed to sign in: ${signInError.message}`);
+        }
+          
+        // Move to first actual step after initialization
+        setCurrentStep(OnboardingStep.JOB_DETAILS);
       } catch (error: any) {
-        console.error('Error creating anonymous user:', error);
-        setError('Failed to initialize. Please try again later.');
+        console.error('Error in anonymous user creation flow:', error);
+        setError(error.message || 'Failed to initialize session. Please refresh and try again.');
       } finally {
         setIsLoading(false);
       }
@@ -112,44 +118,79 @@ export default function OnboardingFlow() {
       return;
     }
     
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      setIsLoading(false);
+      return;
+    }
+    
     try {
       if (!anonymousUserId) {
         throw new Error('Session lost. Please start over.');
       }
+      
+      console.log('Converting anonymous user to regular account:', {
+        anonymousUserId,
+        email: email.trim()
+      });
       
       // Convert anonymous user to regular user
       const { data: conversionData, error: conversionError } = await supabase.rpc(
         'convert_anonymous_user',
         {
           p_anonymous_user_id: anonymousUserId,
-          p_email: email,
-          p_full_name: fullName
+          p_email: email.trim(),
+          p_full_name: fullName.trim()
         }
       );
       
-      if (conversionError) throw conversionError;
-      
-      if (!conversionData.success) {
-        throw new Error(conversionData.error || 'Failed to process your account');
+      if (conversionError) {
+        console.error('Error converting anonymous user:', conversionError);
+        throw new Error(`Account conversion failed: ${conversionError.message}`);
       }
+      
+      if (!conversionData || !conversionData.success) {
+        const errorMsg = conversionData?.error || 'Unknown error during account conversion';
+        console.error('Conversion unsuccessful:', errorMsg);
+        throw new Error(errorMsg);
+      }
+      
+      console.log('User converted successfully, updating password');
       
       // Update the auth user password
       const { error: passwordError } = await supabase.auth.updateUser({
         password: password,
       });
       
-      if (passwordError) throw passwordError;
+      if (passwordError) {
+        console.error('Error updating password:', passwordError);
+        throw new Error(`Failed to set password: ${passwordError.message}`);
+      }
+      
+      console.log('Password updated, signing in with new credentials');
       
       // Sign in with the new credentials
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email,
+        email: email.trim(),
         password: password
       });
       
-      if (signInError) throw signInError;
+      if (signInError) {
+        console.error('Error signing in with new credentials:', signInError);
+        throw new Error(`Failed to sign in with new account: ${signInError.message}`);
+      }
+      
+      // Use the job ID from state or from the conversion response
+      const redirectJobId = jobId || conversionData.job_id;
+      
+      if (!redirectJobId) {
+        throw new Error('No job found to analyze. Please try again.');
+      }
+      
+      console.log('Account creation successful, redirecting to job page');
       
       // Success! Redirect to the job details page
-      router.push(`/dashboard/jobs/${jobId}`);
+      router.push(`/dashboard/jobs/${redirectJobId}`);
       
     } catch (error: any) {
       console.error('Error creating account:', error);
@@ -165,6 +206,31 @@ export default function OnboardingFlow() {
       <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden p-6 flex flex-col items-center justify-center min-h-[300px]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
         <p className="mt-4 text-gray-500 dark:text-gray-400">Initializing your session...</p>
+      </div>
+    );
+  }
+  
+  // Show helpful error message if initialization failed
+  if (error && currentStep === OnboardingStep.INITIALIZE) {
+    return (
+      <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden p-6">
+        <div className="text-center">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/20">
+            <svg className="h-6 w-6 text-red-600 dark:text-red-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h3 className="mt-3 text-lg font-medium text-gray-900 dark:text-white">Initialization Error</h3>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{error}</p>
+          <div className="mt-6">
+            <button
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -215,7 +281,7 @@ export default function OnboardingFlow() {
       </div>
       
       {/* Error message */}
-      {error && (
+      {error && currentStep !== OnboardingStep.INITIALIZE && (
         <div className="mx-6 mt-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded">
           {error}
         </div>
