@@ -59,7 +59,7 @@ export async function updateSession(request: NextRequest) {
       if (error || userData?.is_anonymous === true) {
         console.log('Redirecting anonymous user from dashboard:', user.id);
         const url = request.nextUrl.clone();
-        url.pathname = '/';  // Redirect to homepage/onboarding
+        url.pathname = '/';  // Redirect to homepage
         return NextResponse.redirect(url);
       }
     } catch (error) {
