@@ -322,7 +322,7 @@ export default function JobCreateFormFast({
   // Review step view
   return (
     <div className="mt-4">
-      <div className="relative bg-white dark:bg-gray-800 shadow rounded-lg space-y-4">
+      <div className="relative bg-white dark:bg-gray-800 shadow rounded-lg p-6 space-y-4">
         {/* Back button */}
         <button
           onClick={handleBackToInput}
@@ -334,44 +334,52 @@ export default function JobCreateFormFast({
           </svg>
         </button>
         
+        {/* Success indicator */}
+        <div className="inline-flex items-center mb-2 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-md border border-green-100 dark:border-green-800">
+          <svg className="h-4 w-4 text-green-500 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+          <p className="text-xs text-green-700 dark:text-green-300">
+            Job created successfully
+          </p>
+        </div>
+        
+        {/* Title and important job details at the top */}
         <div>
-          <h2 className="text-lg font-medium text-gray-900 dark:text-white">Job Created Successfully</h2>
-          <div className="mt-4 space-y-3">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{formData.title}</h2>
+          {formData.job_type && (
+            <p className="text-sm text-blue-600 dark:text-blue-400 mb-4">{formData.job_type}</p>
+          )}
+          
+          {/* Two column layout for company and location */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
             <div>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Company</p>
-              <p className="mt-1 text-sm text-gray-900 dark:text-white">{formData.company}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Position</p>
-              <p className="mt-1 text-sm text-gray-900 dark:text-white">{formData.title}</p>
+              <p className="text-sm text-gray-900 dark:text-white font-medium">{formData.company}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Location</p>
-              <p className="mt-1 text-sm text-gray-900 dark:text-white">{formData.location || 'Not specified'}</p>
+              <p className="text-sm text-gray-900 dark:text-white">{formData.location || 'Not specified'}</p>
             </div>
-            {formData.job_type && (
-              <div>
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Job Type</p>
-                <p className="mt-1 text-sm text-gray-900 dark:text-white">{formData.job_type}</p>
-              </div>
-            )}
-            {(formData.salary_range_min || formData.salary_range_max) && (
-              <div>
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Salary Range</p>
-                <p className="mt-1 text-sm text-gray-900 dark:text-white">
-                  {formData.salary_range_min !== undefined && formData.salary_range_max !== undefined
-                    ? `${formData.salary_currency ? formData.salary_currency + ' ' : ''}${formData.salary_range_min.toLocaleString()} - ${formData.salary_currency ? formData.salary_currency + ' ' : ''}${formData.salary_range_max.toLocaleString()} ${formData.salary_period ? `(${formData.salary_period})` : ''}`
-                    : formData.salary_range_min !== undefined
-                      ? `${formData.salary_currency ? formData.salary_currency + ' ' : ''}${formData.salary_range_min.toLocaleString()} ${formData.salary_period ? `(${formData.salary_period})` : ''} minimum`
-                      : formData.salary_range_max !== undefined
-                        ? `${formData.salary_currency ? formData.salary_currency + ' ' : ''}${formData.salary_range_max.toLocaleString()} ${formData.salary_period ? `(${formData.salary_period})` : ''} maximum`
-                        : 'Salary details not available'
-                  }
-                </p>
-              </div>
-            )}
           </div>
         </div>
+
+        {/* Salary information */}
+        {(formData.salary_range_min || formData.salary_range_max) && (
+          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Salary Range</h3>
+            <p className="mt-1 text-sm text-gray-900 dark:text-white">
+              {formData.salary_range_min !== undefined && formData.salary_range_max !== undefined
+                ? `${formData.salary_currency ? formData.salary_currency + ' ' : ''}${formData.salary_range_min.toLocaleString()} - ${formData.salary_currency ? formData.salary_currency + ' ' : ''}${formData.salary_range_max.toLocaleString()} ${formData.salary_period ? `(${formData.salary_period})` : ''}`
+                : formData.salary_range_min !== undefined
+                  ? `${formData.salary_currency ? formData.salary_currency + ' ' : ''}${formData.salary_range_min.toLocaleString()} ${formData.salary_period ? `(${formData.salary_period})` : ''} minimum`
+                  : formData.salary_range_max !== undefined
+                    ? `${formData.salary_currency ? formData.salary_currency + ' ' : ''}${formData.salary_range_max.toLocaleString()} ${formData.salary_period ? `(${formData.salary_period})` : ''} maximum`
+                    : 'Salary details not available'
+              }
+            </p>
+          </div>
+        )}
 
         <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Job Description</h3>

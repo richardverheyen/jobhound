@@ -30,8 +30,19 @@ export default function OnboardingFlow() {
   const [password, setPassword] = useState<string>('');
   const [fullName, setFullName] = useState<string>('');
   
-  // Progress bar state instead of hover effect on scan button
+  // Progress bar state
   const [progressWidth, setProgressWidth] = useState('0%');
+
+  // Update progress width when job or resume changes
+  useEffect(() => {
+    if (jobId && resumeId) {
+      setProgressWidth('66%');
+    } else if (jobId || resumeId) {
+      setProgressWidth('33%');
+    } else {
+      setProgressWidth('0%');
+    }
+  }, [jobId, resumeId]);
 
   // Create anonymous user on component mount
   useEffect(() => {
@@ -249,17 +260,6 @@ export default function OnboardingFlow() {
       </div>
     );
   }
-  
-  // Calculate progress based on completion status
-  useEffect(() => {
-    if (jobId && resumeId) {
-      setProgressWidth('66%');
-    } else if (jobId || resumeId) {
-      setProgressWidth('33%');
-    } else {
-      setProgressWidth('0%');
-    }
-  }, [jobId, resumeId]);
   
   return (
     <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
