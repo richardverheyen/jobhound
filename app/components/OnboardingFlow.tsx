@@ -63,8 +63,23 @@ export default function OnboardingFlow() {
         }
         
         if (!session) {
-          console.error('No session after creating anonymous user');
-          throw new Error('Authentication error: No session available');
+          console.log('No session found, attempting to establish one');
+          
+          // If no session is available, try to manually sign in as anonymous
+          const { error: signInError } = await supabase.auth.signInAnonymously();
+          
+          if (signInError) {
+            console.error('Error signing in anonymously:', signInError);
+            throw new Error(`Failed to sign in: ${signInError.message}`);
+          }
+          
+          // Verify we now have a session
+          const { data: { session: newSession }, error: newSessionError } = await supabase.auth.getSession();
+          
+          if (newSessionError || !newSession) {
+            console.error('Failed to establish session after sign in:', newSessionError);
+            throw new Error('Authentication error: Could not establish session');
+          }
         }
         
         // Move to first actual step after initialization

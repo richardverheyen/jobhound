@@ -118,13 +118,29 @@ BEGIN
   INSERT INTO auth.users (
     id,
     role,
+    raw_app_meta_data,
     created_at,
     updated_at
   ) VALUES (
     v_user_id,
     'authenticated',
+    jsonb_build_object('provider', 'anonymous'),
     NOW(),
     NOW()
+  );
+  
+  -- Set up authentication for this anonymous user
+  -- Add a session for the anonymous user (14 day expiry by default)
+  INSERT INTO auth.sessions (
+    id,
+    user_id,
+    created_at,
+    updated_at
+  ) VALUES (
+    uuid_generate_v4(),
+    v_user_id,
+    now(),
+    now()
   );
   
   -- Return just the user ID
