@@ -1,4 +1,5 @@
 import { GenerativeModel } from '@google/generative-ai';
+import { SchemaType } from '@google/generative-ai';
 import { FieldDefinition, ResumeAnalysisResponse } from '../types';
 import { createSystemPrompt, processAIResponse } from '../utils';
 
@@ -141,6 +142,32 @@ ${JSON.stringify(hardSkillsTemplate.fieldResponse, null, 2)}`;
       topK: 40,
       maxOutputTokens: 8000,
       responseMimeType: "application/json",
+      responseSchema: {
+        type: SchemaType.ARRAY,
+        items: {
+          type: SchemaType.OBJECT,
+          properties: {
+            id: { type: SchemaType.STRING },
+            p: { type: SchemaType.STRING },
+            l: { type: SchemaType.STRING },
+            syn: { 
+              type: SchemaType.ARRAY, 
+              items: { type: SchemaType.STRING }
+            },
+            rt: { 
+              type: SchemaType.ARRAY, 
+              items: { type: SchemaType.STRING }
+            },
+            em: { type: SchemaType.BOOLEAN },
+            sm: { type: SchemaType.BOOLEAN },
+            rm: { type: SchemaType.BOOLEAN },
+            emc: { type: SchemaType.NUMBER },
+            c: { type: SchemaType.NUMBER },
+            e: { type: SchemaType.STRING }
+          },
+          required: ["id", "p", "l", "syn", "rt", "em", "sm", "rm", "emc", "c", "e"]
+        }
+      }
     },
   });
 

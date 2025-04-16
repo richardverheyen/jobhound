@@ -1,4 +1,5 @@
 import { GenerativeModel } from '@google/generative-ai';
+import { SchemaType } from '@google/generative-ai';
 import { FieldDefinition, ResumeAnalysisResponse } from '../types';
 import { createSystemPrompt, filterFieldsByCategory, processAIResponse } from '../utils';
 
@@ -67,6 +68,19 @@ ${JSON.stringify(searchabilityFields, null, 2)}`;
       topK: 40,
       maxOutputTokens: 8000,
       responseMimeType: "application/json",
+      responseSchema: {
+        type: SchemaType.ARRAY,
+        items: {
+          type: SchemaType.OBJECT,
+          properties: {
+            id: { type: SchemaType.STRING },
+            c: { type: SchemaType.NUMBER },
+            e: { type: SchemaType.STRING },
+            v: { type: SchemaType.BOOLEAN }
+          },
+          required: ["id", "c", "e", "v"]
+        }
+      }
     },
   });
 
