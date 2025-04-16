@@ -136,7 +136,7 @@ Keep the full description intact and do not truncate it even if it's long. Be ac
           }
         ],
         generationConfig: {
-          temperature: 0.1,
+          temperature: 0.01,
           topP: 0.8,
           topK: 40,
           maxOutputTokens: 4096,

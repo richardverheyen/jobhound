@@ -6,7 +6,7 @@ import { supabase } from '@/supabase/client';
 import { Navbar } from '@/app/components/Navbar';
 import { Job, JobScan, Resume } from '@/types';
 import { useRouter, useSearchParams } from 'next/navigation';
-import CompareResumeToJob from '@/app/components/CompareResumeToJob';
+import JobScanForm from '@/app/components/JobScanForm';
 import JobScansList from '@/app/components/JobScansList';
 import { createScan } from '@/app/lib/scanService';
 
@@ -366,7 +366,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
             {/* Right column: Resume Analysis */}
             <div className="md:col-span-1 space-y-6">
               {/* Resume Analysis Component */}
-              <CompareResumeToJob 
+              <JobScanForm 
                 job={job}
                 resumes={resumes}
                 onScanComplete={fetchData}
