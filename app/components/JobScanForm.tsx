@@ -24,7 +24,6 @@ export default function JobScanForm({
   const [selectedResumeId, setSelectedResumeId] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [showResumeUploadModal, setShowResumeUploadModal] = useState(false);
   
   // Set default resume on component mount
   useEffect(() => {
@@ -50,22 +49,11 @@ export default function JobScanForm({
     }
   }, [resumes, user, selectedResumeId]);
   
-  // Effect to handle "upload_new" selection
-  useEffect(() => {
-    if (selectedResumeId === 'upload_new') {
-      setShowResumeUploadModal(true);
-      // Reset selection to previous value or undefined if no previous value
-      const defaultResume = resumes.find(r => r.is_default) || 
-                           (user?.default_resume_id ? resumes.find(r => r.id === user.default_resume_id) : null) ||
-                           resumes[0];
-      
-      setSelectedResumeId(defaultResume?.id);
-    }
-  }, [selectedResumeId, resumes, user]);
-  
+  // Handle select change
   const handleSelectChange = (value: string) => {
     if (value === 'upload_new') {
-      setShowResumeUploadModal(true);
+      // Don't update the selected value
+      // The file input will be triggered by the click on Upload New Resume
       return;
     }
     setSelectedResumeId(value);
@@ -165,7 +153,6 @@ export default function JobScanForm({
   const handleResumeCreated = async (resumeId: string) => {
     // Select the newly created resume
     setSelectedResumeId(resumeId);
-    setShowResumeUploadModal(false);
     
     // Trigger refetch of resumes
     const { data: resumesData, error: resumesError } = await supabase
@@ -202,70 +189,109 @@ export default function JobScanForm({
           </label>
           <div className="flex flex-wrap gap-2 items-center">
             {resumes.length > 0 ? (
-              <Select.Root 
-                value={selectedResumeId}
-                onValueChange={handleSelectChange}
-                disabled={isLoading}
-              >
-                <Select.Trigger 
-                  className="inline-flex items-center justify-between w-full md:w-64 rounded px-3 py-2 text-sm gap-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                  aria-label="Select a resume"
+              <>
+                <Select.Root 
+                  value={selectedResumeId}
+                  onValueChange={handleSelectChange}
+                  disabled={isLoading}
                 >
-                  <Select.Value>
-                    {selectedResumeId ? getResumeFilename(selectedResumeId) : 'Select a resume'}
-                  </Select.Value>
-                  <Select.Icon>
-                    <ChevronDownIcon />
-                  </Select.Icon>
-                </Select.Trigger>
-                
-                <Select.Portal>
-                  <Select.Content 
-                    className="overflow-hidden bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50"
-                    position="popper"
-                    sideOffset={5}
+                  <Select.Trigger 
+                    className="inline-flex items-center justify-between w-full md:w-64 rounded px-3 py-2 text-sm gap-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    aria-label="Select a resume"
                   >
-                    <Select.ScrollUpButton className="flex items-center justify-center h-6 bg-white dark:bg-gray-800 cursor-default">
-                      <ChevronUpIcon />
-                    </Select.ScrollUpButton>
-                    
-                    <Select.Viewport className="p-1">
-                      {resumes.map((resume) => (
-                        <Select.Item 
-                          key={resume.id} 
-                          value={resume.id}
-                          className="text-sm py-2 px-4 rounded-sm outline-none flex items-center cursor-default data-[highlighted]:bg-blue-100 data-[highlighted]:text-blue-900 dark:data-[highlighted]:bg-gray-700"
-                        >
-                          <Select.ItemText>
-                            {resume.filename}
-                            {resume.is_default ? ' (Default)' : ''}
-                          </Select.ItemText>
-                        </Select.Item>
-                      ))}
-                      
-                      <Select.Item 
-                        value="upload_new"
-                        className="text-sm py-2 px-4 rounded-sm outline-none flex items-center cursor-default data-[highlighted]:bg-blue-100 data-[highlighted]:text-blue-900 dark:data-[highlighted]:bg-gray-700 border-t border-gray-200 dark:border-gray-700 mt-1 text-blue-600 dark:text-blue-400"
-                      >
-                        <Select.ItemText>Upload New Resume</Select.ItemText>
-                      </Select.Item>
-                    </Select.Viewport>
-                    
-                    <Select.ScrollDownButton className="flex items-center justify-center h-6 bg-white dark:bg-gray-800 cursor-default">
+                    <Select.Value>
+                      {selectedResumeId ? getResumeFilename(selectedResumeId) : 'Select a resume'}
+                    </Select.Value>
+                    <Select.Icon>
                       <ChevronDownIcon />
-                    </Select.ScrollDownButton>
-                  </Select.Content>
-                </Select.Portal>
-              </Select.Root>
+                    </Select.Icon>
+                  </Select.Trigger>
+                  
+                  <Select.Portal>
+                    <Select.Content 
+                      className="overflow-hidden bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+                      position="popper"
+                      sideOffset={5}
+                    >
+                      <Select.ScrollUpButton className="flex items-center justify-center h-6 bg-white dark:bg-gray-800 cursor-default">
+                        <ChevronUpIcon />
+                      </Select.ScrollUpButton>
+                      
+                      <Select.Viewport className="p-1">
+                        {resumes.map((resume) => (
+                          <Select.Item 
+                            key={resume.id} 
+                            value={resume.id}
+                            className="text-sm py-2 px-4 rounded-sm outline-none flex items-center cursor-default data-[highlighted]:bg-blue-100 data-[highlighted]:text-blue-900 dark:data-[highlighted]:bg-gray-700"
+                          >
+                            <Select.ItemText>
+                              {resume.filename}
+                              {resume.is_default ? ' (Default)' : ''}
+                            </Select.ItemText>
+                          </Select.Item>
+                        ))}
+                        
+                        <Select.Item 
+                          value="upload_new"
+                          className="text-sm py-2 px-4 rounded-sm outline-none flex items-center cursor-default data-[highlighted]:bg-blue-100 data-[highlighted]:text-blue-900 dark:data-[highlighted]:bg-gray-700 border-t border-gray-200 dark:border-gray-700 mt-1 text-blue-600 dark:text-blue-400"
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            document.getElementById('resume-file-input')?.click();
+                          }}
+                        >
+                          <Select.ItemText>Upload New Resume</Select.ItemText>
+                        </Select.Item>
+                      </Select.Viewport>
+                      
+                      <Select.ScrollDownButton className="flex items-center justify-center h-6 bg-white dark:bg-gray-800 cursor-default">
+                        <ChevronDownIcon />
+                      </Select.ScrollDownButton>
+                    </Select.Content>
+                  </Select.Portal>
+                </Select.Root>
+                
+                {/* Hidden ResumeCreateButton */}
+                <div className="hidden">
+                  <ResumeCreateButton 
+                    onSuccess={handleResumeCreated}
+                    buttonText="Upload Resume"
+                  />
+                </div>
+                
+                {/* Custom file input that will be triggered when Upload New Resume is selected */}
+                <input
+                  id="resume-file-input"
+                  type="file"
+                  accept=".pdf"
+                  className="sr-only"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      // Trigger click on the actual ResumeCreateButton's file input
+                      const fileInput = document.querySelector('[data-testid="direct-resume-file-input"]') as HTMLInputElement;
+                      if (fileInput) {
+                        // Copy the selected file to the ResumeCreateButton's file input
+                        const dataTransfer = new DataTransfer();
+                        dataTransfer.items.add(e.target.files[0]);
+                        fileInput.files = dataTransfer.files;
+                        
+                        // Trigger change event on the file input
+                        const changeEvent = new Event('change', { bubbles: true });
+                        fileInput.dispatchEvent(changeEvent);
+                      }
+                      // Clear the value to allow selecting the same file again
+                      e.target.value = '';
+                    }
+                  }}
+                />
+              </>
             ) : (
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-500 dark:text-gray-400">No resumes available.</span>
-                <button 
-                  onClick={() => setShowResumeUploadModal(true)}
+                <ResumeCreateButton 
+                  onSuccess={handleResumeCreated}
                   className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
-                >
-                  Upload a resume
-                </button>
+                  buttonText="Upload a resume"
+                />
               </div>
             )}
             
@@ -295,25 +321,6 @@ export default function JobScanForm({
           </div>
         )}
       </div>
-      
-      {showResumeUploadModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-4">Upload New Resume</h3>
-            <ResumeCreateButton 
-              onSuccess={handleResumeCreated}
-              className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              buttonText="Upload Resume"
-            />
-            <button 
-              onClick={() => setShowResumeUploadModal(false)}
-              className="ml-2 inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 } 
