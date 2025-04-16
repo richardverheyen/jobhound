@@ -28,6 +28,9 @@ export async function GET(request: NextRequest) {
     
     if (user) {
       console.log('User:', JSON.stringify({user}));
+      console.log('providers:', JSON.stringify(user?.app_metadata.providers));
+      console.log('identities:', JSON.stringify(user?.identities));
+
       console.log('User metadata:', JSON.stringify(user.user_metadata))
       
       // Extract metadata from user object
@@ -117,35 +120,50 @@ export async function GET(request: NextRequest) {
       // Check if we have both job ID and resume ID from onboarding flow
       if (onboardingJobId && onboardingResumeId) {
         try {
-          // Trigger scan creation directly from API
-          const apiUrl = `${requestUrl.origin}/api/create-scan`;
-          console.log("Triggering automatic scan via API for job:", onboardingJobId, "and resume:", onboardingResumeId);
+          // Create scan directly using the Supabase RPC call to avoid redirect issues
+          console.log("Triggering automatic scan for job:", onboardingJobId, "and resume:", onboardingResumeId);
           
-          // Get a fresh access token for the API call
-          const { data: sessionData } = await supabase.auth.getSession();
-          
-          if (sessionData?.session?.access_token) {
-            // Call the API to create the scan
-            const scanResponse = await fetch(apiUrl, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${sessionData.session.access_token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                jobId: onboardingJobId,
-                resumeId: onboardingResumeId
-              })
-            });
+          // First get the resume filename
+          const { data: resumeData, error: resumeError } = await supabase
+            .from('resumes')
+            .select('filename')
+            .eq('id', onboardingResumeId)
+            .single();
             
-            if (scanResponse.ok) {
-              const scanResult = await scanResponse.json();
-              console.log("Automatic scan created successfully:", scanResult);
-            } else {
-              console.error("Failed to create automatic scan:", await scanResponse.text());
+          const resumeFilename = resumeData?.filename || 'resume';
+          
+          if (resumeError) {
+            console.error("Error fetching resume data:", resumeError);
+          }
+          
+          // Create scan via RPC
+          const { data: scanId, error: scanError } = await supabase.rpc(
+            'create_job_scan',
+            {
+              p_user_id: user.id,
+              p_job_id: onboardingJobId,
+              p_resume_id: onboardingResumeId,
+              p_resume_filename: resumeFilename
             }
-          } else {
-            console.error("No valid session found for creating scan");
+          );
+          
+          if (scanError) {
+            console.error("Error creating scan via RPC:", scanError);
+          } else if (scanId) {
+            console.log("Automatic scan created successfully with ID:", scanId);
+            
+            // Update scan status to trigger background processing
+            const { error: updateError } = await supabase
+              .from('job_scans')
+              .update({ status: 'pending' })
+              .eq('id', scanId)
+              .eq('user_id', user.id);
+              
+            if (updateError) {
+              console.error("Error updating scan status:", updateError);
+            } else {
+              console.log("Scan status updated to pending for background processing");
+            }
           }
         } catch (scanError) {
           console.error("Error triggering automatic scan:", scanError);
