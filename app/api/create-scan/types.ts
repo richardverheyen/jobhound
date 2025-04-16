@@ -72,10 +72,10 @@ export function calculateMatchScore(response: ResumeAnalysisResponse): number {
       // This is a skill field
       if (item.p === 'hardSkills') {
         matches.hardSkillsTotal++;
-        if (item.em || item.sm || item.rm) matches.hardSkills++;
+        if (item.em || item.sm) matches.hardSkills++; // Only count exact and synonym matches, not related term matches
       } else if (item.p === 'softSkills') {
         matches.softSkillsTotal++;
-        if (item.em || item.sm || item.rm) matches.softSkills++;
+        if (item.em || item.sm) matches.softSkills++; // Only count exact and synonym matches, not related term matches
       }
     } else if ('v' in item) {
       // This is a one-to-one field
