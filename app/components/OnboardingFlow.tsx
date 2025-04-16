@@ -216,6 +216,11 @@ export default function OnboardingFlow() {
       if (jobId) {
         localStorage.setItem("onboarding_job_id", jobId);
       }
+      
+      // Store the resume ID as well
+      if (resumeId) {
+        localStorage.setItem("onboarding_resume_id", resumeId);
+      }
 
       // Start the Google OAuth identity linking process
       // Use the linkIdentity method as per Supabase docs for anonymous sign-ins
@@ -223,6 +228,12 @@ export default function OnboardingFlow() {
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
+          // Ensure we request profile information
+          scopes: 'profile email',
+          queryParams: {
+            access_type: 'offline', // Get a refresh token too
+            prompt: 'consent'        // Always show consent screen to ensure we get all permissions
+          }
         },
       });
 
