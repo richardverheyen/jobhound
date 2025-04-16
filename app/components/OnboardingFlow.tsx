@@ -213,7 +213,7 @@ export default function OnboardingFlow() {
 
     try {
       // Create redirect URL with job and resume IDs as query parameters
-      const redirectUrl = `${window.location.origin}/auth/callback${jobId ? `?onboarding_job_id=${jobId}` : ''}${resumeId ? `${jobId ? '&' : '?'}onboarding_resume_id=${resumeId}` : ''}`;
+      const redirectUrl = `${window.location.origin}/auth/callback?onboarding_job_id=${jobId}&onboarding_resume_id=${resumeId}`;
       
       // Start the Google OAuth identity linking process
       // Use the linkIdentity method as per Supabase docs for anonymous sign-ins

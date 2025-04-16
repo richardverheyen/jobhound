@@ -114,8 +114,48 @@ export async function GET(request: NextRequest) {
         }
       }
       
-      // Redirect to the job page if we have an onboarding job ID
-      if (onboardingJobId) {
+      // Check if we have both job ID and resume ID from onboarding flow
+      if (onboardingJobId && onboardingResumeId) {
+        try {
+          // Trigger scan creation directly from API
+          const apiUrl = `${requestUrl.origin}/api/create-scan`;
+          console.log("Triggering automatic scan via API for job:", onboardingJobId, "and resume:", onboardingResumeId);
+          
+          // Get a fresh access token for the API call
+          const { data: sessionData } = await supabase.auth.getSession();
+          
+          if (sessionData?.session?.access_token) {
+            // Call the API to create the scan
+            const scanResponse = await fetch(apiUrl, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${sessionData.session.access_token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                jobId: onboardingJobId,
+                resumeId: onboardingResumeId
+              })
+            });
+            
+            if (scanResponse.ok) {
+              const scanResult = await scanResponse.json();
+              console.log("Automatic scan created successfully:", scanResult);
+            } else {
+              console.error("Failed to create automatic scan:", await scanResponse.text());
+            }
+          } else {
+            console.error("No valid session found for creating scan");
+          }
+        } catch (scanError) {
+          console.error("Error triggering automatic scan:", scanError);
+          // Continue with redirect even if scan creation fails
+        }
+        
+        // Redirect to the job page
+        return NextResponse.redirect(`${requestUrl.origin}/dashboard/jobs/${onboardingJobId}`);
+      } else if (onboardingJobId) {
+        // If we only have job ID but no resume ID, just redirect to the job page
         return NextResponse.redirect(`${requestUrl.origin}/dashboard/jobs/${onboardingJobId}`);
       } else {
         // Otherwise, look up the most recent job
