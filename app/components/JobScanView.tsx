@@ -64,7 +64,7 @@ const groupFieldsBySection = (results: any[], fieldDefinitions: any[]) => {
 const countPassedItems = (items: any[]) => {
   return items.filter(item => {
     if (item.p === 'hardSkills' || item.p === 'softSkills') {
-      return item.em || item.sm || item.rm;
+      return item.em || item.sm;
     }
     return item.v;
   }).length;
@@ -122,13 +122,13 @@ export default function JobScanView({ scan, defaultExpanded = false }: JobScanVi
     results.forEach(item => {
       if (item.p === 'hardSkills') {
         categories.hardSkills.total++;
-        if (item.em || item.sm || item.rm) {
+        if (item.em || item.sm) {
           categories.hardSkills.score++;
         }
       } 
       else if (item.p === 'softSkills') {
         categories.softSkills.total++;
-        if (item.em || item.sm || item.rm) {
+        if (item.em || item.sm) {
           categories.softSkills.score++;
         }
       }
@@ -542,7 +542,8 @@ export default function JobScanView({ scan, defaultExpanded = false }: JobScanVi
                       
                       {items.map((item, index) => {
                         const isSkill = item.p === 'hardSkills' || item.p === 'softSkills';
-                        const passed = isSkill ? (item.em || item.sm || item.rm) : item.v;
+                        const passed = isSkill ? (item.em || item.sm) : item.v;
+                        const hasRelatedMatch = isSkill && item.rm && !(item.em || item.sm);
                         const itemId = `${category}-${sectionName}-${index}`;
                         
                         return (
@@ -556,6 +557,10 @@ export default function JobScanView({ scan, defaultExpanded = false }: JobScanVi
                                 {passed ? (
                                   <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                ) : hasRelatedMatch ? (
+                                  <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14" />
                                   </svg>
                                 ) : (
                                   <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -623,8 +628,8 @@ export default function JobScanView({ scan, defaultExpanded = false }: JobScanVi
                                         <div className="flex items-center text-xs">
                                           <div className="mr-2">
                                             {item.rm ? (
-                                              <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                              <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14" />
                                               </svg>
                                             ) : (
                                               <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -633,6 +638,7 @@ export default function JobScanView({ scan, defaultExpanded = false }: JobScanVi
                                             )}
                                           </div>
                                           <span>Related Term Match</span>
+                                          <span className="ml-1 text-xs text-yellow-400">(Partial match)</span>
                                         </div>
                                       </div>
                                     )}

@@ -156,6 +156,7 @@ export default function JobCreateFormFast({
     if (!createdJobId) return;
 
     try {
+      // Add loading state if needed
       const { error } = await supabase
         .from("jobs")
         .delete()
@@ -166,8 +167,13 @@ export default function JobCreateFormFast({
       }
 
       setCreatedJobId(null);
+      // Deletion successful
+      return true;
     } catch (error) {
       console.error("Error deleting job:", error);
+      // Could add error message here if needed
+      // setError("Failed to delete job. Please try again.");
+      return false;
     }
   };
 
@@ -246,8 +252,16 @@ export default function JobCreateFormFast({
   };
 
   const handleBackToInput = async () => {
-    // Delete the created job
-    await deleteJob();
+    // Delete the created job and wait for completion
+    if (createdJobId) {
+      const deleted = await deleteJob();
+      
+      // If deletion failed, you could handle that here if needed
+      // if (!deleted) {
+      //   setError("Failed to delete job. Please try again.");
+      //   return;
+      // }
+    }
 
     // Reset form data
     setFormData({
@@ -266,6 +280,10 @@ export default function JobCreateFormFast({
       soft_skills: [],
       raw_job_text: "",
     });
+    
+    // Clear any previous text/error
+    setRawJobText("");
+    setError(null);
 
     // Go back to input step
     setStep("input");
