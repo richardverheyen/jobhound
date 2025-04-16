@@ -52,6 +52,28 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
     try {
       console.log("Processing pending scan for resume:", resumeId);
       
+      // Find the resume details
+      const selectedResume = resumes.find(resume => resume.id === resumeId);
+      if (!selectedResume) {
+        console.error("Resume not found:", resumeId);
+        return;
+      }
+      
+      // Create a pending scan object and add it to the list immediately
+      // so the user sees the loading state right away
+      const pendingScan: JobScan = {
+        id: `pending-${Date.now()}`, // Temporary ID
+        job_id: jobId,
+        resume_id: resumeId,
+        user_id: user?.id || '',
+        resume_filename: selectedResume.filename,
+        status: 'pending',
+        created_at: new Date().toISOString()
+      };
+      
+      // Add the pending scan to the local state
+      setScans(prevScans => [pendingScan, ...prevScans]);
+      
       // Use the createScan function from scanService to create the scan
       const result = await createScan({
         jobId: jobId,
@@ -60,16 +82,20 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
       
       if (result.success) {
         console.log("Successfully created scan with ID:", result.scanId);
-        // Refresh the data to show the new scan
+        // Refresh the data to show the updated scan status
         fetchData();
         // Remove the pendingScan parameter from URL to prevent repeated scans on refresh
         const newUrl = window.location.pathname;
         window.history.replaceState({}, '', newUrl);
       } else {
         console.error("Error creating scan:", result.error);
+        // Remove the pending scan if there was an error
+        setScans(prevScans => prevScans.filter(scan => scan.id !== pendingScan.id));
       }
     } catch (error) {
       console.error("Error processing pending scan:", error);
+      // Remove any temporary pending scans on error
+      setScans(prevScans => prevScans.filter(scan => !scan.id.toString().startsWith('pending-')));
     } finally {
       setIsProcessingPendingScan(false);
     }
