@@ -6,7 +6,7 @@ import { supabase } from '@/supabase/client';
 import { Navbar } from '@/app/components/Navbar';
 import { Job, JobScan, Resume } from '@/types';
 import { useRouter, useSearchParams } from 'next/navigation';
-import JobScanFormFast from '@/app/components/JobScanFormFast';
+import JobScanForm from '@/app/components/JobScanForm';
 import JobScansList from '@/app/components/JobScansList';
 import { createScan } from '@/app/lib/scanService';
 
