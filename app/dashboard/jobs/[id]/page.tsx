@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { supabase } from '@/supabase/client';
 import { Navbar } from '@/app/components/Navbar';
 import { Job, JobScan, Resume } from '@/types';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import CompareResumeToJob from '@/app/components/CompareResumeToJob';
 import JobScansList from '@/app/components/JobScansList';
+import { createScan } from '@/app/lib/scanService';
 
 interface JobDetailPageProps {
   params: {
@@ -17,11 +18,13 @@ interface JobDetailPageProps {
 
 export default function JobDetailPage({ params }: JobDetailPageProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const jobId = params.id;
   const [job, setJob] = useState<Job | null>(null);
   const [scans, setScans] = useState<JobScan[]>([]);
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [user, setUser] = useState<any>(null);
+  const [isProcessingPendingScan, setIsProcessingPendingScan] = useState(false);
 
   // Fetch user data
   useEffect(() => {
@@ -32,6 +35,45 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
     
     getUser();
   }, []);
+
+  // Check for pending scan from URL parameters
+  useEffect(() => {
+    const pendingScanResumeId = searchParams.get('pendingScan');
+    
+    if (pendingScanResumeId && job && !isProcessingPendingScan) {
+      handlePendingScan(pendingScanResumeId);
+    }
+  }, [searchParams, job, isProcessingPendingScan]);
+
+  // Function to handle pending scan from URL parameter
+  const handlePendingScan = async (resumeId: string) => {
+    setIsProcessingPendingScan(true);
+    
+    try {
+      console.log("Processing pending scan for resume:", resumeId);
+      
+      // Use the createScan function from scanService to create the scan
+      const result = await createScan({
+        jobId: jobId,
+        resumeId: resumeId
+      });
+      
+      if (result.success) {
+        console.log("Successfully created scan with ID:", result.scanId);
+        // Refresh the data to show the new scan
+        fetchData();
+        // Remove the pendingScan parameter from URL to prevent repeated scans on refresh
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      } else {
+        console.error("Error creating scan:", result.error);
+      }
+    } catch (error) {
+      console.error("Error processing pending scan:", error);
+    } finally {
+      setIsProcessingPendingScan(false);
+    }
+  };
 
   // Fetch job and scans data
   useEffect(() => {
