@@ -23,8 +23,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${requestUrl.origin}/auth/error?error=${encodeURIComponent(authError.message)}`)
     }
     
-    // Get the authenticated user
+    // Get the authenticated user and session token for later use
     const { data: { user } } = await supabase.auth.getUser()
+    const sessionToken = authData?.session?.access_token
     
     if (user) {
       console.log('User:', JSON.stringify({user}));
@@ -166,51 +167,62 @@ export async function GET(request: NextRequest) {
       // Check if we have both job ID and resume ID from onboarding flow
       if (onboardingJobId && onboardingResumeId) {
         try {
-          // Create scan directly using the Supabase RPC call to avoid redirect issues
+          // Create scan by calling the NextJS API route instead of direct RPC call
           console.log("Triggering automatic scan for job:", onboardingJobId, "and resume:", onboardingResumeId);
           
-          // First get the resume filename
-          const { data: resumeData, error: resumeError } = await supabase
-            .from('resumes')
-            .select('filename')
-            .eq('id', onboardingResumeId)
-            .single();
-            
-          const resumeFilename = resumeData?.filename || 'resume';
+          // Create request payload
+          const requestPayload = {
+            jobId: onboardingJobId,
+            resumeId: onboardingResumeId,
+          };
           
-          if (resumeError) {
-            console.error("Error fetching resume data:", resumeError);
-          }
-          
-          // Create scan via RPC
-          const { data: scanId, error: scanError } = await supabase.rpc(
-            'create_job_scan',
-            {
-              p_user_id: user.id,
-              p_job_id: onboardingJobId,
-              p_resume_id: onboardingResumeId,
-              p_resume_filename: resumeFilename
-            }
-          );
-          
-          if (scanError) {
-            console.error("Error creating scan via RPC:", scanError);
-          } else if (scanId) {
-            console.log("Automatic scan created successfully with ID:", scanId);
-            
-            // Update scan status to trigger background processing
-            const { error: updateError } = await supabase
-              .from('job_scans')
-              .update({ status: 'pending' })
-              .eq('id', scanId)
-              .eq('user_id', user.id);
+          // Function to call the API with retries
+          const callCreateScanApi = async (retries = 2) => {
+            try {
+              const response = await fetch(`${requestUrl.origin}/api/create-scan`, {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${sessionToken}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(requestPayload),
+              });
               
-            if (updateError) {
-              console.error("Error updating scan status:", updateError);
-            } else {
-              console.log("Scan status updated to pending for background processing");
+              if (!response.ok) {
+                console.error("API response not OK:", response.status, response.statusText);
+                let errorData;
+                try {
+                  errorData = await response.json();
+                  console.error("Error creating scan:", errorData.error);
+                } catch (jsonError) {
+                  console.error("Error parsing error response:", jsonError);
+                }
+                
+                // Retry if allowed
+                if (retries > 0) {
+                  console.log(`Retrying scan creation (${retries} attempts left)...`);
+                  return callCreateScanApi(retries - 1);
+                }
+                return null;
+              }
+              
+              const data = await response.json();
+              console.log("Automatic scan created successfully with ID:", data.scanId);
+              return data;
+            } catch (error) {
+              console.error("Error calling scan API:", error);
+              
+              // Retry if allowed
+              if (retries > 0) {
+                console.log(`Retrying scan creation (${retries} attempts left)...`);
+                return callCreateScanApi(retries - 1);
+              }
+              return null;
             }
-          }
+          };
+          
+          // Call the API with retries
+          await callCreateScanApi();
         } catch (scanError) {
           console.error("Error triggering automatic scan:", scanError);
           // Continue with redirect even if scan creation fails
