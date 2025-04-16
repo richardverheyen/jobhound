@@ -21,7 +21,7 @@ export default function JobScanForm({
   onScanComplete,
   user
 }: JobScanFormProps) {
-  const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
+  const [selectedResumeId, setSelectedResumeId] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showResumeUploadModal, setShowResumeUploadModal] = useState(false);
@@ -39,27 +39,40 @@ export default function JobScanForm({
         const userDefaultResume = resumes.find(r => r.id === user.default_resume_id);
         if (userDefaultResume) {
           setSelectedResumeId(userDefaultResume.id);
-        } else {
+        } else if (resumes[0]) {
           // Otherwise just use the first resume
           setSelectedResumeId(resumes[0].id);
         }
-      } else {
+      } else if (resumes[0]) {
         // Otherwise just use the first resume
         setSelectedResumeId(resumes[0].id);
       }
     }
   }, [resumes, user, selectedResumeId]);
   
-  // Effect to watch for "upload_new" selection and open modal immediately
+  // Effect to handle "upload_new" selection
   useEffect(() => {
     if (selectedResumeId === 'upload_new') {
       setShowResumeUploadModal(true);
-      setSelectedResumeId(null);
+      // Reset selection to previous value or undefined if no previous value
+      const defaultResume = resumes.find(r => r.is_default) || 
+                           (user?.default_resume_id ? resumes.find(r => r.id === user.default_resume_id) : null) ||
+                           resumes[0];
+      
+      setSelectedResumeId(defaultResume?.id);
     }
-  }, [selectedResumeId]);
+  }, [selectedResumeId, resumes, user]);
+  
+  const handleSelectChange = (value: string) => {
+    if (value === 'upload_new') {
+      setShowResumeUploadModal(true);
+      return;
+    }
+    setSelectedResumeId(value);
+  };
   
   const handleScan = async () => {
-    if (!selectedResumeId || selectedResumeId === 'upload_new') return;
+    if (!selectedResumeId) return;
     
     setIsLoading(true);
     setError(null);
@@ -169,6 +182,15 @@ export default function JobScanForm({
     }
   };
   
+  // Helper to get resume filename by id
+  const getResumeFilename = (resumeId: string) => {
+    const resume = resumes.find(r => r.id === resumeId);
+    if (resume) {
+      return resume.is_default ? `${resume.filename} (Default)` : resume.filename;
+    }
+    return 'Select a resume';
+  };
+  
   return (
     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
       <h2 className="text-xl font-semibold mb-4">Compare Resume to Job Listing</h2>
@@ -179,65 +201,73 @@ export default function JobScanForm({
             Select Resume
           </label>
           <div className="flex flex-wrap gap-2 items-center">
-            <Select.Root 
-              value={selectedResumeId || ''} 
-              onValueChange={(value) => setSelectedResumeId(value || null)}
-              disabled={isLoading}
-            >
-              <Select.Trigger 
-                className="inline-flex items-center justify-between w-full md:w-64 rounded px-3 py-2 text-sm gap-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                aria-label="Select a resume"
+            {resumes.length > 0 ? (
+              <Select.Root 
+                value={selectedResumeId}
+                onValueChange={handleSelectChange}
+                disabled={isLoading}
               >
-                <Select.Value placeholder="Select a resume" />
-                <Select.Icon>
-                  <ChevronDownIcon />
-                </Select.Icon>
-              </Select.Trigger>
-              
-              <Select.Portal>
-                <Select.Content 
-                  className="overflow-hidden bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50"
-                  position="popper"
-                  sideOffset={5}
+                <Select.Trigger 
+                  className="inline-flex items-center justify-between w-full md:w-64 rounded px-3 py-2 text-sm gap-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  aria-label="Select a resume"
                 >
-                  <Select.ScrollUpButton className="flex items-center justify-center h-6 bg-white dark:bg-gray-800 cursor-default">
-                    <ChevronUpIcon />
-                  </Select.ScrollUpButton>
-                  
-                  <Select.Viewport className="p-1">
-                    {resumes.length === 0 && (
-                      <Select.Item value="" disabled className="text-sm py-2 px-4 text-gray-500 outline-none">
-                        <Select.ItemText>No resumes available</Select.ItemText>
-                      </Select.Item>
-                    )}
-                    
-                    {resumes.map((resume) => (
-                      <Select.Item 
-                        key={resume.id} 
-                        value={resume.id}
-                        className="text-sm py-2 px-4 rounded-sm outline-none flex items-center cursor-default data-[highlighted]:bg-blue-100 data-[highlighted]:text-blue-900 dark:data-[highlighted]:bg-gray-700"
-                      >
-                        <Select.ItemText>
-                          {resume.filename}
-                          {resume.is_default ? ' (Default)' : ''}
-                        </Select.ItemText>
-                      </Select.Item>
-                    ))}
-                    
-                    <Select.Item 
-                      value="upload_new"
-                      className="text-sm py-2 px-4 rounded-sm outline-none flex items-center cursor-default data-[highlighted]:bg-blue-100 data-[highlighted]:text-blue-900 dark:data-[highlighted]:bg-gray-700 border-t border-gray-200 dark:border-gray-700 mt-1 text-blue-600 dark:text-blue-400"
-                    >
-                      <Select.ItemText>Upload New Resume</Select.ItemText>
-                    </Select.Item>
-                  </Select.Viewport>
-                  
-                  <Select.ScrollDownButton className="flex items-center justify-center h-6 bg-white dark:bg-gray-800 cursor-default">
+                  <Select.Value>
+                    {selectedResumeId ? getResumeFilename(selectedResumeId) : 'Select a resume'}
+                  </Select.Value>
+                  <Select.Icon>
                     <ChevronDownIcon />
-                  </Select.ScrollDownButton>
-                </Select.Content>
-              </Select.Portal>
-            </Select.Root>
+                  </Select.Icon>
+                </Select.Trigger>
+                
+                <Select.Portal>
+                  <Select.Content 
+                    className="overflow-hidden bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+                    position="popper"
+                    sideOffset={5}
+                  >
+                    <Select.ScrollUpButton className="flex items-center justify-center h-6 bg-white dark:bg-gray-800 cursor-default">
+                      <ChevronUpIcon />
+                    </Select.ScrollUpButton>
+                    
+                    <Select.Viewport className="p-1">
+                      {resumes.map((resume) => (
+                        <Select.Item 
+                          key={resume.id} 
+                          value={resume.id}
+                          className="text-sm py-2 px-4 rounded-sm outline-none flex items-center cursor-default data-[highlighted]:bg-blue-100 data-[highlighted]:text-blue-900 dark:data-[highlighted]:bg-gray-700"
+                        >
+                          <Select.ItemText>
+                            {resume.filename}
+                            {resume.is_default ? ' (Default)' : ''}
+                          </Select.ItemText>
+                        </Select.Item>
+                      ))}
+                      
+                      <Select.Item 
+                        value="upload_new"
+                        className="text-sm py-2 px-4 rounded-sm outline-none flex items-center cursor-default data-[highlighted]:bg-blue-100 data-[highlighted]:text-blue-900 dark:data-[highlighted]:bg-gray-700 border-t border-gray-200 dark:border-gray-700 mt-1 text-blue-600 dark:text-blue-400"
+                      >
+                        <Select.ItemText>Upload New Resume</Select.ItemText>
+                      </Select.Item>
+                    </Select.Viewport>
+                    
+                    <Select.ScrollDownButton className="flex items-center justify-center h-6 bg-white dark:bg-gray-800 cursor-default">
+                      <ChevronDownIcon />
+                    </Select.ScrollDownButton>
+                  </Select.Content>
+                </Select.Portal>
+              </Select.Root>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500 dark:text-gray-400">No resumes available.</span>
+                <button 
+                  onClick={() => setShowResumeUploadModal(true)}
+                  className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
+                >
+                  Upload a resume
+                </button>
+              </div>
+            )}
             
             <button
               onClick={handleScan}
