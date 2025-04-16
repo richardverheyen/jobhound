@@ -38,9 +38,53 @@ export async function GET(request: NextRequest) {
                         user.user_metadata?.name || 
                         user.user_metadata?.user_name || 
                         null;
-      let avatarUrl = user.user_metadata?.avatar_url || null;
+      let avatarUrl = user.user_metadata?.avatar_url || 
+                      user.user_metadata?.picture || 
+                      null;
       
-      // If we don't have the Google profile data in metadata yet, try updating the user
+      // If profile data not found in metadata, check identities array
+      if ((!displayName || !avatarUrl) && user.identities && user.identities.length > 0) {
+        // Find Google identity
+        const googleIdentity = user.identities.find(identity => identity.provider === 'google');
+        
+        if (googleIdentity && googleIdentity.identity_data) {
+          console.log('Found Google identity data:', googleIdentity.identity_data);
+          
+          // Extract data from identity
+          displayName = displayName || 
+                        googleIdentity.identity_data.full_name || 
+                        googleIdentity.identity_data.name || 
+                        null;
+          
+          avatarUrl = avatarUrl || 
+                      googleIdentity.identity_data.avatar_url || 
+                      googleIdentity.identity_data.picture || 
+                      null;
+          
+          // Update user metadata with this information
+          if (displayName || avatarUrl) {
+            try {
+              const updateData: Record<string, any> = {};
+              if (displayName) updateData.full_name = displayName;
+              if (avatarUrl) updateData.avatar_url = avatarUrl;
+              
+              const { error: updateError } = await supabase.auth.updateUser({
+                data: updateData
+              });
+              
+              if (updateError) {
+                console.error('Error updating user with identity data:', updateError);
+              } else {
+                console.log('Successfully updated user metadata with identity data');
+              }
+            } catch (err) {
+              console.error('Error in updating user with identity data:', err);
+            }
+          }
+        }
+      }
+      
+      // If we still don't have the Google profile data in metadata, try updating the user
       // This helps with identity linking where profile data might not be in metadata
       if (!displayName || !avatarUrl) {
         // First, try to update the user metadata to get all Google profile data
@@ -59,8 +103,10 @@ export async function GET(request: NextRequest) {
             displayName = updatedUser.user.user_metadata?.full_name || 
                          updatedUser.user.user_metadata?.name || 
                          updatedUser.user.user_metadata?.user_name || 
-                         null;
-            avatarUrl = updatedUser.user.user_metadata?.avatar_url || null;
+                         displayName;
+            avatarUrl = updatedUser.user.user_metadata?.avatar_url || 
+                        updatedUser.user.user_metadata?.picture || 
+                        avatarUrl;
           }
         } catch (err) {
           console.error('Error in metadata update process:', err)
