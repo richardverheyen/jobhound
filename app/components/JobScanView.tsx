@@ -7,6 +7,7 @@ import { fields } from '@/app/api/create-scan/v1-fields';
 
 interface JobScanViewProps {
   scan: JobScan;
+  defaultExpanded?: boolean;
 }
 
 interface CategoryScores {
@@ -69,65 +70,30 @@ const countPassedItems = (items: any[]) => {
   }).length;
 };
 
-export default function JobScanView({ scan }: JobScanViewProps) {
-  const [expanded, setExpanded] = useState(false);
+// Format date string for display
+const formatDate = (dateString?: string) => {
+  if (!dateString) return 'Unknown date';
+  return new Date(dateString).toLocaleDateString('en-US', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+// Helper function to determine color based on score
+const getRingColor = (score: number) => {
+  if (score >= 90) return '#10b981'; // green
+  if (score >= 50) return '#f59e0b'; // yellow
+  return '#ef4444'; // red
+};
+
+export default function JobScanView({ scan, defaultExpanded = false }: JobScanViewProps) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [groupedFields, setGroupedFields] = useState<Record<string, Record<string, any[]>> | null>(null);
   
-  useEffect(() => {
-    if (scan.status === 'completed' && scan.results && Array.isArray(scan.results)) {
-      setGroupedFields(groupFieldsBySection(scan.results, fields) as Record<string, Record<string, any[]>>);
-    }
-  }, [scan]);
-  
-  // If the scan isn't completed, don't render the detailed view
-  if (scan.status !== 'completed' || !scan.results) {
-    return (
-      <div className="p-4 text-center">
-        {scan.status === 'pending' && (
-          <div className="flex flex-col items-center justify-center py-6">
-            <svg className="animate-spin h-8 w-8 text-blue-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Analyzing your resume against this job...</p>
-          </div>
-        )}
-        
-        {scan.status === 'processing' && (
-          <div className="flex flex-col items-center justify-center py-6">
-            <svg className="animate-spin h-8 w-8 text-blue-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Processing results...</p>
-          </div>
-        )}
-        
-        {scan.status === 'error' && (
-          <div className="text-center py-6">
-            <svg className="h-8 w-8 text-red-500 mb-3 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-sm text-red-600 dark:text-red-400">
-              {scan.error_message || 'An error occurred during scan processing'}
-            </p>
-          </div>
-        )}
-      </div>
-    );
-  }
-  
-  if (!groupedFields) return null;
-  
-  // Toggle item expansion
-  const toggleItem = (itemId: string) => {
-    setExpandedItems(prev => ({
-      ...prev,
-      [itemId]: !prev[itemId]
-    }));
-  };
-
   // Calculate category scores from results
   const calculateCategoryScores = (): CategoryScores => {
     if (!scan.results) return {
@@ -214,28 +180,98 @@ export default function JobScanView({ scan }: JobScanViewProps) {
       }
     };
   };
+  
+  useEffect(() => {
+    if (scan.status === 'completed' && scan.results && Array.isArray(scan.results)) {
+      setGroupedFields(groupFieldsBySection(scan.results, fields) as Record<string, Record<string, any[]>>);
+    }
+  }, [scan]);
 
+  useEffect(() => {
+    // Set expanded state based on prop whenever it changes
+    setExpanded(defaultExpanded);
+  }, [defaultExpanded]);
+  
+  // Toggle item expansion
+  const toggleItem = (itemId: string) => {
+    setExpandedItems(prev => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }));
+  };
+
+  // Improved loading state display for pending/processing scans
+  if (scan.status === 'pending' || scan.status === 'processing') {
+    return (
+      <div className="p-4 bg-[#1e2837] text-white rounded-lg cursor-pointer hover:bg-[#2a3749] transition">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-md font-medium">{scan.resume_filename || 'Resume'}</h3>
+            <p className="text-xs text-gray-400 mt-1">{formatDate(scan.created_at)}</p>
+          </div>
+          
+          <div className="flex items-center">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center space-x-3">
+                <svg className="animate-spin h-6 w-6 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-sm text-blue-400">
+                  {scan.status === 'pending' ? 'Scan queued...' : 'Processing...'}
+                </span>
+              </div>
+              <span className="text-xs text-gray-400 mt-3">Your results will appear here shortly</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Error state display
+  if (scan.status === 'error') {
+    return (
+      <div className="p-4 bg-[#1e2837] text-white rounded-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-md font-medium">{scan.resume_filename || 'Resume'}</h3>
+            <p className="text-xs text-gray-400 mt-1">{formatDate(scan.created_at)}</p>
+          </div>
+          
+          <div className="flex items-center space-x-3">
+            <svg className="h-6 w-6 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-sm text-red-400">Error processing scan</span>
+          </div>
+        </div>
+        <p className="text-xs text-red-300 mt-2">{scan.error_message || 'An unknown error occurred'}</p>
+      </div>
+    );
+  }
+
+  // If somehow we don't have results even though status is completed
+  if (scan.status === 'completed' && (!scan.results || !groupedFields)) {
+    return (
+      <div className="p-4 bg-[#1e2837] text-white rounded-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-md font-medium">{scan.resume_filename || 'Resume'}</h3>
+            <p className="text-xs text-gray-400 mt-1">{formatDate(scan.created_at)}</p>
+          </div>
+          
+          <div className="flex items-center space-x-3">
+            <span className="text-sm text-yellow-400">Results unavailable</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate scores
   const scores = calculateCategoryScores();
   if (!scores) return null;
-
-  // Helper function to determine color based on score
-  const getRingColor = (score: number) => {
-    if (score >= 90) return '#10b981'; // green
-    if (score >= 50) return '#f59e0b'; // yellow
-    return '#ef4444'; // red
-  };
-
-  // Format date string for display
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Unknown date';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   // Collapsed view (summary card)
   if (!expanded) {
@@ -399,7 +435,7 @@ export default function JobScanView({ scan }: JobScanViewProps) {
       {/* Category sections */}
       <div className="p-4">
         {/* Render each category */}
-        {Object.entries(groupedFields).map(([category, sections]) => {
+        {groupedFields && Object.entries(groupedFields).map(([category, sections]) => {
           // Get category display name
           const categoryDisplayName = {
             searchability: 'Searchability',

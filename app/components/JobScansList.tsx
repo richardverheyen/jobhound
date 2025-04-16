@@ -21,12 +21,21 @@ export default function JobScansList({ scans, resumes }: JobScansListProps) {
     );
   }
   
+  // Auto-expand the scan if there's only one
+  const autoExpand = scans.length === 1;
+  
   return (
     <div className="bg-[#1e2837] text-white shadow rounded-lg">
       <h3 className="text-base font-medium p-6 pb-4">Previous Scans</h3>
       
       <div className="space-y-6">
-        {scans.map((scan) => <JobScanView scan={scan} />)}
+        {scans.map((scan) => (
+          <JobScanView 
+            key={scan.id} 
+            scan={scan} 
+            defaultExpanded={autoExpand}
+          />
+        ))}
       </div>
     </div>
   );
