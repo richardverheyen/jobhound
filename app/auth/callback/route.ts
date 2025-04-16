@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (user) {
-      console.log('User authenticated:', user.id)
+      console.log('User:', {user})
       console.log('User metadata:', JSON.stringify(user.user_metadata))
       
       // Extract metadata from user object
