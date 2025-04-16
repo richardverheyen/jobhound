@@ -52,7 +52,13 @@ export default function CompareResumeToJob({
         throw new Error(result.error || 'Failed to create scan. Please try again.');
       }
       
-      onScanComplete();
+      // If we have a pending scan, update the UI immediately
+      if (result.pendingScan) {
+        onScanComplete();
+      }
+      
+      // Start polling for updates
+      startPolling(result.scanId as string);
     } catch (error: any) {
       console.error('Scan error:', error);
       setError(error.message || 'Failed to create scan. Please try again.');
@@ -60,6 +66,60 @@ export default function CompareResumeToJob({
       setIsLoading(false);
     }
   };
+  
+  // Add a polling function to check scan status
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  
+  const startPolling = (scanId: string) => {
+    // Clear any existing polling
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+    }
+    
+    // Start a new polling interval
+    const interval = setInterval(async () => {
+      try {
+        const { data: scanData, error } = await supabase
+          .from('job_scans')
+          .select('*')
+          .eq('id', scanId)
+          .single();
+          
+        if (error) {
+          console.error('Error polling for scan status:', error);
+          clearInterval(interval);
+          return;
+        }
+        
+        if (scanData) {
+          // If the scan status has changed, update the UI
+          if (scanData.status === 'completed' || scanData.status === 'error') {
+            // Call onScanComplete to refresh the scan list
+            onScanComplete();
+            // Stop polling
+            clearInterval(interval);
+            setPollingInterval(null);
+          } else {
+            // For status 'processing', also update the UI
+            onScanComplete();
+          }
+        }
+      } catch (err) {
+        console.error('Error during polling:', err);
+      }
+    }, 2000); // Poll every 2 seconds
+    
+    setPollingInterval(interval);
+  };
+  
+  // Clean up polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [pollingInterval]);
   
   const handleResumeCreated = async (resumeId: string) => {
     // Select the newly created resume

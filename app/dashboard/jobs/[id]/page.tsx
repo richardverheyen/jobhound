@@ -201,16 +201,18 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
         setScans(scansData || []);
       }
       
-      // Fetch available resumes
-      const { data: resumesData, error: resumesError } = await supabase
-        .from('resumes')
-        .select('*')
-        .order('created_at', { ascending: false });
-        
-      if (resumesError) {
-        console.error('Error fetching resumes:', resumesError);
-      } else {
-        setResumes(resumesData || []);
+      // Fetch available resumes only if they haven't been loaded yet
+      if (resumes.length === 0) {
+        const { data: resumesData, error: resumesError } = await supabase
+          .from('resumes')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+        if (resumesError) {
+          console.error('Error fetching resumes:', resumesError);
+        } else {
+          setResumes(resumesData || []);
+        }
       }
     } catch (error) {
       console.error('Error in fetchData:', error);
@@ -280,8 +282,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Salary Range</p>
                         <p className="mt-1 text-sm text-gray-900 dark:text-white">
                           {job.salary_range_min !== undefined && job.salary_range_max !== undefined
-                            ? `${job.salary_currency ? job.salary_currency + ' ' : ''}${job.salary_range_min.toLocaleString()} - ${job.salary_currency ? job.salary_currency + ' ' : ''}${job.salary_range_max.toLocaleString()} ${job.salary_period ? `(${job.salary_period})` : ''}`
-                            : job.salary_range_min !== undefined
+                            ? `${job.salary_currency ? job.salary_currency + ' ' : ''}${job.salary_range_min.toLocaleString()} - ${job.salary_currency ? job.salary_currency + ' ' : ''}${job.salary_range_max.toLocaleString()} ${job.salary_period ? `(${job.salary_period})` : ''}`                            : job.salary_range_min !== undefined
                               ? `${job.salary_currency ? job.salary_currency + ' ' : ''}${job.salary_range_min.toLocaleString()} ${job.salary_period ? `(${job.salary_period})` : ''} minimum`
                               : job.salary_range_max !== undefined
                                 ? `${job.salary_currency ? job.salary_currency + ' ' : ''}${job.salary_range_max.toLocaleString()} ${job.salary_period ? `(${job.salary_period})` : ''} maximum`

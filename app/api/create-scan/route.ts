@@ -19,6 +19,7 @@ import {
 interface ScanRequest {
   jobId: string;
   resumeId: string;
+  scanId?: string;
 }
 
 // Define job data interface
@@ -73,6 +74,8 @@ export async function POST(req: NextRequest) {
     
     try {
       scanRequest = await req.json();
+      // Use the provided scanId if it exists
+      scanId = scanRequest.scanId || null;
     } catch (error) {
       return NextResponse.json(
         { error: 'Invalid JSON payload' },
@@ -186,7 +189,7 @@ export async function POST(req: NextRequest) {
       // Update existing scan
       const { error: updateError } = await supabase
         .from('job_scans')
-        .update({ status: 'pending' })
+        .update({ status: 'processing' })
         .eq('id', scanId)
         .eq('user_id', user.id);
       
