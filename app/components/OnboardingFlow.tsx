@@ -221,11 +221,12 @@ export default function OnboardingFlow() {
         provider: "google",
         options: {
           redirectTo: redirectUrl,
-          // Ensure we request profile information
-          scopes: 'profile email',
+          // Ensure we request profile information with all needed scopes
+          scopes: 'profile email openid',
           queryParams: {
             access_type: 'offline', // Get a refresh token too
-            prompt: 'consent'        // Always show consent screen to ensure we get all permissions
+            prompt: 'consent',      // Always show consent screen to ensure we get all permissions
+            include_granted_scopes: 'true' // Include any previously granted scopes
           }
         },
       });

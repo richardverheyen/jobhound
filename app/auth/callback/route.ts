@@ -27,12 +27,47 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (user) {
-      // Extract metadata from user object - ensure we get the Google profile data
-      const displayName = user.user_metadata?.full_name || user.user_metadata?.name || null;
-      const avatarUrl = user.user_metadata?.avatar_url || null;
+      console.log('User authenticated:', user.id)
+      console.log('User metadata:', JSON.stringify(user.user_metadata))
+      
+      // Extract metadata from user object
+      let displayName = user.user_metadata?.full_name || 
+                        user.user_metadata?.name || 
+                        user.user_metadata?.user_name || 
+                        null;
+      let avatarUrl = user.user_metadata?.avatar_url || null;
+      
+      // If we don't have the Google profile data in metadata yet, try updating the user
+      // This helps with identity linking where profile data might not be in metadata
+      if (!displayName || !avatarUrl) {
+        // First, try to update the user metadata to get all Google profile data
+        try {
+          const { data: updatedUser, error: updateError } = await supabase.auth.updateUser({
+            data: { 
+              requesting_google_data: true 
+            }
+          })
+          
+          if (updateError) {
+            console.error('Error updating user to refresh metadata:', updateError)
+          } else if (updatedUser) {
+            console.log('Updated user metadata:', JSON.stringify(updatedUser.user.user_metadata))
+            // Try to extract the data again after the update
+            displayName = updatedUser.user.user_metadata?.full_name || 
+                         updatedUser.user.user_metadata?.name || 
+                         updatedUser.user.user_metadata?.user_name || 
+                         null;
+            avatarUrl = updatedUser.user.user_metadata?.avatar_url || null;
+          }
+        } catch (err) {
+          console.error('Error in metadata update process:', err)
+        }
+      }
       
       if (!displayName || !avatarUrl) {
-        console.warn('Missing profile data from Google OAuth - displayName or avatarUrl not found in user metadata');
+        console.warn('Still missing profile data after trying to update - displayName or avatarUrl not found')
+      } else {
+        console.log('Successfully retrieved profile data:', { displayName, avatarUrl })
       }
       
       // Check if this user exists in the public.users table
