@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE,
   stripe_customer_id TEXT UNIQUE,
   default_resume_id UUID,
+  job_search_goal INT DEFAULT 5,
   is_anonymous BOOLEAN DEFAULT FALSE,
   anonymous_expires_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

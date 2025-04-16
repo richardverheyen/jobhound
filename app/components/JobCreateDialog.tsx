@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Cross2Icon } from '@radix-ui/react-icons';
-import JobCreateForm from './JobCreateForm';
+import JobCreateFormFast from './JobCreateFormFast';
 
 interface JobCreateDialogProps {
   isOpen: boolean;
@@ -41,7 +41,7 @@ export default function JobCreateDialog({
             </Dialog.Close>
           </div>
 
-          <JobCreateForm 
+          <JobCreateFormFast 
             onSuccess={onSuccess}
             navigateToJobOnSuccess={navigateToJobOnSuccess}
             onCancel={onClose}

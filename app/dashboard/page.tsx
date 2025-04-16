@@ -10,6 +10,7 @@ import ResumeViewDialog from '@/app/components/ResumeViewDialog';
 import JobsList from '@/app/components/JobsList';
 import ResumeViewDefault from '@/app/components/ResumeViewDefault';
 import BuyCreditsButton from '@/app/components/BuyCreditsButton';
+import JobScanGoal from '@/app/components/JobScanGoal';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -21,10 +22,8 @@ export default function DashboardPage() {
   const [resumeModalOpen, setResumeModalOpen] = useState<boolean>(false);
   const [displayName, setDisplayName] = useState<string>('');
   const [user, setUser] = useState<any>(null);
+  const [jobsFoundToday, setJobsFoundToday] = useState<number>(0);
 
-  const jobGoal = profileData?.job_search_goal || 5;
-  const jobsFound = jobs.length;
-  
   const printSession = async () => {
     let session = await getCurrentSession();
     console.log(session);
@@ -109,6 +108,17 @@ export default function DashboardPage() {
       
       setJobs(processedJobs);
     
+      // Calculate jobs found today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const jobsFoundToday = processedJobs.filter(job => {
+        const jobDate = new Date(job.created_at);
+        return jobDate >= today;
+      }).length;
+      
+      setJobsFoundToday(jobsFoundToday);
+      
       // Calculate total credits
       const { data: creditData } = await supabase
         .rpc('get_user_credit_summary', {
@@ -181,6 +191,17 @@ export default function DashboardPage() {
     }) || [];
     
     setJobs(processedJobs);
+    
+    // Calculate jobs found today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const jobsFoundToday = processedJobs.filter(job => {
+      const jobDate = new Date(job.created_at);
+      return jobDate >= today;
+    }).length;
+    
+    setJobsFoundToday(jobsFoundToday);
     
     // Calculate total credits
     const { data: creditData } = await supabase
@@ -274,43 +295,11 @@ export default function DashboardPage() {
             <div className="space-y-6">
 
               {/* Job Search Goal */}
-              <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-                <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Job Search Goal</h2>
-                
-                <div className="mb-4">
-                  <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                    <span>Progress: {jobsFound} of {jobGoal} jobs</span>
-                    <span>{Math.round((jobsFound / jobGoal) * 100)}%</span>
-                  </div>
-                  <div className="mt-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                    <div 
-                      className="bg-blue-600 h-2.5 rounded-full" 
-                      style={{ width: `${Math.min(100, Math.round((jobsFound / jobGoal) * 100))}%` }}
-                    ></div>
-                  </div>
-                </div>
-                
-                <form action="/api/user/update-goal" method="POST" className="flex items-center space-x-2 mb-4">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Adjust goal:</span>
-                  <input 
-                    type="number" 
-                    name="jobGoal" 
-                    min="1" 
-                    defaultValue={jobGoal}
-                    className="w-16 px-2 py-1 text-center border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                  <button 
-                    type="submit"
-                    className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-                  >
-                    Save
-                  </button>
-                </form>
-                
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Setting daily job search goals helps you stay organized and motivated. We recommend applying to 5-10 quality jobs per day.
-                </p>
-              </div>
+              <JobScanGoal 
+                user={user} 
+                jobsFoundToday={jobsFoundToday}
+                onGoalUpdated={refreshData}
+              />
 
               {/* Default Resume */}
               <ResumeViewDefault
