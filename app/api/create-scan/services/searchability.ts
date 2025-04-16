@@ -62,7 +62,7 @@ ${JSON.stringify(searchabilityFields, null, 2)}`;
       }
     ],
     generationConfig: {
-      temperature: 0.3,
+      temperature: 0.05,
       topP: 0.8,
       topK: 40,
       maxOutputTokens: 8000,
