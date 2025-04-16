@@ -212,22 +212,15 @@ export default function OnboardingFlow() {
     setError(null);
 
     try {
-      // Store the job ID in localStorage so we can access it after OAuth redirect
-      if (jobId) {
-        localStorage.setItem("onboarding_job_id", jobId);
-      }
+      // Create redirect URL with job and resume IDs as query parameters
+      const redirectUrl = `${window.location.origin}/auth/callback${jobId ? `?onboarding_job_id=${jobId}` : ''}${resumeId ? `${jobId ? '&' : '?'}onboarding_resume_id=${resumeId}` : ''}`;
       
-      // Store the resume ID as well
-      if (resumeId) {
-        localStorage.setItem("onboarding_resume_id", resumeId);
-      }
-
       // Start the Google OAuth identity linking process
       // Use the linkIdentity method as per Supabase docs for anonymous sign-ins
       const { data, error } = await supabase.auth.linkIdentity({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: redirectUrl,
           // Ensure we request profile information
           scopes: 'profile email',
           queryParams: {

@@ -7,6 +7,10 @@ export async function GET(request: NextRequest) {
   const code = requestUrl.searchParams.get('code')
   const type = requestUrl.searchParams.get('type') as EmailOtpType | null
   const next = requestUrl.searchParams.get('next') || '/dashboard'
+  
+  // Get onboarding job_id and resume_id from URL params if present
+  const onboardingJobId = requestUrl.searchParams.get('onboarding_job_id')
+  const onboardingResumeId = requestUrl.searchParams.get('onboarding_resume_id')
 
   if (code) {
     const supabase = await createClient()
@@ -23,19 +27,40 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (user) {
-      // Extract metadata from user object
+      // Extract metadata from user object - ensure we get the Google profile data
       const displayName = user.user_metadata?.full_name || user.user_metadata?.name || null;
       const avatarUrl = user.user_metadata?.avatar_url || null;
       
-      // Check if this user exists in the public.users table and update if needed
+      if (!displayName || !avatarUrl) {
+        console.warn('Missing profile data from Google OAuth - displayName or avatarUrl not found in user metadata');
+      }
+      
+      // Check if this user exists in the public.users table
       const { data: userData, error: userCheckError } = await supabase
         .from('users')
-        .select('is_anonymous')
+        .select('is_anonymous, display_name, avatar_url')
         .eq('id', user.id)
         .single();
       
-      if (!userCheckError && userData?.is_anonymous === true) {
-        // Update the user record to mark them as non-anonymous and save metadata
+      if (userCheckError && userCheckError.code === 'PGRST116') {
+        // User doesn't exist in the users table yet, so insert them
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: user.id,
+            email: user.email,
+            is_anonymous: false,
+            display_name: displayName,
+            avatar_url: avatarUrl
+          });
+          
+        if (insertError) {
+          console.error('Error creating user record:', insertError);
+        } else {
+          console.log('Successfully created user record with Google profile data:', user.id);
+        }
+      } else if (!userCheckError) {
+        // User exists, update their record with latest metadata from OAuth
         const { error: updateError } = await supabase
           .from('users')
           .update({
@@ -50,17 +75,13 @@ export async function GET(request: NextRequest) {
         if (updateError) {
           console.error('Error updating user after identity linking:', updateError);
         } else {
-          console.log('Successfully converted anonymous user to permanent user:', user.id);
+          console.log('Successfully updated user profile with Google data:', user.id);
         }
       }
       
-      // Check if this was an anonymous user conversion (from identity linking)
-      // by looking for a job they created during onboarding
-      const jobId = typeof window !== 'undefined' ? localStorage.getItem('onboarding_job_id') : null;
-      
-      if (jobId) {
-        // If we have a stored job ID from onboarding flow, redirect to that job
-        return NextResponse.redirect(`${requestUrl.origin}/dashboard/jobs/${jobId}`);
+      // Redirect to the job page if we have an onboarding job ID
+      if (onboardingJobId) {
+        return NextResponse.redirect(`${requestUrl.origin}/dashboard/jobs/${onboardingJobId}`);
       } else {
         // Otherwise, look up the most recent job
         const { data: recentJob, error: jobError } = await supabase

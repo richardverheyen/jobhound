@@ -17,6 +17,11 @@ export default function SignupPage() {
           redirectTo: process.env.NEXT_PUBLIC_SITE_URL 
             ? `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback` 
             : `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/auth/callback`,
+          scopes: 'profile email',
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent'
+          }
         },
       });
     } catch (error) {
