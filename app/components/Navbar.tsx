@@ -5,6 +5,8 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { supabase, signOut } from '@/supabase/client';
 import { useState, useEffect, useRef } from 'react';
+import { createClient } from '@/supabase/server';
+import { Button } from '@radix-ui/themes';
 
 export function Navbar({ user }: { user: any | null }) {
   const router = useRouter();
@@ -81,22 +83,18 @@ export function Navbar({ user }: { user: any | null }) {
               <div className="flex items-center space-x-4">
                 {/* Desktop User Menu */}
                 <div className="hidden md:block relative" ref={userMenuRef}>
-                  <button
+                  <Button
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                    className="flex items-center space-x-2 focus:outline-none"
+                    className="flex items-center space-x-2 py-2 px-3 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+                    aria-expanded={isUserMenuOpen}
+                    aria-haspopup="true"
                   >
-                    {user.user_metadata?.avatar_url ? (
+                    {user.user_metadata?.avatar_url && (
                       <img
                         src={user.user_metadata.avatar_url}
-                        alt={user.user_metadata?.full_name || 'User avatar'}
+                        alt="Profile"
                         className="h-8 w-8 rounded-full"
                       />
-                    ) : (
-                      <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
-                          {user.user_metadata?.full_name?.[0] || user.email?.[0] || '?'}
-                        </span>
-                      </div>
                     )}
                     <span className="text-sm text-gray-600 dark:text-gray-300">
                       {user.user_metadata?.full_name || user.email}
@@ -109,25 +107,25 @@ export function Navbar({ user }: { user: any | null }) {
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
-                  </button>
+                  </Button>
 
                   {isUserMenuOpen && (
                     <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
                       <div className="py-1" role="menu">
-                        <button
+                        <Button
                           onClick={handleSignOut}
                           className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                           role="menuitem"
                         >
                           Sign Out
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   )}
                 </div>
 
                 {/* Mobile Menu Button */}
-                <button
+                <Button
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                   className="md:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
                 >
@@ -143,7 +141,7 @@ export function Navbar({ user }: { user: any | null }) {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                     )}
                   </svg>
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="flex items-center space-x-2">
@@ -183,7 +181,7 @@ export function Navbar({ user }: { user: any | null }) {
               >
                 Resumes
               </Link>
-              <button
+              <Button
                 onClick={() => {
                   handleSignOut();
                   setIsMobileMenuOpen(false);
@@ -191,7 +189,7 @@ export function Navbar({ user }: { user: any | null }) {
                 className="w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-800"
               >
                 Sign Out
-              </button>
+              </Button>
             </div>
           </div>
         )}

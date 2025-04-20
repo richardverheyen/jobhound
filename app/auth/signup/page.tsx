@@ -2,7 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { createClient } from '@/supabase/server';
+import { useRouter } from 'next/navigation';
 import { signup } from '../login/actions';
+import { Button } from '@radix-ui/themes';
 import { supabase } from '@/supabase/client';
 
 export default function SignupPage() {
@@ -10,39 +13,24 @@ export default function SignupPage() {
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
-    try {
-      await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: process.env.NEXT_PUBLIC_SITE_URL 
-            ? `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback` 
-            : `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/auth/callback`,
-          scopes: 'profile email',
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent'
-          }
-        },
-      });
-    } catch (error) {
-      console.error('Error signing in with Google:', error);
-    } finally {
-      setIsLoading(false);
-    }
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`
+      }
+    });
   };
 
   return (
     <>
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Create your account
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">
-          Start tracking your job applications with JobHound
-        </p>
-      </div>
+      <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">
+        Create a new account
+      </h2>
+      <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+        Sign up to track your job applications
+      </p>
 
-      <form className="space-y-6" action={signup}>
+      <form className="mt-8 space-y-6" action={signup} method="post">
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Email address
@@ -51,9 +39,10 @@ export default function SignupPage() {
             id="email"
             name="email"
             type="email"
+            autoComplete="email"
             required
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            placeholder="you@example.com"
+            placeholder="name@example.com"
           />
         </div>
 
@@ -71,13 +60,13 @@ export default function SignupPage() {
           />
         </div>
 
-        <button
+        <Button
           type="submit"
           className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           disabled={isLoading}
         >
           {isLoading ? 'Creating account...' : 'Create account'}
-        </button>
+        </Button>
 
         <div className="text-center">
           <span className="text-sm text-gray-600 dark:text-gray-400">
@@ -102,7 +91,7 @@ export default function SignupPage() {
         </div>
 
         <div className="mt-6">
-          <button
+          <Button
             type="button"
             className="w-full flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             onClick={handleGoogleSignIn}
@@ -113,7 +102,7 @@ export default function SignupPage() {
               <path d="M12.545 10.239v3.821h5.445c-.712 2.315-2.647 3.972-5.445 3.972a6.033 6.033 0 110-12.064c1.498 0 2.866.549 3.921 1.453l2.814-2.814A9.969 9.969 0 0012.545 2C7.021 2 2.543 6.477 2.543 12s4.478 10 10.002 10c8.396 0 10.249-7.85 9.426-11.748l-9.426-.013z" />
             </svg>
             {isLoading ? 'Signing in...' : 'Sign in with Google'}
-          </button>
+          </Button>
         </div>
       </div>
     </>

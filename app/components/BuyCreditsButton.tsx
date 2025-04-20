@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { supabase } from '@/supabase/client';
 import { useRouter } from 'next/navigation';
 import type { User } from '@/types';
+import { Button } from '@radix-ui/themes';
 
 interface BuyCreditsButtonProps {
   userId?: string;
@@ -105,7 +106,7 @@ export default function BuyCreditsButton({
   };
   
   return (
-    <button 
+    <Button 
       onClick={handleClick}
       className={buttonClasses}
       disabled={isLoading}
@@ -138,6 +139,6 @@ export default function BuyCreditsButton({
       ) : (
         <span>{label}</span>
       )}
-    </button>
+    </Button>
   );
 } 

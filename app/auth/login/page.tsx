@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/supabase/client';
 import { login, signup } from './actions';
+import { Button } from '@radix-ui/themes';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -87,22 +88,22 @@ export default function LoginPage() {
         </div>
 
         <div className="flex gap-4">
-          <button
+          <Button
             type="submit"
             formAction={login}
             className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             disabled={isLoading}
           >
             Log in
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
             formAction={signup}
             className="flex-1 flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             disabled={isLoading}
           >
             Sign up
-          </button>
+          </Button>
         </div>
       </form>
 
@@ -119,7 +120,7 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-6">
-          <button
+          <Button
             type="button"
             className="w-full flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             onClick={handleGoogleSignIn}
@@ -130,7 +131,7 @@ export default function LoginPage() {
               <path d="M12.545 10.239v3.821h5.445c-.712 2.315-2.647 3.972-5.445 3.972a6.033 6.033 0 110-12.064c1.498 0 2.866.549 3.921 1.453l2.814-2.814A9.969 9.969 0 0012.545 2C7.021 2 2.543 6.477 2.543 12s4.478 10 10.002 10c8.396 0 10.249-7.85 9.426-11.748l-9.426-.013z" />
             </svg>
             {isLoading ? 'Signing in...' : 'Sign in with Google'}
-          </button>
+          </Button>
         </div>
       </div>
 

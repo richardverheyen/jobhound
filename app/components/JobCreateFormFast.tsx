@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/supabase/client";
 import { JobSummary } from "./JobSummary";
 import { Job } from "@/types";
+import { Button } from '@radix-ui/themes';
 
 // Define the job form data structure based on the database schema
 export interface JobFormData {
@@ -345,14 +346,13 @@ export default function JobCreateFormFast({
 
           {onCancel && (
             <div className="mt-4 flex justify-end">
-              <button
-                type="button"
+              <Button
                 onClick={onCancel}
                 disabled={isProcessingAI}
                 className="inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:text-sm"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -364,7 +364,7 @@ export default function JobCreateFormFast({
   return (
     <div className="relative">
       {/* Back button */}
-      <button
+      <Button
         onClick={handleBackToInput}
         className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 z-10"
         aria-label="Go back"
@@ -383,7 +383,7 @@ export default function JobCreateFormFast({
             d="M10 19l-7-7m0 0l7-7m-7 7h18"
           />
         </svg>
-      </button>
+      </Button>
 
       <JobSummary job={formData as Job} className="p-6" />
     </div>

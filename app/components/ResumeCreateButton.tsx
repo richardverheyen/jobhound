@@ -3,6 +3,7 @@
 import { useState, useRef, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/supabase/client';
+import { Button } from '@radix-ui/themes';
 
 interface ResumeCreateButtonProps {
   onSuccess?: (resumeId: string, signedUrl?: string) => void;
@@ -218,7 +219,7 @@ export default function ResumeCreateButton({
         aria-label="Upload resume file"
         data-testid="direct-resume-file-input"
       />
-      <button
+      <Button
         onClick={handleClick}
         disabled={loading}
         className={`${className} ${loading ? 'opacity-75 cursor-not-allowed' : ''}`}
@@ -240,7 +241,7 @@ export default function ResumeCreateButton({
             {buttonText}
           </>
         )}
-      </button>
+      </Button>
     </>
   );
 } 

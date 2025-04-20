@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
+import { Button } from '@radix-ui/themes';
 import { Cross2Icon } from '@radix-ui/react-icons';
 import JobCreateFormFast from './JobCreateFormFast';
 
@@ -32,12 +33,12 @@ export default function JobCreateDialog({
               Add New Job
             </Dialog.Title>
             <Dialog.Close asChild>
-              <button
+              <Button
                 className="rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
                 aria-label="Close"
               >
                 <Cross2Icon className="h-6 w-6" />
-              </button>
+              </Button>
             </Dialog.Close>
           </div>
 

@@ -7,6 +7,7 @@ import ResumeCreateButton from './ResumeCreateButton';
 import { createScan } from '@/app/lib/scanService';
 import * as Select from '@radix-ui/react-select';
 import { ChevronDownIcon, ChevronUpIcon } from '@radix-ui/react-icons';
+import { Button } from '@radix-ui/themes';
 
 interface JobScanFormProps {
   job: Job;
@@ -295,7 +296,7 @@ export default function JobScanForm({
               </div>
             )}
             
-            <button
+            <Button
               onClick={handleScan}
               disabled={!selectedResumeId || isLoading}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
@@ -311,7 +312,7 @@ export default function JobScanForm({
               ) : (
                 'Compare Resume to Job'
               )}
-            </button>
+            </Button>
           </div>
         </div>
         
