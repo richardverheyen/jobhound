@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/supabase/client';
 import { Job, Resume } from '@/types';
 import { createScan } from '@/app/lib/scanService';
-import { Button, Spinner } from '@radix-ui/themes';
+import { Button, Link, Spinner } from '@radix-ui/themes';
 
 interface JobScanButtonProps {
   job: Job;
@@ -112,15 +112,13 @@ export default function JobScanButton({
   }, [pollingInterval]);
 
   return (
-    <Button
-      size="2"
-      color="blue"
-      variant="solid"
+    <button
+      className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
       onClick={handleScan}
       disabled={loading}
     >
       {loading && <Spinner size="1" />}
       Scan with Default Resume
-    </Button>
+    </button>
   );
 } 
