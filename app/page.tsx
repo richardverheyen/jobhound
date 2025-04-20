@@ -74,10 +74,10 @@ export default async function Home() {
           <div className="mt-24 mb-16">
             <div className="text-center mb-10">
               <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white">
-                Try It Now - No Sign Up Required
+                Try it now for free
               </h2>
               <p className="mt-3 max-w-2xl mx-auto text-xl text-gray-500 dark:text-gray-400">
-                See how JobHound can improve your job application in just a few steps.
+                See how your Resume compares to a job listing in just a few steps.
               </p>
             </div>
             
