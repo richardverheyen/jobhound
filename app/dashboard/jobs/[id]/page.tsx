@@ -233,45 +233,48 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
       <Navbar user={user} />
       
       <main className="flex-grow flex flex-col px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">{job.title} at {job.company}</h1>
-          <div className="flex space-x-2">
-            <Link
-              href={`/dashboard/jobs/${job.id}/edit`}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
-            >
-              Edit Job
-            </Link>
-            <Link
-              href="/dashboard/jobs"
-              className="text-blue-600 hover:text-blue-500"
-            >
-              Back to Jobs
-            </Link>
-          </div>
-        </div>
+        <div className="space-y-6 flex flex-col flex-grow">
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-grow">
-          {/* Left column: Job details */}
-          <div className="md:overflow-y-auto md:pr-2 h-full">
-            <JobSummary job={job} />
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">{job.title} at {job.company}</h1>
+            <div className="flex space-x-2">
+              <Link
+                href={`/dashboard/jobs/${job.id}/edit`}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Edit Job
+              </Link>
+              <Link
+                href="/dashboard/jobs"
+                className="text-blue-600 hover:text-blue-500"
+              >
+                Back to Jobs
+              </Link>
+            </div>
           </div>
 
-          {/* Right column: Resume Analysis */}
-          <div className="space-y-6 md:overflow-y-auto md:pl-2 h-full">
-            {/* Resume Analysis Component */}
-            <JobScanForm 
-              job={job}
-              resumes={resumes}
-              onScanComplete={fetchData}
-              user={user}
-            />
-            
-            {/* Previous Scans List */}
-            <JobScansList 
-              scans={scans}
-              resumes={resumes}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-grow md:h-[calc(100vh-200px)] min-h-0">
+            {/* Left column: Job details */}
+            <div className="md:col-span-1 md:overflow-y-auto md:pr-2 flex flex-col">
+              <JobSummary job={job} className="p-6" />
+            </div>
+
+            {/* Right column: Resume Analysis */}
+            <div className="md:col-span-1 space-y-6 md:overflow-y-auto md:pl-2 flex flex-col">
+              {/* Resume Analysis Component */}
+              <JobScanForm 
+                job={job}
+                resumes={resumes}
+                onScanComplete={fetchData}
+                user={user}
+              />
+              
+              {/* Previous Scans List */}
+              <JobScansList 
+                scans={scans}
+                resumes={resumes}
+              />
+            </div>
           </div>
         </div>
       </main>

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/supabase/client";
 import { JobSummary } from "./JobSummary";
+import { Job } from "@/types";
 
 // Define the job form data structure based on the database schema
 export interface JobFormData {
@@ -365,7 +366,7 @@ export default function JobCreateFormFast({
       {/* Back button */}
       <button
         onClick={handleBackToInput}
-        className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+        className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 z-10"
         aria-label="Go back"
       >
         <svg
@@ -384,7 +385,7 @@ export default function JobCreateFormFast({
         </svg>
       </button>
 
-      <JobSummary job={formData} />
+      <JobSummary job={formData as Job} className="p-6" />
     </div>
   );
 }

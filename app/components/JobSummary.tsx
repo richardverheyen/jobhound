@@ -1,12 +1,13 @@
 import { Job } from '@/types';
 
 interface JobSummaryProps {
-  job: Omit<Job, 'id'> & { id?: string };
+  job: Job;
+  className?: string;
 }
 
-export const JobSummary = ({ job }: JobSummaryProps) => {
+export const JobSummary = ({ job, className = "" }: JobSummaryProps) => {
   return (
-    <div className="bg-white dark:bg-gray-800 shadow rounded-lg space-y-4">
+    <div className={`relative bg-white dark:bg-gray-800 shadow rounded-lg space-y-4 ${className}`}>
       {/* Title and important job details at the top */}
       <div>
         <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
@@ -87,11 +88,12 @@ export const JobSummary = ({ job }: JobSummaryProps) => {
             Requirements
           </h3>
           <ul className="mt-2 text-sm text-gray-900 dark:text-white list-disc pl-5 space-y-1">
-            {Array.isArray(job.requirements)
-              ? job.requirements.map((req, index) => (
-                  <li key={index}>{req}</li>
-                ))
-              : null}
+            {Array.isArray(job.requirements) ? 
+              job.requirements.map((req, index) => (
+                <li key={index}>{req}</li>
+              ))
+              : null
+            }
           </ul>
         </div>
       )}
@@ -102,11 +104,12 @@ export const JobSummary = ({ job }: JobSummaryProps) => {
             Benefits
           </h3>
           <ul className="mt-2 text-sm text-gray-900 dark:text-white list-disc pl-5 space-y-1">
-            {Array.isArray(job.benefits)
-              ? job.benefits.map((benefit, index) => (
-                  <li key={index}>{benefit}</li>
-                ))
-              : null}
+            {Array.isArray(job.benefits) ? 
+              job.benefits.map((benefit, index) => (
+                <li key={index}>{benefit}</li>
+              ))
+              : null
+            }
           </ul>
         </div>
       )}
@@ -117,16 +120,14 @@ export const JobSummary = ({ job }: JobSummaryProps) => {
             Hard Skills
           </h3>
           <div className="mt-2 flex flex-wrap gap-2">
-            {Array.isArray(job.hard_skills)
-              ? job.hard_skills.map((skill, index) => (
-                  <span
-                    key={index}
-                    className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-full"
-                  >
-                    {skill}
-                  </span>
-                ))
-              : null}
+            {Array.isArray(job.hard_skills) ? 
+              job.hard_skills.map((skill, index) => (
+                <span key={index} className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-full">
+                  {skill}
+                </span>
+              ))
+              : null
+            }
           </div>
         </div>
       )}
@@ -137,16 +138,14 @@ export const JobSummary = ({ job }: JobSummaryProps) => {
             Soft Skills
           </h3>
           <div className="mt-2 flex flex-wrap gap-2">
-            {Array.isArray(job.soft_skills)
-              ? job.soft_skills.map((skill, index) => (
-                  <span
-                    key={index}
-                    className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-full"
-                  >
-                    {skill}
-                  </span>
-                ))
-              : null}
+            {Array.isArray(job.soft_skills) ? 
+              job.soft_skills.map((skill, index) => (
+                <span key={index} className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-full">
+                  {skill}
+                </span>
+              ))
+              : null
+            }
           </div>
         </div>
       )}
