@@ -32,12 +32,6 @@ export default function JobScansList({ scans, resumes }: JobScansListProps) {
   return (
     <div className="bg-[#1e2837] text-white shadow rounded-lg">
       <h3 className="text-base font-medium p-6 pb-4">Previous Scans</h3>
-      <p className="text-sm text-gray-400 p-6 pb-4">Total Scans: {scans.length}</p>
-      
-      <p className="text-sm text-gray-400 p-6 pb-4">pendingScans Scans: {pendingScans.length}</p>
-      <p className="text-sm text-gray-400 p-6 pb-4">processingScans Scans: {processingScans.length}</p>
-      <p className="text-sm text-gray-400 p-6 pb-4">completedScans Scans: {completedScans.length}</p>
-
       <div className="space-y-6">
         {/* Pending Scans */}
         {pendingScans.map((scan) => (
