@@ -9,7 +9,7 @@ export default function AuthLayout({
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
       <header className="bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800">
-        <div className="relative container mx-auto px-4 py-3">
+        <div className="relative container mx-auto px-4 py-3 h-[60px]">
           <div className="flex items-center">
             <Link href="/" className="flex items-end space-x-2">
               <Image
