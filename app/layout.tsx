@@ -17,8 +17,8 @@ export const metadata: Metadata = {
   title: "JobHound - Track and Analyze Job Applications",
   description: "JobHound helps you track job listings, analyze your resume, and improve your job application success rate with AI-powered insights.",
   icons: {
-    icon: '/logo-favicon.png',
-    apple: '/logo-favicon.png',
+    icon: '/favicon.ico',
+    apple: '/favicon.ico',
   },
 };
 

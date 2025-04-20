@@ -6,10 +6,10 @@ import { supabase } from '@/supabase/client';
 import { Navbar } from '@/app/components/Navbar';
 import { Job, JobScan, Resume } from '@/types';
 import { useRouter, useSearchParams } from 'next/navigation';
-import JobScanForm from '@/app/components/JobScanForm';
 import JobScansList from '@/app/components/JobScansList';
 import { createScan } from '@/app/lib/scanService';
 import { JobSummary } from '@/app/components/JobSummary';
+import JobScanButton from '@/app/components/JobScanButton';
 
 interface JobDetailPageProps {
   params: {
@@ -238,6 +238,11 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">{job.title} at {job.company}</h1>
             <div className="flex space-x-2">
+              <JobScanButton 
+                job={job}
+                user={user}
+                onScanComplete={fetchData}
+              />
               <Link
                 href={`/dashboard/jobs/${job.id}/edit`}
                 className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
@@ -259,16 +264,8 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
               <JobSummary job={job} className="p-6" />
             </div>
 
-            {/* Right column: Resume Analysis */}
+            {/* Right column: Previous Scans */}
             <div className="md:col-span-1 space-y-6 md:overflow-y-auto flex flex-col pb-6">
-              {/* Resume Analysis Component */}
-              <JobScanForm 
-                job={job}
-                resumes={resumes}
-                onScanComplete={fetchData}
-                user={user}
-              />
-              
               {/* Previous Scans List */}
               <JobScansList 
                 scans={scans}
