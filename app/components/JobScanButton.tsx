@@ -2,19 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/supabase/client';
-import { Job, Resume } from '@/types';
+import { Job, User } from '@/types';
 import { createScan } from '@/app/lib/scanService';
 import { Spinner } from '@radix-ui/themes';
 
 interface JobScanButtonProps {
   job: Job;
-  resumes: Resume[];
+  user: User;
   onScanComplete?: () => void;
 }
 
 export default function JobScanButton({ 
   job, 
-  resumes,
+  user,
   onScanComplete 
 }: JobScanButtonProps) {
   const [loading, setLoading] = useState<boolean>(false);
@@ -22,10 +22,9 @@ export default function JobScanButton({
   
   const handleScan = async () => {
     console.log("handle scan pressed")
-    console.log("resumes", resumes);
-    const defaultResume = resumes.find((r: Resume) => r.is_default);
+    console.log("user", user);
 
-    if (!defaultResume) {
+    if (!user.default_resume_id) {
       setError('No default resume found. Please upload a resume first.');
       return;
     }
@@ -36,7 +35,7 @@ export default function JobScanButton({
     try {
       const result = await createScan({
         jobId: job.id,
-        resumeId: defaultResume.id
+        resumeId: user.default_resume_id
       });
       
       if (!result.success) {

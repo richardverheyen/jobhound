@@ -239,7 +239,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
             <h1 className="text-2xl font-bold mr-auto space-x-2">{job.title} at {job.company}</h1>
             <JobScanButton 
               job={job}
-              resumes={resumes}
+              user={user}
               onScanComplete={fetchData}
             />
             <Link
