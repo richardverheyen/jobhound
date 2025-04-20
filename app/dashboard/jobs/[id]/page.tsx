@@ -241,6 +241,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
             <JobScanButton 
               job={job}
               user={user}
+              resumes={resumes}
               onScanComplete={fetchData}
             />
             <Button

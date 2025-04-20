@@ -2,86 +2,40 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/supabase/client';
-import { Job } from '@/types';
+import { Job, Resume } from '@/types';
 import { createScan } from '@/app/lib/scanService';
 import { Button, Spinner } from '@radix-ui/themes';
 
 interface JobScanButtonProps {
   job: Job;
-  user: any;
+  resumes: Resume[];
   onScanComplete?: () => void;
 }
 
 export default function JobScanButton({ 
   job, 
-  user,
+  resumes,
   onScanComplete 
 }: JobScanButtonProps) {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [defaultResumeId, setDefaultResumeId] = useState<string | undefined>(undefined);
-  
-  // Fetch user's default resume on component mount
-  useEffect(() => {
-    const fetchDefaultResume = async () => {
-      try {
-        // First try to get resume marked as default
-        const { data: defaultResumes, error: defaultError } = await supabase
-          .from('resumes')
-          .select('id')
-          .eq('is_default', true)
-          .limit(1);
-        
-        if (!defaultError && defaultResumes && defaultResumes.length > 0) {
-          setDefaultResumeId(defaultResumes[0].id);
-          return;
-        }
-        
-        // If no resume is marked as default, try user's default_resume_id
-        if (user?.default_resume_id) {
-          const { data: userDefaultResume, error: userDefaultError } = await supabase
-            .from('resumes')
-            .select('id')
-            .eq('id', user.default_resume_id)
-            .limit(1);
-            
-          if (!userDefaultError && userDefaultResume && userDefaultResume.length > 0) {
-            setDefaultResumeId(userDefaultResume[0].id);
-            return;
-          }
-        }
-        
-        // Otherwise just use the most recently created resume
-        const { data: resumes, error: resumesError } = await supabase
-          .from('resumes')
-          .select('id')
-          .order('created_at', { ascending: false })
-          .limit(1);
-          
-        if (!resumesError && resumes && resumes.length > 0) {
-          setDefaultResumeId(resumes[0].id);
-        }
-      } catch (error) {
-        console.error('Error fetching default resume:', error);
-      }
-    };
-    
-    fetchDefaultResume();
-  }, [user]);
   
   const handleScan = async () => {
-    if (!defaultResumeId) {
-      alert('No resume found. Please upload a resume first.');
+
+    const defaultResume = resumes.find((r: Resume) => r.is_default);
+
+    if (!defaultResume) {
+      setError('No default resume found. Please upload a resume first.');
       return;
     }
-    
+
     setLoading(true);
     setError(null);
     
     try {
       const result = await createScan({
         jobId: job.id,
-        resumeId: defaultResumeId
+        resumeId: defaultResume.id
       });
       
       if (!result.success) {
@@ -163,7 +117,7 @@ export default function JobScanButton({
       color="blue"
       variant="solid"
       onClick={handleScan}
-      disabled={loading || !defaultResumeId}
+      disabled={loading}
     >
       {loading && <Spinner size="1" />}
       Scan with Default Resume
