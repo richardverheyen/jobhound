@@ -24,7 +24,7 @@ export default function JobCreateDialog({
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity z-40" />
+        <Dialog.Overlay className="fixed inset-0 bg-[#fefefe59] transition-background z-40" />
         <Dialog.Content 
           className="fixed z-50 w-full max-w-lg p-4 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 rounded-lg text-left shadow-xl transition-all overflow-y-auto max-h-[90vh]"
         >
