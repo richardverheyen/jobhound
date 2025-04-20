@@ -172,23 +172,6 @@ export async function GET(request: NextRequest) {
         
         // Redirect to the job page with pendingScan parameter
         return NextResponse.redirect(`${requestUrl.origin}/dashboard/jobs/${onboardingJobId}?pendingScan=${onboardingResumeId}`);
-      } else if (onboardingJobId) {
-        // If we only have job ID but no resume ID, just redirect to the job page
-        return NextResponse.redirect(`${requestUrl.origin}/dashboard/jobs/${onboardingJobId}`);
-      } else {
-        // Otherwise, look up the most recent job
-        const { data: recentJob, error: jobError } = await supabase
-          .from('jobs')
-          .select('id')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-        
-        if (recentJob && !jobError) {
-          // If we found a job, redirect the user to that job's details page
-          return NextResponse.redirect(`${requestUrl.origin}/dashboard/jobs/${recentJob.id}`);
-        }
       }
     }
   }
