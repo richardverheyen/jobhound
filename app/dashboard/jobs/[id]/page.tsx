@@ -232,7 +232,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
       <Navbar user={user} />
       
-      <main className="flex-grow flex flex-col px-4 py-8">
+      <main className="flex-grow flex flex-col px-4 pt-8">
         <div className="space-y-6 flex flex-col flex-grow">
 
           <div className="flex justify-between items-center">
@@ -253,14 +253,14 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-grow md:h-[calc(100vh-200px)] min-h-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 flex-grow md:h-[calc(100vh-200px)] min-h-0">
             {/* Left column: Job details */}
-            <div className="md:col-span-1 md:overflow-y-auto md:pr-2 flex flex-col">
+            <div className="md:col-span-1 md:overflow-y-auto flex flex-col">
               <JobSummary job={job} className="p-6" />
             </div>
 
             {/* Right column: Resume Analysis */}
-            <div className="md:col-span-1 space-y-6 md:overflow-y-auto md:pl-2 flex flex-col">
+            <div className="md:col-span-1 space-y-6 md:overflow-y-auto flex flex-col">
               {/* Resume Analysis Component */}
               <JobScanForm 
                 job={job}
