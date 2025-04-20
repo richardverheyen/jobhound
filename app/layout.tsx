@@ -16,6 +16,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "JobHound - Track and Analyze Job Applications",
   description: "JobHound helps you track job listings, analyze your resume, and improve your job application success rate with AI-powered insights.",
+  icons: {
+    icon: '/logo-favicon.png',
+    apple: '/logo-favicon.png',
+  },
 };
 
 export default function RootLayout({
@@ -25,7 +29,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-        
+      <head>
+        <link rel="icon" href="/logo-favicon.png" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900`}
       >

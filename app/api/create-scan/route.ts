@@ -90,6 +90,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Check for available credits if a new scan is being created
+    if (!scanId) {
+      const { data: creditsAvailable, error: creditsError } = await supabase.rpc(
+        'get_available_credits',
+        { p_user_id: user.id }
+      );
+      
+      if (creditsError) {
+        console.error('Error checking available credits:', creditsError);
+        return NextResponse.json(
+          { error: 'Failed to check available credits' },
+          { status: 500 }
+        );
+      }
+      
+      if (!creditsAvailable || creditsAvailable <= 0) {
+        return NextResponse.json(
+          { error: 'Insufficient credits. Please purchase more credits to continue.' },
+          { status: 402 }
+        );
+      }
+    }
+
     // Fetch job and resume data in parallel
     const [jobResult, resumeResult] = await Promise.all([
       supabase
@@ -154,7 +177,7 @@ export async function POST(req: NextRequest) {
 
     // Create or update scan record
     if (!scanId) {
-      // Create a new scan record
+      // Create a new scan record using the RPC function that handles credit usage
       try {
         const { data: createScanData, error: createScanError } = await supabase.rpc(
           'create_job_scan',
@@ -261,44 +284,35 @@ export async function POST(req: NextRequest) {
       // Calculate match score
       const matchScore = calculateMatchScore(analysisResult);
       
-      // Update database with scan results and credit usage in parallel
-      const [scanUpdateResult, creditUsageData] = await Promise.all([
-        // Update the scan record with the analysis results
-        supabase
-          .from('job_scans')
-          .update({
-            status: 'completed',
-            results: analysisResult,
-            match_score: matchScore
-          })
-          .eq('id', scanId),
-          
-        // Get credit usage record
-        supabase
-          .from('credit_usage')
-          .select('id')
-          .eq('scan_id', scanId)
-          .single()
-      ]);
-
-      if (scanUpdateResult.error) {
-        console.error('Error updating scan record:', scanUpdateResult.error);
+      // Update the scan record with the analysis results
+      const { error: scanUpdateError } = await supabase
+        .from('job_scans')
+        .update({
+          status: 'completed',
+          results: analysisResult,
+          match_score: matchScore
+        })
+        .eq('id', scanId);
+        
+      if (scanUpdateError) {
+        console.error('Error updating scan record:', scanUpdateError);
         return NextResponse.json(
           { error: 'Failed to update scan record', scanId },
           { status: 500 }
         );
       }
 
-      // Update credit usage if record exists
-      if (!creditUsageData.error && creditUsageData.data) {
-        await supabase
-          .from('credit_usage')
-          .update({
-            response_payload: analysisResult,
-            http_status: 200,
-            created_at: new Date().toISOString()
-          })
-          .eq('id', creditUsageData.data.id);
+      // Update the credit_usage record with HTTP status
+      const { error: creditUpdateError } = await supabase
+        .from('credit_usage')
+        .update({
+          http_status: 200
+        })
+        .eq('scan_id', scanId);
+        
+      if (creditUpdateError) {
+        console.error('Warning: Failed to update credit usage record:', creditUpdateError);
+        // Continue anyway as this is not critical
       }
 
       // Return success response
@@ -321,6 +335,14 @@ export async function POST(req: NextRequest) {
           error_message: error?.message || 'AI processing error'
         })
         .eq('id', scanId);
+        
+      // Update the credit_usage record with error status
+      await supabase
+        .from('credit_usage')
+        .update({
+          http_status: 500
+        })
+        .eq('scan_id', scanId);
         
       return NextResponse.json({ 
         error: 'Error processing AI request', 
