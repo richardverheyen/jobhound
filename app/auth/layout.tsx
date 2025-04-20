@@ -8,11 +8,20 @@ export default function AuthLayout({
 }) {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
-      <header className="py-6 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
-          <Link href="/" className="flex items-center">
-            <span className="text-xl font-bold text-gray-900 dark:text-white">JobHound</span>
-          </Link>
+      <header className="bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800">
+        <div className="relative container mx-auto px-4 py-3">
+          <div className="flex items-center">
+            <Link href="/" className="flex items-end space-x-2">
+              <Image
+                src="/logo.png"
+                alt="JobHound Logo"
+                className="h-14 w-auto bottom-0 absolute"
+              />
+              <span className="text-xl pl-12 font-bold text-gray-900 dark:text-white">
+                JobHound
+              </span>
+            </Link>
+          </div>
         </div>
       </header>
       
