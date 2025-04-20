@@ -2,8 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/supabase/server';
-import { useRouter } from 'next/navigation';
 import { signup } from '../login/actions';
 import { Button } from '@radix-ui/themes';
 import { supabase } from '@/supabase/client';

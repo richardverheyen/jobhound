@@ -3,9 +3,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { supabase, signOut } from '@/supabase/client';
+import { signOut } from '@/supabase/client';
 import { useState, useEffect, useRef } from 'react';
-import { createClient } from '@/supabase/server';
 import { Button } from '@radix-ui/themes';
 
 export function Navbar({ user }: { user: any | null }) {
