@@ -9,7 +9,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import JobScansList from '@/app/components/JobScansList';
 import { createScan } from '@/app/lib/scanService';
 import { JobSummary } from '@/app/components/JobSummary';
-import JobScanButton from '@/app/components/JobScanButton';
+// import JobScanButton from '@/app/components/JobScanButton';
+import JobScanForm from '@/app/components/JobScanForm';
 
 interface JobDetailPageProps {
   params: {
@@ -237,11 +238,11 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
 
           <div className="flex justify-between items-center space-x-2">
             <h1 className="text-2xl font-bold mr-auto space-x-2">{job.title} at {job.company}</h1>
-            <JobScanButton 
+            {/* <JobScanButton 
               job={job}
               user={user}
               onScanComplete={fetchData}
-            />
+            /> */}
             <Link
               href="/dashboard/jobs"
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-transparent"
@@ -258,6 +259,14 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
 
             {/* Right column: Previous Scans */}
             <div className="md:col-span-1 space-y-6 md:overflow-y-auto flex flex-col pb-6">
+
+              <JobScanForm
+                job={job}
+                user={user}
+                resumes={resumes}
+                onScanComplete={fetchData}
+              />
+              
               {/* Previous Scans List */}
               <JobScansList 
                 scans={scans}

@@ -17,6 +17,7 @@ export async function createScan({
   error?: string;
   pendingScan?: JobScan;
 }> {
+  console.log("createScan called with jobId:", jobId, "and resumeId:", resumeId);
   try {
     // Get the authenticated user
     const { data: authData } = await supabase.auth.getSession();
