@@ -21,7 +21,8 @@ export default function JobScanButton({
   const [error, setError] = useState<string | null>(null);
   
   const handleScan = async () => {
-
+    console.log("handle scan pressed")
+    console.log("resumes", resumes);
     const defaultResume = resumes.find((r: Resume) => r.is_default);
 
     if (!defaultResume) {
