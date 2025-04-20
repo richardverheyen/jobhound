@@ -159,11 +159,13 @@ export default function JobScanButton({
 
   return (
     <Button
+      size="2"
+      color="blue"
       variant="solid"
       onClick={handleScan}
       disabled={loading || !defaultResumeId}
     >
-      <Spinner loading />
+      {loading && <Spinner size="1" />}
       Scan with Default Resume
     </Button>
   );
