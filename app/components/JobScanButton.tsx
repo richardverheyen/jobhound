@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/supabase/client';
 import { Job, Resume } from '@/types';
 import { createScan } from '@/app/lib/scanService';
-import { Button, Link, Spinner } from '@radix-ui/themes';
+import { Spinner } from '@radix-ui/themes';
 
 interface JobScanButtonProps {
   job: Job;

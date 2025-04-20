@@ -10,7 +10,6 @@ import JobScansList from '@/app/components/JobScansList';
 import { createScan } from '@/app/lib/scanService';
 import { JobSummary } from '@/app/components/JobSummary';
 import JobScanButton from '@/app/components/JobScanButton';
-import { Button } from '@radix-ui/themes';
 
 interface JobDetailPageProps {
   params: {
@@ -240,17 +239,15 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
             <h1 className="text-2xl font-bold mr-auto space-x-2">{job.title} at {job.company}</h1>
             <JobScanButton 
               job={job}
-              user={user}
               resumes={resumes}
               onScanComplete={fetchData}
             />
-            <Button
-              onClick={() => router.push('/dashboard/jobs')}
-              variant="ghost"
-              className="text-blue-600 hover:text-blue-500"
+            <Link
+              href="/dashboard/jobs"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-transparent"
             >
               Back to Jobs
-            </Button>
+            </Link>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 flex-grow md:h-[calc(100vh-200px)] min-h-0">
