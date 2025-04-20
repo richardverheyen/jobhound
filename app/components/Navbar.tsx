@@ -46,18 +46,16 @@ export function Navbar({ user }: { user: any | null }) {
 
   return (
     <header className="bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800">
-      <div className="container mx-auto px-4 py-3">
+      <div className="relative container mx-auto px-4 py-3">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-4">
             <Link href="/" className="flex items-end space-x-2">
               <Image
                 src="/logo.png"
                 alt="JobHound Logo"
-                width={32}
-                height={32}
-                className="h-8 w-auto"
+                className="h-16 w-auto bottom-0 absolute"
               />
-              <span className="text-xl font-bold text-gray-900 dark:text-white">
+              <span className="text-xl pl-12 font-bold text-gray-900 dark:text-white">
                 JobHound
               </span>
             </Link>
