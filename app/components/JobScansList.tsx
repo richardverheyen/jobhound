@@ -32,7 +32,12 @@ export default function JobScansList({ scans, resumes }: JobScansListProps) {
   return (
     <div className="bg-[#1e2837] text-white shadow rounded-lg">
       <h3 className="text-base font-medium p-6 pb-4">Previous Scans</h3>
+      <p className="text-sm text-gray-400 p-6 pb-4">Total Scans: {scans.length}</p>
       
+      <p className="text-sm text-gray-400 p-6 pb-4">pendingScans Scans: {pendingScans.length}</p>
+      <p className="text-sm text-gray-400 p-6 pb-4">processingScans Scans: {processingScans.length}</p>
+      <p className="text-sm text-gray-400 p-6 pb-4">completedScans Scans: {completedScans.length}</p>
+
       <div className="space-y-6">
         {/* Pending Scans */}
         {pendingScans.map((scan) => (
@@ -59,12 +64,12 @@ export default function JobScansList({ scans, resumes }: JobScansListProps) {
               <div>
                 <span className="text-sm font-medium">{scan.resume_filename}</span>
                 <div className="mt-1 flex items-center">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>
+                  <div className="w-2 h-2 bg-blue-400 mr-2"></div>
                   <span className="text-xs text-gray-400">Processing</span>
                 </div>
               </div>
               <div className="flex-shrink-0">
-                <div className="animate-spin h-5 w-5 border-2 border-blue-500 rounded-full border-t-transparent"></div>
+                <div className="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
               </div>
             </div>
           </div>

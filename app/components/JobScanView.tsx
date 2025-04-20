@@ -277,7 +277,7 @@ export default function JobScanView({ scan, defaultExpanded = false }: JobScanVi
   if (!expanded) {
     return (
       <div 
-        className="p-4 bg-[#1e2837] text-white rounded-lg cursor-pointer hover:bg-[#2a3749] transition"
+        className="p-4 bg-[#1e2837] text-white cursor-pointer hover:bg-[#2a3749] transition"
         onClick={() => setExpanded(true)}
       >
         <div className="flex items-center justify-between">
