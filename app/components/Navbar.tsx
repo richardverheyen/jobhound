@@ -53,9 +53,8 @@ export function Navbar({ user }: { user: any | null }) {
               <Image
                 src="/logo.png"
                 alt="JobHound Logo"
-                className="h-14 w-auto bottom-0 absolute"
-                width={56}
-                height={56}
+                className="h-12 w-auto bottom-0 absolute"
+                height={48}
               />
               <span className="text-xl pl-12 font-bold text-gray-900 dark:text-white">
                 JobHound
