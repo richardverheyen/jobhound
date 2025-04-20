@@ -235,27 +235,19 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
       <main className="flex-grow flex flex-col px-4 pt-8">
         <div className="space-y-6 flex flex-col flex-grow">
 
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">{job.title} at {job.company}</h1>
-            <div className="flex space-x-2">
-              <JobScanButton 
-                job={job}
-                user={user}
-                onScanComplete={fetchData}
-              />
-              <Link
-                href={`/dashboard/jobs/${job.id}/edit`}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
-              >
-                Edit Job
-              </Link>
-              <Link
-                href="/dashboard/jobs"
-                className="text-blue-600 hover:text-blue-500"
-              >
-                Back to Jobs
-              </Link>
-            </div>
+          <div className="flex justify-between items-center space-x-2">
+            <h1 className="text-2xl font-bold mr-auto">{job.title} at {job.company}</h1>
+            <JobScanButton 
+              job={job}
+              user={user}
+              onScanComplete={fetchData}
+            />
+            <Link
+              href="/dashboard/jobs"
+              className="text-blue-600 hover:text-blue-500"
+            >
+              Back to Jobs
+            </Link>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 flex-grow md:h-[calc(100vh-200px)] min-h-0">
