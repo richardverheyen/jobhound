@@ -159,6 +159,7 @@ export default function JobScanButton({
 
   return (
     <Button
+      variant="solid"
       onClick={handleScan}
       disabled={loading || !defaultResumeId}
     >

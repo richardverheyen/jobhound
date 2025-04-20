@@ -237,7 +237,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
         <div className="space-y-6 flex flex-col flex-grow">
 
           <div className="flex justify-between items-center space-x-2">
-            <h1 className="text-2xl font-bold mr-auto">{job.title} at {job.company}</h1>
+            <h1 className="text-2xl font-bold mr-auto space-x-2">{job.title} at {job.company}</h1>
             <JobScanButton 
               job={job}
               user={user}
