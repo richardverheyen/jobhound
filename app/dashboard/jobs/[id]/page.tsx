@@ -255,12 +255,12 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 flex-grow md:h-[calc(100vh-200px)] min-h-0">
             {/* Left column: Job details */}
-            <div className="md:col-span-1 md:overflow-y-auto flex flex-col">
+            <div className="md:col-span-1 md:overflow-y-auto flex flex-col pb-6">
               <JobSummary job={job} className="p-6" />
             </div>
 
             {/* Right column: Resume Analysis */}
-            <div className="md:col-span-1 space-y-6 md:overflow-y-auto flex flex-col">
+            <div className="md:col-span-1 space-y-6 md:overflow-y-auto flex flex-col pb-6">
               {/* Resume Analysis Component */}
               <JobScanForm 
                 job={job}

@@ -36,7 +36,7 @@ export default function JobScansList({ scans, resumes }: JobScansListProps) {
       <div className="space-y-6">
         {/* Pending Scans */}
         {pendingScans.map((scan) => (
-          <div key={scan.id} className="border border-gray-700 rounded-md mx-6 mb-6 p-4">
+          <div key={scan.id} className="border border-gray-700 mx-6 mb-6 p-4">
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-sm font-medium">{scan.resume_filename}</span>
@@ -54,7 +54,7 @@ export default function JobScansList({ scans, resumes }: JobScansListProps) {
         
         {/* Processing Scans */}
         {processingScans.map((scan) => (
-          <div key={scan.id} className="border border-gray-700 rounded-md mx-6 mb-6 p-4">
+          <div key={scan.id} className="border border-gray-700 mx-6 mb-6 p-4">
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-sm font-medium">{scan.resume_filename}</span>
