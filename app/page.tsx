@@ -16,7 +16,7 @@ export default async function Home() {
               <span className="block text-blue-600">Track and optimize your job hunt</span>
             </h1>
             <p className="mt-3 max-w-md mx-auto text-base text-gray-500 dark:text-gray-400 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
-              JobHound helps you track job applications, analyze your resume match, and improve your chances of landing your dream job.
+              JobHound helps you manage your job search and optimise your resume for Application Tracking Systems before you apply.
             </p>
             <div className="mt-8 flex justify-center">
               <div className="rounded-md shadow">
