@@ -39,11 +39,11 @@ export async function updateSession(request: NextRequest) {
   const isRootRoute = request.nextUrl.pathname === '/';
   
   // Not logged in users redirected to login except for root and auth routes
-  if (!user && !isRootRoute && !isAuthRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    return NextResponse.redirect(url);
-  }
+  // if (!user && !isRootRoute && !isAuthRoute) {
+  //   const url = request.nextUrl.clone();
+  //   url.pathname = '/login';
+  //   return NextResponse.redirect(url);
+  // }
 
   // Only check anonymous status for dashboard routes (not for root or auth routes)
   if (user && isDashboardRoute) {
